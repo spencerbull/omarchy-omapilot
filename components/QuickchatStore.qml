@@ -21,6 +21,10 @@ Scope {
     return url
   }
   readonly property string brokerPath: Quickshell.env("QUICKCHAT_BROKER_PATH") || bundledBrokerPath
+  readonly property string builtinAuthDirectory: {
+    var configHome = Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
+    return configHome + "/omapilot"
+  }
 
   property string state: "preparing"
   property string statusMessage: "Starting OmaPilot…"
@@ -407,6 +411,19 @@ Scope {
     } else broker.running = true
   }
 
+  function authenticateBuiltIn() {
+    if (provider !== "builtin") return
+    try {
+      Quickshell.execDetached([
+        "omarchy", "launch", "terminal", "env",
+        "PI_CODING_AGENT_DIR=" + builtinAuthDirectory, "pi"
+      ])
+      toastRequested("In Pi, enter /login and choose a provider. Return here and select Retry when finished.")
+    } catch (error) {
+      toastRequested("Could not open Pi. Install the pi command, then retry authentication.")
+    }
+  }
+
   function activateLink(url) {
     var value = String(url || "")
     if (Protocol.isImageLink(value)) {
@@ -450,9 +467,8 @@ Scope {
     providers = Protocol.normalizeProviders(raw)
     if (providers.length === 0) {
       state = "unavailable"
-      var configHome = Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
       statusMessage = provider === "builtin"
-        ? "Built-in (OmaPilot) needs authentication. In a terminal run PI_CODING_AGENT_DIR=\"" + configHome + "/omapilot\" pi, choose /login, then Retry."
+        ? "Built-in (OmaPilot) needs authentication. Choose Authenticate, enter /login in Pi, then return and select Retry."
         : Protocol.providerLabel(provider) + " is unavailable. Install and sign in to it, then retry or choose another harness in Settings."
       errorDetails = Protocol.normalizedError({
         unavailable: true,

@@ -18,16 +18,17 @@ ShellRoot {
 
   QtObject {
     id: backend
-    property bool initialized: true
+    property bool initialized: root.previewState !== "auth-settings"
     property bool busy: false
     property bool canSubmit: true
-    property bool canRetry: false
+    property bool canRetry: root.previewState === "auth-settings"
     property bool contextCaptureAvailable: true
     property bool desktopContextActive: false
-    property string state: root.previewState === "waiting" ? "preparing"
+    property string state: root.previewState === "auth-settings" ? "unavailable"
+      : (root.previewState === "waiting" ? "preparing"
       : (root.previewState === "streaming" ? "streaming"
         : (root.previewState === "error" || root.previewState === "error-details"
-          ? "error" : "composing"))
+          ? "error" : "composing")))
     property string provider: "builtin"
     property string model: "openai-codex::gpt-5.4"
     property string transcript: ""
@@ -46,10 +47,11 @@ ShellRoot {
       retryable: true
     })
     property var pendingPermission: null
-    property var providers: [
+    property var providers: root.previewState === "auth-settings" ? [] : [
       { value: "builtin", label: "Built-in (OmaPilot)", policy: { tools: "device-approval" } }
     ]
-    property var modelOptions: [{ value: "openai-codex::gpt-5.4", label: "GPT-5.4 (openai-codex)" }]
+    property var modelOptions: root.previewState === "auth-settings" ? []
+      : [{ value: "openai-codex::gpt-5.4", label: "GPT-5.4 (openai-codex)" }]
     property var providerPolicy: ({ tools: "device-approval", web: "approved-command", hostReads: true })
     property var contextAttachments: root.previewState === "context" ? [{
       id: "11111111-1111-4111-8111-111111111111",
@@ -71,6 +73,7 @@ ShellRoot {
     function stopDictation() {}
     function cancel() {}
     function retryBroker() {}
+    function authenticateBuiltIn() {}
     function copyText(text) {}
     function beginContextCapture() {}
     function setContextRepresentation(id, mode) {
@@ -82,7 +85,8 @@ ShellRoot {
   Window {
     id: previewWindow
     width: 860
-    height: root.previewState === "settings" || root.previewState === "dangerous-settings"
+    height: root.previewState === "settings" || root.previewState === "auth-settings"
+      || root.previewState === "dangerous-settings"
       || root.previewState === "actions-settings" ? 760
       : (root.previewState === "error-details" ? 520 : (root.previewState === "context" ? 430 : 320))
     visible: true
@@ -141,6 +145,7 @@ ShellRoot {
       OmaPilot.SettingsView {
         id: settingsView
         visible: root.previewState === "settings"
+          || root.previewState === "auth-settings"
           || root.previewState === "dangerous-settings"
           || root.previewState === "actions-settings"
         anchors.fill: parent
@@ -276,6 +281,7 @@ ShellRoot {
         && (header.implicitHeight <= 0 || composer.implicitHeight <= 0
           || actions.implicitHeight <= 0)
       var invalidSettings = (root.previewState === "settings"
+          || root.previewState === "auth-settings"
           || root.previewState === "dangerous-settings"
           || root.previewState === "actions-settings")
         && settingsView.implicitHeight <= 0

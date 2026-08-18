@@ -186,6 +186,19 @@ Item {
             Item { Layout.fillWidth: true }
 
             Button {
+              visible: root.backend && root.backend.provider === "builtin"
+                && root.backend.providers.length === 0
+              text: "Authenticate Built-in"
+              foreground: root.foreground
+              background: root.background
+              accent: root.accent
+              active: true
+              bordered: true
+              focusable: true
+              onClicked: root.backend.authenticateBuiltIn()
+            }
+
+            Button {
               visible: root.backend && root.backend.canRetry
               text: "Restart OmaPilot"
               foreground: root.foreground

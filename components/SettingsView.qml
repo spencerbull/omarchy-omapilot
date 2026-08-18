@@ -483,6 +483,76 @@ Item {
             onChanged: function(value) { root.providerChanged(value) }
           }
 
+          BorderSurface {
+            Layout.fillWidth: true
+            visible: root.backend && root.backend.provider === "builtin"
+              && root.backend.state === "unavailable" && root.backend.providers.length === 0
+            implicitHeight: authContent.implicitHeight + contentTopInset + contentBottomInset
+              + Style.spacing.xl * 2
+            color: Style.normalFillFor(root.accent, root.accent)
+            borderSpec: Border.controlSpec("normal", root.accent, root.accent)
+            radius: Style.cornerRadius
+
+            ColumnLayout {
+              id: authContent
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              anchors.leftMargin: parent.contentLeftInset + Style.spacing.xl
+              anchors.rightMargin: parent.contentRightInset + Style.spacing.xl
+              anchors.topMargin: parent.contentTopInset + Style.spacing.xl
+              spacing: Style.spacing.md
+
+              Text {
+                Layout.fillWidth: true
+                text: "Authentication required"
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                font.bold: true
+              }
+
+              Text {
+                Layout.fillWidth: true
+                text: "OmaPilot will open Pi using its private auth directory. Enter /login, choose Codex, OpenAI, Claude, or another configured provider, finish authentication, then return here."
+                color: Qt.darker(root.foreground, 1.35)
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                wrapMode: Text.Wrap
+                Accessible.role: Accessible.StaticText
+                Accessible.name: text
+              }
+
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: Style.spacing.md
+
+                Button {
+                  text: "Authenticate Built-in"
+                  iconText: "󰌾"
+                  foreground: root.foreground
+                  background: root.background
+                  accent: root.accent
+                  active: true
+                  bordered: true
+                  focusable: true
+                  onClicked: root.backend.authenticateBuiltIn()
+                }
+
+                Button {
+                  text: "Retry"
+                  foreground: root.foreground
+                  background: root.background
+                  bordered: true
+                  focusable: true
+                  onClicked: root.backend.retryBroker()
+                }
+
+                Item { Layout.fillWidth: true }
+              }
+            }
+          }
+
           Text {
             Layout.fillWidth: true
             text: "Model"

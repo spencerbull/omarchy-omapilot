@@ -44,6 +44,10 @@ coding tools behind OmaPilot's approval broker. See [Native Pi harness configura
 The Harness setting explicitly selects **Built-in (OmaPilot)**, **Codex**,
 **Claude**, or **OpenCode**. The latter three are ACP harnesses and must already
 be installed and signed in. OmaPilot never substitutes one harness for another.
+When Built-in has no configured credential, its settings card offers
+**Authenticate Built-in**, opens Pi in OmaPilot's private auth directory, and
+keeps the harness unavailable until the user finishes `/login` and selects
+**Retry**.
 
 ## Install
 

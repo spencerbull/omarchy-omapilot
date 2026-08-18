@@ -48,6 +48,9 @@ grep -Fq 'property string configuredProvider: "builtin"' \
 grep -Fq 'harness: provider' "$repo_dir/components/QuickchatStore.qml"
 grep -Fq 'readonly property var modeProviders: Protocol.harnessOptions()' \
   "$repo_dir/components/SettingsView.qml"
+grep -Fq 'text: "Authenticate Built-in"' "$repo_dir/components/SettingsView.qml"
+grep -Fq '"PI_CODING_AGENT_DIR=" + builtinAuthDirectory, "pi"' \
+  "$repo_dir/components/QuickchatStore.qml"
 if grep -Fq 'backendSelection' "$repo_dir/components/QuickchatStore.qml"; then
   printf 'Harness selection must not be split into backend and provider settings\n' >&2
   exit 1
@@ -364,7 +367,7 @@ if grep -Eq "visual preview failed|Failed to load|Type .* unavailable|Cannot ass
   exit 1
 fi
 
-for preview_state in actions-settings waiting streaming error error-details context; do
+for preview_state in auth-settings actions-settings waiting streaming error error-details context; do
   preview_output="$repo_dir/screenshots/implementation-omapilot-$preview_state.png"
   OMAPILOT_PREVIEW_STATE="$preview_state" OMAPILOT_PREVIEW_PATH="$preview_output" \
     QT_QPA_PLATFORM=offscreen timeout 5s quickshell --no-duplicate \
