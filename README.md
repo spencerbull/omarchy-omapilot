@@ -47,8 +47,9 @@ be installed and signed in. OmaPilot never substitutes one harness for another.
 When Built-in has no configured credential, its settings card offers
 subscription and API-key sign-in methods. OmaPilot runs Pi's typed login flow
 inside the broker, opens the provider's browser page for OAuth when needed, and
-renders provider choices, device codes, manual-code fallbacks, progress, and
-errors in Settings. It never opens the Pi terminal.
+renders provider choices, device codes, progress, and errors in Settings.
+Browser OAuth completes through a broker-owned localhost callback; callback
+URLs are never user input. It never opens the Pi terminal.
 
 ## Install
 

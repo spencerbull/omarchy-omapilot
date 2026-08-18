@@ -56,7 +56,7 @@ function normalizedAuthEvent(raw) {
   var prompt = source.prompt && typeof source.prompt === "object" ? source.prompt : null
   if (prompt !== null) {
     var kind = String(prompt.kind || "")
-    if (["text", "secret", "select", "manual_code"].indexOf(kind) >= 0) {
+    if (["text", "secret", "select"].indexOf(kind) >= 0) {
       var options = []
       var rawOptions = Array.isArray(prompt.options) ? prompt.options : []
       for (var i = 0; i < rawOptions.length && options.length < 32; i++) {

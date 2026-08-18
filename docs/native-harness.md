@@ -40,7 +40,9 @@ Codex subscription and Claude subscription OAuth entries use the
 the authentication card under OmaPilot Settings. The broker invokes Pi's native
 typed login APIs in the background: secrets are entered in a password field,
 OAuth continues in the system browser, and provider prompts, device codes,
-progress, cancellation, and failures remain visible in OmaPilot. No Pi terminal
+progress, cancellation, and failures remain visible in OmaPilot. Codex browser
+OAuth returns to the broker's fixed `http://localhost:1455/auth/callback`
+listener; OmaPilot never asks the user to paste a callback URL. No Pi terminal
 or `/login` handoff is involved.
 
 ## OpenAI-compatible providers

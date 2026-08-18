@@ -12,7 +12,10 @@ import type { DiscoveredProvider } from "../src/providers.js";
 import type { BrokerEvent, ChatRecord, ProviderId } from "../src/types.js";
 
 const roots: string[] = [];
-afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))));
+afterEach(async () => {
+  vi.unstubAllEnvs();
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
 
 describe("broker lifecycle cleanup", () => {
   it("keeps local delete successful when provider session cleanup fails", async () => {
@@ -120,6 +123,43 @@ describe("embedded built-in authentication", () => {
     await vi.waitFor(() => expect(events.some((event) => event.type === "auth" && event.phase === "complete")).toBe(true));
     expect(events.some((event) => event.type === "providers" && event.providers.some((provider) => provider.id === "builtin"))).toBe(true);
     expect(await readFile(join(config, "auth.json"), "utf8")).toContain("embedded-test-key");
+    await broker.handle({ type: "shutdown" });
+  });
+
+  it("owns the Codex OAuth callback and never exposes manual callback input", async () => {
+    vi.stubEnv("PI_OAUTH_CALLBACK_HOST", "127.0.0.2");
+    const root = await mkdtemp(join(tmpdir(), "quickchat-broker-oauth-")); roots.push(root);
+    const events: BrokerEvent[] = [];
+    const broker = new QuickchatBroker(events.push.bind(events), {
+      env: {
+        ...process.env,
+        HOME: root,
+        OMAPILOT_CONFIG_DIR: join(root, ".config/omapilot"),
+        XDG_STATE_HOME: join(root, "state"),
+        XDG_CACHE_HOME: join(root, "cache"),
+        XDG_RUNTIME_DIR: join(root, "run")
+      }
+    });
+    await broker.handle({ type: "initialize", protocolVersion: 2, harness: "builtin" });
+    await broker.handle({ type: "auth_begin", methodId: "openai-codex::oauth" });
+    await vi.waitFor(() => expect(events.some((event) => event.type === "auth" && event.phase === "prompt")).toBe(true));
+    const methodPrompt = events.find((event) => event.type === "auth" && event.phase === "prompt");
+    if (methodPrompt?.type !== "auth" || methodPrompt.phase !== "prompt") throw new Error("login method prompt missing");
+    expect(methodPrompt.prompt.kind).toBe("select");
+    await broker.handle({
+      type: "auth_response",
+      flowId: methodPrompt.flowId,
+      promptId: methodPrompt.prompt.id,
+      value: "browser"
+    });
+    await vi.waitFor(() => expect(events.some((event) => event.type === "auth" && event.phase === "browser")).toBe(true));
+
+    const callback = await fetch("http://127.0.0.2:1455/auth/callback?code=test&state=wrong");
+    expect(callback.status).toBe(400);
+    expect(events.filter((event) => event.type === "auth" && event.phase === "prompt")).toHaveLength(1);
+
+    await broker.handle({ type: "auth_cancel", flowId: methodPrompt.flowId });
+    await vi.waitFor(() => expect(events.some((event) => event.type === "auth" && event.phase === "cancelled")).toBe(true));
     await broker.handle({ type: "shutdown" });
   });
 });

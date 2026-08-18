@@ -10,7 +10,7 @@ import { continueInHerdr, describeHerdrError } from "./herdr.js";
 import { ImagePolicyError, ImageStore, isAllowedExternalLink } from "./images.js";
 import { normalizeToolPermission, type PendingToolPermission } from "./permissions.js";
 import { discoverProviders, fallbackModels, isPiProvider, type DiscoveredProvider } from "./providers.js";
-import { resolveExecutable, runCommand } from "./process.js";
+import { launchDetached, resolveExecutable } from "./process.js";
 import type { BrokerCommand, BrokerEvent, ChatRecord, ProviderId, ProviderInfo } from "./types.js";
 import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
 import type { AuthEvent, AuthPrompt } from "../../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/auth/types.js";
@@ -218,6 +218,10 @@ export class QuickchatBroker {
         cleanup
       };
       signal.addEventListener("abort", onAbort, { once: true });
+      // Browser OAuth providers already start a broker-owned localhost callback
+      // listener before issuing this compatibility fallback. Keep the promise
+      // alive for cancellation, but do not ask users to paste callback URLs.
+      if (prompt.type === "manual_code") return;
       this.#emit({
         type: "auth", phase: "prompt", flowId: flow.id, methodId: flow.methodId,
         prompt: {
@@ -586,8 +590,7 @@ export class QuickchatBroker {
     if (!isAllowedExternalLink(url)) { this.#emit({ type: "link", url, opened: false }); return; }
     const opener = await resolveExecutable("xdg-open", this.#env);
     if (opener === undefined) { this.#emit({ type: "link", url, opened: false }); return; }
-    const result = await runCommand(opener, [url], { env: this.#env, timeoutMs: 5_000, maxOutput: 8_192 });
-    this.#emit({ type: "link", url, opened: result.code === 0 });
+    this.#emit({ type: "link", url, opened: await launchDetached(opener, [url], { env: this.#env }) });
   }
 
   async #copy(text: string): Promise<void> {

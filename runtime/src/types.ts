@@ -166,7 +166,7 @@ export type BuiltinAuthMethod = {
 
 export type BuiltinAuthPrompt = {
   id: string;
-  kind: "text" | "secret" | "select" | "manual_code";
+  kind: "text" | "secret" | "select";
   message: string;
   placeholder?: string;
   options?: Array<{ id: string; label: string; description?: string }>;

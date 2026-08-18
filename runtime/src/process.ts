@@ -6,6 +6,32 @@ import { delimiter, isAbsolute } from "node:path";
 export type RunResult = { code: number; stdout: string; stderr: string };
 export type RunBinaryResult = { code: number; stdout: Buffer; stderr: string };
 
+export function launchDetached(
+  executable: string,
+  args: string[],
+  options: { env?: NodeJS.ProcessEnv; cwd?: string } = {}
+): Promise<boolean> {
+  return new Promise((resolveLaunch) => {
+    let settled = false;
+    const finish = (opened: boolean): void => {
+      if (settled) return;
+      settled = true;
+      resolveLaunch(opened);
+    };
+    const child = spawn(executable, args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: "ignore",
+      detached: process.platform !== "win32"
+    });
+    child.once("error", () => finish(false));
+    child.once("spawn", () => {
+      child.unref();
+      finish(true);
+    });
+  });
+}
+
 export async function runCommand(
   executable: string,
   args: string[],

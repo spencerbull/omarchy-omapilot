@@ -35,6 +35,10 @@ TestCase {
     compare(event.prompt.kind, "select")
     compare(event.prompt.options.length, 2)
     compare(event.prompt.options[1].value, "device_code")
+    compare(Protocol.normalizedAuthEvent({
+      phase: "prompt", flowId: "flow", methodId: "openai-codex::oauth",
+      prompt: { id: "manual", kind: "manual_code", message: "Paste callback URL" }
+    }).prompt, null)
     compare(Protocol.normalizedAuthEvent({ phase: "credential_dump" }), null)
   }
 
