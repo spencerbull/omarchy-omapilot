@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import type { ChatRecord, ProviderId } from "./types.js";
+import { quickchatPaths } from "./paths.js";
 import { resolveExecutable, runCommand } from "./process.js";
 
 type HerdrCommand = { executable: string; args: string[] };
@@ -68,12 +69,18 @@ function nestedArray(value: unknown, key: string): unknown[] | undefined {
   return Array.isArray(entry) ? entry : undefined;
 }
 
-export function nativeResumeArgs(provider: ProviderId, sessionId: string, cwd = process.cwd()): string[] | undefined {
+export function nativeResumeArgs(
+  provider: ProviderId,
+  sessionId: string,
+  cwd = process.cwd(),
+  env: NodeJS.ProcessEnv = process.env
+): string[] | undefined {
   // Continue in Herdr deliberately hands authority back to the native harness.
   // Keep Codex interactive so any command outside its read-only sandbox still
   // requires the user's approval in Herdr.
   if (provider === "codex") return ["resume", sessionId, "-C", cwd, "-s", "read-only", "-a", "on-request"];
   if (provider === "claude") return ["--resume", sessionId];
+  if (provider === "builtin") return ["--session", sessionId, "--session-dir", quickchatPaths(env).piSessions, "--approve"];
   return ["--pure", "--session", sessionId];
 }
 
@@ -145,9 +152,10 @@ export async function continueInHerdr(
     const workspaceId = target.workspaceId;
     const resume = !chat.session.resumable || chat.session.acpId === undefined
       ? undefined
-      : nativeResumeArgs(chat.provider, chat.session.acpId, cwd);
+      : nativeResumeArgs(chat.provider, chat.session.acpId, cwd, env);
     let mode: "native" | "transcript" = resume === undefined ? "transcript" : "native";
     const initialAgentName = resume === undefined ? transcriptAgentName : agentName;
+    await prepareAgentPane(commands.herdr, chat.provider, target.paneId, env, run, wait);
     let started = await startAgent(commands.herdr, chat.provider, initialAgentName, target.paneId, resume, run, wait);
 
     if (started.code !== 0) {
@@ -165,6 +173,7 @@ export async function continueInHerdr(
       mode = "transcript";
       const nativeTabId = target.tabId;
       target = await createTabTarget(commands.herdr, workspaceId, cwd, chat.title, run, createdTabs);
+      await prepareAgentPane(commands.herdr, chat.provider, target.paneId, env, run, wait);
       started = await startAgent(commands.herdr, chat.provider, transcriptAgentName, target.paneId, undefined, run, wait);
       if (started.code !== 0)
         throw new HerdrHandoffError("session", herdrCliErrorCode(started) ?? "agent_start_failed");
@@ -333,7 +342,8 @@ async function startAgent(
   run: CommandRunner,
   wait: Delay
 ): Promise<RunResult> {
-  const args = ["agent", "start", agentName, "--kind", provider, "--pane", paneId, "--timeout", "30000"];
+  const kind = provider === "builtin" ? "pi" : provider;
+  const args = ["agent", "start", agentName, "--kind", kind, "--pane", paneId, "--timeout", "30000"];
   if (resume !== undefined) args.push("--", ...resume);
   let result = await run(herdr, args);
   for (let attempt = 0; herdrCliErrorCode(result) === "agent_pane_busy" && attempt < 19; attempt += 1) {
@@ -341,6 +351,25 @@ async function startAgent(
     result = await run(herdr, args);
   }
   return result;
+}
+
+async function prepareAgentPane(
+  herdr: string,
+  provider: ProviderId,
+  paneId: string,
+  env: NodeJS.ProcessEnv,
+  run: CommandRunner,
+  wait: Delay
+): Promise<void> {
+  if (provider !== "builtin") return;
+  const paths = quickchatPaths(env);
+  const configured = await run(herdr, [
+    "pane", "run", paneId,
+    `export PI_CODING_AGENT_DIR=${shellWord(paths.config)} PI_CODING_AGENT_SESSION_DIR=${shellWord(paths.piSessions)}`
+  ]);
+  if (configured.code !== 0)
+    throw new HerdrHandoffError("session", herdrCliErrorCode(configured) ?? "pi_environment_failed");
+  await wait(100);
 }
 
 async function focusSessionAndWindow(

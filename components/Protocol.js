@@ -80,12 +80,15 @@ function normalizedAuthEvent(raw) {
   return result
 }
 
-function submitCommand(id, question, provider, model, desktopContext, dangerousAutoApprove, contextAttachments) {
+function submitCommand(id, question, provider, model, desktopContext, dangerousAutoApprove, contextAttachments, resumeChatId) {
   var payload = command("submit", {
     id: String(id || ""),
     question: String(question || ""),
     provider: normalizedProvider(provider) || "builtin"
   })
+  var previousChat = String(resumeChatId || "")
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(previousChat))
+    payload.resumeChatId = previousChat
   var selectedModel = String(model || "").trim()
   if (selectedModel !== "") payload.model = selectedModel
   var context = normalizedDesktopContext(desktopContext)

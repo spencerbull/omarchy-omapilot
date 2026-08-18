@@ -210,6 +210,7 @@ Scope {
   function submit(text) {
     var prompt = String(text || "").trim()
     if (!prompt || !canSubmit) return false
+    var resumeChatId = currentChatId
     currentId = "qml-" + Date.now() + "-" + Math.floor(Math.random() * 100000)
     currentChatId = ""
     question = prompt
@@ -228,7 +229,7 @@ Scope {
     }
     var autoApprove = configuredDangerousAutoApprove
     sendCommand(Protocol.submitCommand(
-      currentId, prompt, provider, model, context, autoApprove, attachmentSelections))
+      currentId, prompt, provider, model, context, autoApprove, attachmentSelections, resumeChatId))
     contextAttachments = []
     answerChanged()
     return true

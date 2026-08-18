@@ -35,6 +35,23 @@ describe("history store", () => {
     expect(await store.list()).toEqual([]);
   });
 
+  it("keeps a shared Pi session until its final chat record is deleted", async () => {
+    const root = await mkdtemp(join(tmpdir(), "quickchat-history-pi-")); roots.push(root);
+    const paths = quickchatPaths({ HOME: root, XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"), XDG_RUNTIME_DIR: join(root, "run") });
+    const store = new HistoryStore(paths);
+    const sessionId = "11111111-1111-4111-8111-111111111111";
+    const sessionFile = `2026-08-18_${sessionId}.jsonl`;
+    await mkdir(paths.piSessions, { recursive: true });
+    await writeFile(join(paths.piSessions, sessionFile), "session\n");
+    await store.save({ ...record(1), session: { acpId: sessionId, resumable: true, resumeKind: "native" } });
+    await store.save({ ...record(2), session: { acpId: sessionId, resumable: true, resumeKind: "native" } });
+
+    await store.delete(record(1).id);
+    expect(await readdir(paths.piSessions)).toEqual([sessionFile]);
+    await store.delete(record(2).id);
+    expect(await readdir(paths.piSessions)).toEqual([]);
+  });
+
   it("loads a legacy capability field but strips it from presented history", async () => {
     const root = await mkdtemp(join(tmpdir(), "quickchat-history-legacy-")); roots.push(root);
     const paths = quickchatPaths({ HOME: root, XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"), XDG_RUNTIME_DIR: join(root, "run") });

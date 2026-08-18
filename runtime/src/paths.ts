@@ -5,6 +5,7 @@ export type QuickchatPaths = {
   config: string;
   state: string;
   records: string;
+  piSessions: string;
   cache: string;
   images: string;
   adapters: string;
@@ -26,6 +27,7 @@ export function quickchatPaths(env: NodeJS.ProcessEnv = process.env): QuickchatP
     config: join(configRoot, "omapilot"),
     state: join(stateRoot, "quickchat"),
     records: join(stateRoot, "quickchat/chats"),
+    piSessions: join(stateRoot, "quickchat/pi-sessions"),
     cache: join(cacheRoot, "quickchat"),
     images: join(cacheRoot, "quickchat/images"),
     adapters: join(cacheRoot, "quickchat/adapters"),

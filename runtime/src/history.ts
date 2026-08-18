@@ -65,6 +65,7 @@ export class HistoryStore {
       await Promise.all(chat.images.map(async (image) => {
         if (basename(image.path) === image.path) await rm(join(this.#paths.images, image.path), { force: true });
       }));
+      await this.#removeUnreferencedPiSession(chat);
     }
     return chat;
   }
@@ -73,6 +74,7 @@ export class HistoryStore {
     const chats = await this.listAll();
     await rm(this.#paths.records, { recursive: true, force: true });
     await rm(this.#paths.images, { recursive: true, force: true });
+    await rm(this.#paths.piSessions, { recursive: true, force: true });
     return chats;
   }
 
@@ -96,6 +98,17 @@ export class HistoryStore {
     }));
     return records.filter((record): record is ChatRecord => record !== undefined)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async #removeUnreferencedPiSession(chat: ChatRecord): Promise<void> {
+    const sessionId = chat.provider === "builtin" ? chat.session.acpId : undefined;
+    if (sessionId === undefined || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(sessionId)) return;
+    if ((await this.listAll()).some((record) => record.provider === "builtin" && record.session.acpId === sessionId)) return;
+    let names: string[];
+    try { names = await readdir(this.#paths.piSessions); } catch { return; }
+    const suffix = `_${sessionId}.jsonl`;
+    await Promise.all(names.filter((name) => name.endsWith(suffix))
+      .map((name) => rm(join(this.#paths.piSessions, name), { force: true })));
   }
 
 }

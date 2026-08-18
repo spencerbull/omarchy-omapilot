@@ -25,6 +25,9 @@ describe("Herdr handoff", () => {
     expect(nativeResumeArgs("codex", "abc", "/work")).toEqual(["resume", "abc", "-C", "/work", "-s", "read-only", "-a", "on-request"]);
     expect(nativeResumeArgs("claude", "abc")).toEqual(["--resume", "abc"]);
     expect(nativeResumeArgs("opencode", "abc")).toEqual(["--pure", "--session", "abc"]);
+    expect(nativeResumeArgs("builtin", "abc", "/work", env)).toEqual([
+      "--session", "abc", "--session-dir", "/home/test/.local/state/quickchat/pi-sessions", "--approve"
+    ]);
   });
 
   it("labels transcript fallback honestly", () => {
@@ -109,6 +112,18 @@ describe("Herdr handoff", () => {
     expect(start).toContain("--");
     expect(start.slice(start.indexOf("--") + 1)).toEqual(nativeResumeArgs(provider, "session-1", "/home/test"));
     expect(fixture.launch).not.toHaveBeenCalled();
+  });
+
+  it("starts Built-in sessions as Pi with OmaPilot-owned auth and session paths", async () => {
+    const fixture = harness();
+    await expect(continueInHerdr(chat({ provider: "builtin", resumable: true }), env, fixture))
+      .resolves.toEqual({ mode: "native", reused: false });
+    expect(callsContaining(fixture.calls, ["pane", "run"])[0]?.args[3]).toBe(
+      "export PI_CODING_AGENT_DIR='/home/test/.config/omapilot' PI_CODING_AGENT_SESSION_DIR='/home/test/.local/state/quickchat/pi-sessions'"
+    );
+    const start = callsContaining(fixture.calls, ["agent", "start"])[0]?.args ?? [];
+    expect(start).toEqual(expect.arrayContaining(["--kind", "pi"]));
+    expect(start.slice(start.indexOf("--") + 1)).toEqual(nativeResumeArgs("builtin", "session-1", "/home/test", env));
   });
 
   it("uses a fresh tab/name for transcript fallback, accepts blocked, and cleans the failed native tab", async () => {

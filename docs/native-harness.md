@@ -35,6 +35,17 @@ from `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `auth.json`:
 }
 ```
 
+Completed Built-in turns are written to durable Pi JSONL sessions under
+`${XDG_STATE_HOME:-$HOME/.local/state}/quickchat/pi-sessions/`. A follow-up from
+the main screen or Recent chats resumes that exact session; **New chat** creates
+a new one. Session-scoped approvals remain active for the conversation while
+the broker is running, while persistent approvals remain in `approvals.json`.
+
+**Continue in Herdr** starts Herdr's native `pi` agent with the saved session.
+Before launch, OmaPilot scopes that pane to its private configuration and
+session directories, so the interactive Pi process uses the same credential
+and conversation without copying tokens into command arguments.
+
 Codex subscription and Claude subscription OAuth entries use the
 `openai-codex` and `anthropic` keys respectively. Normally, configure these from
 the authentication card under OmaPilot Settings. The broker invokes Pi's native

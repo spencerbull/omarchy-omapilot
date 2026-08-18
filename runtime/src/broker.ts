@@ -288,6 +288,16 @@ export class QuickchatBroker {
       this.#error("provider_unavailable", "The selected harness is not installed and authenticated", false, command.id);
       return;
     }
+    let resumeSessionId: string | undefined;
+    if (isPiProvider(provider) && command.resumeChatId !== undefined) {
+      const previous = await this.#history.get(command.resumeChatId);
+      if (previous?.provider !== provider.id || !previous.session.resumable || previous.session.acpId === undefined) {
+        await this.#contextAttachments.discardMany((command.contextAttachments ?? []).map((value) => value.id));
+        this.#error("session_unavailable", "The saved Pi conversation is unavailable", false, command.id);
+        return;
+      }
+      resumeSessionId = previous.session.acpId;
+    }
     const dangerousAutoApprove = command.dangerousAutoApprove === true
       && provider.policy.tools === "device-approval";
     this.#emit({ type: "state", id: command.id, state: "preparing", message: `Preparing ${provider.name}…` });
@@ -311,7 +321,7 @@ export class QuickchatBroker {
     const run = isPiProvider(provider)
       ? (await import("./pi-harness.js")).runPiQuestion(
         provider, command.id, prompt, command.model, this.#emit, 180_000, permission,
-        () => this.#cancelPermissions(command.id))
+        () => this.#cancelPermissions(command.id), resumeSessionId)
       : runAcpQuestion(provider, command.id, prompt, command.model,
         this.#emit, 180_000, this.#images, permission,
         () => this.#cancelPermissions(command.id));

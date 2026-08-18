@@ -36,6 +36,7 @@ const MUTATING_TOOLS = new Set(["bash", "edit", "write"]);
 const BASIC_TOOLS = ["read", "bash", "edit", "write", "grep", "find", "ls", "agent"];
 const SAFE_AGENT_NAME = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
 const MAX_AGENT_FILE_BYTES = 128 * 1024;
+const sessionApprovals = new Map<string, PiApprovalState>();
 
 registerBundledOAuthFlowLoaders({
   anthropic: () => anthropicOAuth,
@@ -220,7 +221,8 @@ export function runPiQuestion(
   emit: (event: BrokerEvent) => void,
   timeoutMs = 180_000,
   requestPermission?: PermissionHandler,
-  cancelPermissions?: () => void
+  cancelPermissions?: () => void,
+  resumeSessionId?: string
 ): AcpRun {
   const controller = new AbortController();
   let activeSession: { abort: () => Promise<void>; dispose: () => void } | undefined;
@@ -234,8 +236,14 @@ export function runPiQuestion(
   const result = (async (): Promise<AcpResult> => {
     const model = resolveModel(provider, selectedModel);
     if (model === undefined) throw new BrokerPiError("model_unavailable", "The selected model is not available", false);
+    const sessionManager = piSessionManager(provider, resumeSessionId);
     const profiles = discoverAgentProfiles(provider.sharedAgentsDir, provider.cwd);
-    const approvals = new PiApprovalState(join(provider.agentDir, "approvals.json"), provider.cwd);
+    const approvalStateKey = `${provider.agentDir}\0${provider.cwd}\0${sessionManager.getSessionId()}`;
+    let approvals = sessionApprovals.get(approvalStateKey);
+    if (approvals === undefined) {
+      approvals = new PiApprovalState(join(provider.agentDir, "approvals.json"), provider.cwd);
+      sessionApprovals.set(approvalStateKey, approvals);
+    }
     const permissionExtension = createPermissionExtension(requestId, requestPermission, approvals);
     const loader = new DefaultResourceLoader({
       cwd: provider.cwd,
@@ -258,7 +266,7 @@ export function runPiQuestion(
       model,
       modelRuntime: provider.runtime,
       resourceLoader: loader,
-      sessionManager: SessionManager.inMemory(provider.cwd),
+      sessionManager,
       settingsManager: settings,
       tools: BASIC_TOOLS,
       customTools: [agentTool]
@@ -290,7 +298,7 @@ export function runPiQuestion(
         sessionId: session.sessionId,
         models: provider.models,
         defaultModel: optionId(model.provider, model.id, provider.id === "builtin"),
-        resumable: false
+        resumable: true
       };
     } catch (error) {
       if (error instanceof BrokerPiError) throw error;
@@ -306,6 +314,19 @@ export function runPiQuestion(
     }
   })();
   return { result, cancel };
+}
+
+function piSessionManager(provider: PiDiscoveredProvider, resumeSessionId: string | undefined): SessionManager {
+  const sessionDir = quickchatPaths(provider.agent.env).piSessions;
+  mkdirSync(sessionDir, { recursive: true, mode: 0o700 });
+  if (resumeSessionId === undefined) return SessionManager.create(provider.cwd, sessionDir);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(resumeSessionId))
+    throw new BrokerPiError("session_unavailable", "The saved Pi conversation is unavailable", false);
+  const suffix = `_${resumeSessionId}.jsonl`;
+  const file = readdirSync(sessionDir).find((name) => name.endsWith(suffix));
+  if (file === undefined)
+    throw new BrokerPiError("session_unavailable", "The saved Pi conversation is unavailable", false);
+  return SessionManager.open(join(sessionDir, file), sessionDir, provider.cwd);
 }
 
 type PiModel = ReturnType<PiDiscoveredProvider["runtime"]["getModels"]>[number];

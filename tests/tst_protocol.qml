@@ -226,6 +226,12 @@ TestCase {
     verify(payload.dangerousAutoApprove)
   }
 
+  function test_followUpSubmitCarriesOnlyAValidSavedChatId() {
+    var saved = "11111111-1111-4111-8111-111111111111"
+    compare(Protocol.submitCommand("turn", "Follow up", "builtin", "", null, false, [], saved).resumeChatId, saved)
+    verify(Protocol.submitCommand("turn", "Follow up", "builtin", "", null, false, [], "not-a-chat").resumeChatId === undefined)
+  }
+
   function test_submitIncludesOnlyBoundedSanitizedDesktopContext() {
     var windows = []
     for (var i = 0; i < 30; i++) windows.push({

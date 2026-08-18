@@ -66,6 +66,7 @@ const submitCommand = z.object({
   id: z.string().min(1).max(120),
   question: z.string().trim().min(1).max(100_000),
   provider: providerIdSchema,
+  resumeChatId: z.string().uuid().optional(),
   model: z.preprocess((value) => typeof value === "string" && value.trim() === "" ? undefined : value, z.string().min(1).max(500).optional()),
   desktopContext: desktopContextSchema.optional(),
   contextAttachments: z.array(contextAttachmentSelectionSchema).max(4).optional(),

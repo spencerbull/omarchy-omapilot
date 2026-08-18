@@ -35,7 +35,8 @@ The broker emits events whose `type` is one of `ready`, `providers`, `state`, `c
 The broker's internal run contract is the normalization boundary, not the policy
 boundary. Initialization selects exactly one harness: the embedded Pi runtime
 or one ACP harness. Discovery failure never switches harnesses. The submit
-command contains provider/model/question plus an optional versioned desktop
+command contains provider/model/question, an optional prior chat identity for
+same-harness continuation, plus an optional versioned desktop
 snapshot and up to four opaque context-attachment selections. QML latches the active app and
 its capture rectangle immediately before the panel takes focus
 and synchronously reads the current app/workspace/media inventory from
@@ -44,9 +45,11 @@ Quickshell's public Hyprland and MPRIS objects at submit time; it does not poll
 field counts, lengths, and control characters, then frames the snapshot as
 untrusted observational JSON before the authoritative user request. It sends
 the combined prompt to the selected ACP session but stores only the original
-question in Quickchat history. Provider-native session retention still applies.
-Native Herdr resume therefore inherits provider-retained context, while the
-transcript fallback contains only the stored question and answer.
+question in Quickchat history. The Built-in runtime stores Pi sessions beneath
+the Quickchat XDG state root and resolves continuation only through a validated
+saved chat and session identity. Native Herdr resume therefore inherits the Pi
+conversation and uses a pane-scoped OmaPilot configuration environment; the
+transcript fallback remains available when a native harness cannot resume.
 
 ## Explicit context clips
 
