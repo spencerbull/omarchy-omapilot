@@ -8,18 +8,27 @@ Security fixes are provided for the current OmaPilot release.
 
 Omarchy plugins run unsandboxed inside the long-lived `omarchy-shell` process. Review OmaPilot before enabling it. OmaPilot minimizes that authority by delegating provider traffic to a separate broker process and starting each agent with one provider-specific, fail-closed automatic policy.
 
+- The embedded Pi harness loads declarative skills, context files, and named
+  agent profiles from the standard `~/.agents` roots. It does not
+  auto-load executable Pi extensions. Read, grep, find, and list tools use the
+  current user's read authority. Every Pi bash, edit, and write call—including
+  calls made by a named agent—is intercepted before execution and requires the
+  broker's reviewed decision. Session and durable Pi grants match only the exact
+  request and working directory; durable records contain hashes, not commands.
+  Named agents cannot delegate recursively.
+
 - Codex starts in read-only, on-request mode with native web search disabled and only the
   strictly validated shell/unified-exec and skill-search features. It may read any file the current user can
   read without asking. Tool output is sent to Codex and may be retained in the
   saved answer. A request for broader access pauses behind the adapter-normalized
-  command and working directory, and only its provider-native allow-once or
-  reject-once decision is exposed.
+  command and working directory, and its provider-native approval choices are
+  exposed without collapsing their option identities.
   Approval can execute the command outside the read-only sandbox with the
   current user's authority, including host reads, state changes, and network
   access; the UI states this explicitly. When the user explicitly enables
   **Dangerous auto-approve**, each request may select the normalized request's
-  exact provider-native allow-once option without prompting. Persistent grants
-  are never exposed.
+  exact provider-native allow-once option without prompting. It never selects a
+  session or durable grant.
 - Claude loads installed skills through a per-turn plugin copy with MCP discovery
   disabled. Internal symlinks, oversized trees, and non-regular entries are
   skipped. It runs inside a disposable workspace that denies
@@ -28,8 +37,8 @@ Omarchy plugins run unsandboxed inside the long-lived `omarchy-shell` process. R
   per-turn scratch. WebSearch is available, while WebFetch and direct process
   network access remains blocked. Commands inside that fixed boundary may run
   automatically. A command that cannot run inside that boundary may proceed
-  only through the broker's exact allow-once device approval. Approving that
-  command explicitly lets it run outside the disposable sandbox with the
+  only through a broker-bound choice supplied by the Claude adapter. Approving
+  it explicitly lets it run outside the disposable sandbox with the
   current user's full process environment and device authority, including host
   reads, writes, credential-bearing environment variables, and network access.
 - OpenCode may load its positively identified skill tool and use websearch
@@ -43,10 +52,15 @@ Omarchy plugins run unsandboxed inside the long-lived `omarchy-shell` process. R
   device-approval policy and the same execute-kind, complete-input, and
   allow-once normalization. Missing or unreviewable choices are cancelled;
   blocked providers do not gain tool authority from this setting.
-- Arbitrary MCP, browser/computer control, subagents, unclassified requests, and requests
-  without an inspectable target are denied. Codex may edit, delete, move, or otherwise
-  mutate user-accessible state only after exact allow-once command approval.
-- Provider authentication remains in the installed harness. OmaPilot must not log, copy, or persist credential output.
+- Arbitrary MCP, browser/computer control, unclassified requests, and requests
+  without an inspectable target are denied. Codex may edit, delete, move, or
+  otherwise mutate user-accessible state only after an explicit provider-native
+  approval whose displayed label defines its duration.
+- Built-in authentication is resolved in memory by Pi from environment
+  variables or `${XDG_CONFIG_HOME:-$HOME/.config}/omapilot/auth.json`; authentication for an explicitly selected ACP harness remains in that
+  installed harness. OmaPilot must not log, copy, or persist credential output.
+  Credential entries may intentionally reference user-configured commands, so
+  `auth.json` is trusted executable configuration and must be user-owned.
 - Adapter bundles are generated from exact package-lock versions and reviewed as tracked files in the same Git commit as their source. Published release archives add SHA-256 verification, provenance, and an SBOM; the runtime does not download or replace adapters.
 - Remote images require a user action and are subject to scheme, redirect, address, MIME, byte-size, complete decode, pixel-area, and cache-quota checks before Quickshell sees them.
 - Context capture is an explicit overlay gesture. The active target is latched

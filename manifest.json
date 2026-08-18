@@ -17,11 +17,12 @@
     "displayName": "OmaPilot",
     "description": "Work through an authenticated AI harness without leaving the Omarchy bar.",
     "category": "AI",
-    "aliases": ["ai", "chat", "pilot", "omapilot", "quickchat", "codex", "claude", "opencode"],
+    "aliases": ["ai", "chat", "pilot", "omapilot", "quickchat", "codex", "openai", "claude", "opencode", "pi"],
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
-      "provider": "codex",
+      "provider": "builtin",
+      "builtinModel": "",
       "codexModel": "",
       "claudeModel": "",
       "opencodeModel": "",
@@ -33,10 +34,17 @@
       {
         "key": "provider",
         "type": "enum",
-        "label": "Default harness",
-        "options": ["codex", "claude", "opencode"],
-        "defaultValue": "codex",
-        "description": "OmaPilot shows only installed, authenticated harnesses at runtime."
+        "label": "Harness",
+        "options": ["builtin", "codex", "claude", "opencode"],
+        "defaultValue": "builtin",
+        "description": "Choose one harness explicitly. Built-in uses OmaPilot's native Pi runtime; the others use their logged-in ACP harness without fallback."
+      },
+      {
+        "key": "builtinModel",
+        "type": "string",
+        "label": "Last built-in model",
+        "defaultValue": "",
+        "description": "Empty uses the built-in default; discovered OpenAI, Claude, and compatible models are selected in OmaPilot."
       },
       {
         "key": "codexModel",
@@ -72,7 +80,7 @@
         "type": "boolean",
         "label": "Dangerous auto-approve",
         "defaultValue": false,
-        "description": "Automatically select each exact ACP request's Allow once option instead of prompting."
+        "description": "Automatically select each exact tool request's Allow once option instead of prompting."
       }
     ]
   }

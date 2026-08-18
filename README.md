@@ -29,14 +29,21 @@ compact error notice opens an inspectable details pane.
 - Omarchy Quattro with the native shell plugin architecture.
 - Linux x86-64 for the initial prebuilt runtime.
 - Node.js 22 or newer for the broker and pinned ACP adapters.
-- At least one installed and authenticated harness: `codex`, `claude`, or `opencode`.
+- Credentials for the built-in harness, or an installed and authenticated ACP harness.
 - Optional: Voxtype for dictation and Herdr for durable continuation.
 - `grim` for contextual screenshots. ImageMagick, already used by OmaPilot's
   image policy, validates and normalizes every captured image.
 - Optional: Tesseract adds text-under-the-pointer extraction and the **Text**
   representation. Without it, screenshot and browser-element capture still work.
 
-OmaPilot does not install a harness, log you in, or read provider credentials. Authentication and model availability remain owned by the selected harness. The model picker is populated at startup from Codex's read-only app-server catalog, a non-persisted Claude ACP discovery session, or OpenCode's native catalog; if discovery is unavailable, OmaPilot safely falls back to the harness default.
+OmaPilot includes a native Pi-based harness for Codex subscription, OpenAI API,
+Claude, and configured OpenAI-compatible endpoints. It resolves credentials from
+environment variables or `${XDG_CONFIG_HOME:-$HOME/.config}/omapilot/auth.json`,
+discovers shared `~/.agents` skills and named agents, and exposes Pi's standard
+coding tools behind OmaPilot's approval broker. See [Native Pi harness configuration](docs/native-harness.md).
+The Harness setting explicitly selects **Built-in (OmaPilot)**, **Codex**,
+**Claude**, or **OpenCode**. The latter three are ACP harnesses and must already
+be installed and signed in. OmaPilot never substitutes one harness for another.
 
 ## Install
 
@@ -67,13 +74,17 @@ Omarchy BarWidget/Panel
         │ one JSON command/event per line
         ▼
 OmaPilot broker
-        │ Agent Client Protocol over stdio
-        ├── Codex ACP ── authenticated Codex CLI
-        ├── Claude ACP ─ authenticated Claude harness
-        └── OpenCode ACP ─ authenticated OpenCode CLI
+        ├── Built-in (selected) ─ Pi runtime ─ Codex / OpenAI / Claude / compatible APIs
+        ├── Codex (selected) ─── Codex ACP
+        ├── Claude (selected) ── Claude ACP
+        └── OpenCode (selected) ─ OpenCode ACP
 ```
 
-Codex and Claude use exact, source-pinned official ACP adapter packages bundled in the repository. OpenCode uses its native `opencode acp` command. The broker normalizes provider discovery, streamed text/images, cancellation, permissions, errors, and session identities; QML does not parse provider-specific output.
+The native runtime owns model discovery, auth resolution and refresh, skills,
+named agents, streaming, and Pi tool execution. The explicitly selected Codex
+and Claude ACP routes use exact, source-pinned adapter packages; OpenCode uses
+`opencode acp`.
+The broker normalizes both paths so QML does not parse provider-specific output.
 
 Every request uses the selected harness and its reviewed automatic policy.
 OmaPilot displays each exact device approval, or auto-selects its allow-once
@@ -81,28 +92,35 @@ option when the dangerous setting is enabled.
 Every harness can load relevant installed skills and decide whether a tool is
 needed:
 
-- **Codex** may use its read-only device tools and read files available to the
+- **Built-in (OmaPilot)** combines available Codex, OpenAI, Claude, and
+  OpenAI-compatible models in one catalog and loads
+  declarative skills and named agents from the documented `~/.agents` roots.
+  Pi's read, grep, find, and list tools may read files available to the current
+  user. Bash, edit, and write require review unless an exact session or durable
+  grant already exists. Executable Pi extensions are not loaded.
+- **Codex ACP** may use its read-only device tools and read files available to the
   current user without asking. Native web search stays disabled in the same
   session so those reads cannot become unapproved search queries. Any command
-  requesting network or broader device authority pauses behind an exact
-  **Allow once** or **Deny** card showing the adapter-normalized command and
-  working directory.
-- **Claude** may load installed skills from a disposable, MCP-free plugin copy,
+  requesting network or broader device authority pauses behind a card showing
+  the adapter-normalized command, working directory, and every provider-native
+  once, session, durable, or rejection choice supplied by the adapter.
+- **Claude ACP** may load installed skills from a disposable, MCP-free plugin copy,
   search the web, and run commands inside a disposable
   scratch workspace. Host paths and credential-bearing environment variables
   stay hidden, direct process network access is blocked, and writes remain
   confined to per-turn scratch. Commands inside that fixed boundary may run
   automatically. A command that needs host/device authority pauses behind the
-  same exact **Allow once** or **Deny** card. Approval applies only to that
-  command and runs it outside the disposable sandbox with the current user's
+  same broker-bound provider choices. An approval runs it outside the
+  disposable sandbox with the current user's
   device, network, host-file, and process-environment authority.
-- **OpenCode** may load installed skills and use its positively identified web
+- **OpenCode ACP** may load installed skills and use its positively identified web
   search tool automatically. Its native `bash` permission is fixed to `ask`;
   the broker accepts execution only after the exact command receives a
   request-bound **Allow once** decision. Other OpenCode tools remain denied.
 
-Every supported permission decision is bound to the exact in-flight request.
-Oversized or visually ambiguous requests, persistent grants, arbitrary MCP,
+Every supported permission decision is bound to a provider option. Native Pi
+session and durable grants match only the exact reviewed request and working
+directory. Oversized or visually ambiguous requests, arbitrary MCP,
 browser/computer control, unclassified tools, and uninspectable targets remain
 blocked. OmaPilot removes its per-turn working directory afterward. Raw tool
 requests, decisions, inputs, and outputs are not stored in chat history; a

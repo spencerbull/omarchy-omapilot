@@ -9,7 +9,7 @@ import { HistoryStore, presentChat, presentImage } from "./history.js";
 import { continueInHerdr, describeHerdrError } from "./herdr.js";
 import { ImagePolicyError, ImageStore, isAllowedExternalLink } from "./images.js";
 import { normalizeToolPermission, type PendingToolPermission } from "./permissions.js";
-import { discoverProviders, fallbackModels, type DiscoveredProvider } from "./providers.js";
+import { discoverProviders, fallbackModels, isPiProvider, type DiscoveredProvider } from "./providers.js";
 import { resolveExecutable, runCommand } from "./process.js";
 import type { BrokerCommand, BrokerEvent, ChatRecord, ProviderId, ProviderInfo } from "./types.js";
 import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
@@ -70,7 +70,9 @@ export class QuickchatBroker {
       statusChanged: () => { void this.#emitBrowserCompanionStatus(); }
     });
     this.#dictation = options.dictation ?? new DictationService();
-    this.#sessionCleaner = options.sessionCleaner ?? deleteAcpSession;
+    this.#sessionCleaner = options.sessionCleaner ?? ((provider, sessionId) => isPiProvider(provider)
+      ? Promise.resolve(true)
+      : deleteAcpSession(provider, sessionId));
     this.#herdrContinue = options.herdrContinue ?? continueInHerdr;
     this.#env = options.env ?? process.env;
     this.#permissionTimeoutMs = options.permissionTimeoutMs ?? 60_000;
@@ -124,10 +126,11 @@ export class QuickchatBroker {
       this.#error("unsupported_protocol", "Quickchat supports broker protocol version 2", false);
       return;
     }
-    const discovered = await discoverProviders(this.#env);
+    const discovered = await discoverProviders(this.#env, command.harness);
     await this.#browserCompanion.start().catch(() => undefined);
     await this.#emitBrowserCompanionStatus();
     await Promise.all(discovered.map(async (provider) => {
+      if (isPiProvider(provider)) return;
       const acpModels = await probeAcpModels(provider);
       const models = acpModels.models.length > 0 ? acpModels.models : await fallbackModels(provider);
       provider.models = models;
@@ -172,13 +175,16 @@ export class QuickchatBroker {
       }
       throw error;
     }
-    const run = runAcpQuestion(
-      provider, command.id, promptWithContextAttachments(command.question, command.desktopContext, attachmentBlocks), command.model,
-      this.#emit, 180_000, this.#images,
-      (request) => this.#requestToolPermission(
-        command.id, provider.id, request, dangerousAutoApprove),
-      () => this.#cancelPermissions(command.id)
-    );
+    const permission = (request: RequestPermissionRequest) => this.#requestToolPermission(
+      command.id, provider.id, request, dangerousAutoApprove);
+    const prompt = promptWithContextAttachments(command.question, command.desktopContext, attachmentBlocks);
+    const run = isPiProvider(provider)
+      ? (await import("./pi-harness.js")).runPiQuestion(
+        provider, command.id, prompt, command.model, this.#emit, 180_000, permission,
+        () => this.#cancelPermissions(command.id))
+      : runAcpQuestion(provider, command.id, prompt, command.model,
+        this.#emit, 180_000, this.#images, permission,
+        () => this.#cancelPermissions(command.id));
     this.#runs.set(command.id, run);
     this.#emit({ type: "state", id: command.id, state: "streaming", message: `Waiting for ${provider.name}…` });
     try {
@@ -211,7 +217,7 @@ export class QuickchatBroker {
       this.#emit({ type: "complete", chat: presentChat(chat) });
       this.#emit({ type: "state", id: command.id, state: "idle" });
     } catch (error) {
-      if (error instanceof BrokerAcpError) this.#error(error.code, error.message, error.retryable, command.id);
+      if (error instanceof BrokerAcpError || isBrokerRunError(error)) this.#error(error.code, error.message, error.retryable, command.id);
       else this.#error("agent_failed", "The selected harness stopped unexpectedly", true, command.id);
     } finally {
       this.#cancelPermissions(command.id);
@@ -344,10 +350,11 @@ export class QuickchatBroker {
     const permissionId = randomUUID();
     const pending = normalizeToolPermission(requestId, permissionId, provider, request);
     if (pending === undefined) return { invalid: true };
-    if (dangerousAutoApprove)
-      return pending.allowOptionId === undefined
-        ? { invalid: true }
-        : { optionId: pending.allowOptionId };
+    if (dangerousAutoApprove) {
+      const choice = pending.view.options.find((option) => option.decision === "allow_once");
+      const optionId = choice === undefined ? undefined : pending.optionIds[choice.id];
+      return optionId === undefined ? { invalid: true } : { optionId };
+    }
     return new Promise<PermissionDecision>((resolvePermission) => {
       const timeout = setTimeout(() => {
         this.#permissions.delete(permissionId);
@@ -366,7 +373,8 @@ export class QuickchatBroker {
     this.#permissions.delete(command.permissionId);
     clearTimeout(pending.timeout);
     this.#emit({ type: "permission_closed", id: command.id, permissionId: command.permissionId, reason: "decided" });
-    const optionId = command.decision === "allow_once" ? pending.allowOptionId : pending.rejectOptionId;
+    const choice = pending.view.options.find((option) => option.id === command.choiceId && option.decision === command.decision);
+    const optionId = choice === undefined ? undefined : pending.optionIds[choice.id];
     pending.resolve(optionId === undefined ? {} : { optionId });
   }
 
@@ -490,4 +498,10 @@ function publicProvider(provider: DiscoveredProvider): ProviderInfo {
     ...(provider.version === undefined ? {} : { version: provider.version }),
     ...(provider.defaultModel === undefined ? {} : { defaultModel: provider.defaultModel })
   };
+}
+
+function isBrokerRunError(error: unknown): error is Error & { code: string; retryable: boolean } {
+  return error instanceof Error
+    && typeof (error as { code?: unknown }).code === "string"
+    && typeof (error as { retryable?: unknown }).retryable === "boolean";
 }

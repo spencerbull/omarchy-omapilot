@@ -43,8 +43,15 @@ grep -Fq 'Qt.resolvedUrl("../runtime/bin/quickchat-broker")' \
   "$repo_dir/components/QuickchatStore.qml"
 grep -Fq 'Quickshell.env("QUICKCHAT_BROKER_PATH") || bundledBrokerPath' \
   "$repo_dir/components/QuickchatStore.qml"
-grep -Fq 'property string configuredProvider: "codex"' \
+grep -Fq 'property string configuredProvider: "builtin"' \
   "$repo_dir/components/QuickchatStore.qml"
+grep -Fq 'harness: provider' "$repo_dir/components/QuickchatStore.qml"
+grep -Fq 'readonly property var modeProviders: Protocol.harnessOptions()' \
+  "$repo_dir/components/SettingsView.qml"
+if grep -Fq 'backendSelection' "$repo_dir/components/QuickchatStore.qml"; then
+  printf 'Harness selection must not be split into backend and provider settings\n' >&2
+  exit 1
+fi
 grep -Fq 'property bool desktopContextEnabled: true' \
   "$repo_dir/components/QuickchatStore.qml"
 grep -Fq 'DesktopContext.snapshot()' "$repo_dir/components/QuickchatStore.qml"
@@ -100,7 +107,7 @@ if grep -Eq 'sandboxed|Device commands stay blocked|sandbox limits stay active' 
   printf 'QML permission copy must not retain unreachable legacy policy branches\n' >&2
   exit 1
 fi
-grep -Fq 'Allow once may read or change device data and access the network' \
+grep -Fq 'Review the exact request and choose how long this agent may retain the approval.' \
   "$repo_dir/Panel.qml"
 grep -Fq 'readonly property bool popupOpen:' "$repo_dir/components/Composer.qml"
 grep -Fq 'var action = Presentation.escapeAction(root.viewMode, composer.popupOpen,' "$repo_dir/Panel.qml"

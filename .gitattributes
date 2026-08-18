@@ -1,0 +1,2 @@
+runtime/dist/quickchat-broker.js -whitespace
+runtime/dist/quickchat-broker.js.map -diff -whitespace

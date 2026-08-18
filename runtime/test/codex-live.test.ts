@@ -11,7 +11,7 @@ const live = process.env.QUICKCHAT_LIVE_CODEX_BEHAVIOR === "1";
 
 describe("live automatic Codex boundary", () => {
   it.runIf(live)("loads the installed Omarchy skill", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "codex");
+    const provider = (await discoverProviders(process.env, "codex")).find((candidate) => candidate.id === "codex");
     expect(provider, "authenticated Codex must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     const tools: ToolObservation[] = [];
@@ -33,7 +33,7 @@ describe("live automatic Codex boundary", () => {
   }, 120_000);
 
   it.runIf(live)("uses the reviewed automatic read-only policy", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "codex");
+    const provider = (await discoverProviders(process.env, "codex")).find((candidate) => candidate.id === "codex");
     expect(provider, "authenticated Codex must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     expect(provider.lockdownFeatures).toEqual(expect.arrayContaining(["shell_tool", "unified_exec", "skill_search"]));
@@ -43,7 +43,7 @@ describe("live automatic Codex boundary", () => {
   }, 120_000);
 
   it.runIf(live)("runs a generic automatic command after exactly one allow-once approval", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "codex");
+    const provider = (await discoverProviders(process.env, "codex")).find((candidate) => candidate.id === "codex");
     expect(provider, "authenticated Codex must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     const root = await mkdtemp(join(tmpdir(), "quickchat-codex-tools-"));

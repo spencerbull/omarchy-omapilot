@@ -16,7 +16,7 @@ afterEach(async () => {
 
 describe("live automatic OpenCode boundary", () => {
   it.runIf(live)("loads the installed Omarchy skill through the exact skill tool", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "opencode");
+    const provider = (await discoverProviders(process.env, "opencode")).find((candidate) => candidate.id === "opencode");
     expect(provider, "authenticated OpenCode must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     const tools: ToolObservation[] = [];
@@ -42,7 +42,7 @@ describe("live automatic OpenCode boundary", () => {
   }, 120_000);
 
   it.runIf(live)("uses web search automatically without a device permission", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "opencode");
+    const provider = (await discoverProviders(process.env, "opencode")).find((candidate) => candidate.id === "opencode");
     expect(provider, "authenticated OpenCode must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     let permissionCount = 0;
@@ -64,7 +64,7 @@ describe("live automatic OpenCode boundary", () => {
   }, 120_000);
 
   it.runIf(live)("runs a generic device command after exactly one allow-once approval", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "opencode");
+    const provider = (await discoverProviders(process.env, "opencode")).find((candidate) => candidate.id === "opencode");
     expect(provider, "authenticated OpenCode must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     const root = await mkdtemp(join(tmpdir(), "quickchat-opencode-tools-"));
@@ -98,7 +98,7 @@ describe("live automatic OpenCode boundary", () => {
   }, 120_000);
 
   it.runIf(live)("does not execute or claim success after a device-command denial", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "opencode");
+    const provider = (await discoverProviders(process.env, "opencode")).find((candidate) => candidate.id === "opencode");
     expect(provider, "authenticated OpenCode must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     const root = await mkdtemp(join(tmpdir(), "quickchat-opencode-deny-"));

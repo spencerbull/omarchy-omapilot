@@ -267,7 +267,7 @@ export function runAcpQuestion(
           }
           const optionId = typeof decision === "string" ? decision : decision?.optionId;
           const optionKind = params.options.find((option) => option.optionId === optionId)?.kind;
-          if (optionKind !== "allow_once") unapprovedToolAttempt = true;
+          if (optionKind !== "allow_once" && optionKind !== "allow_always") unapprovedToolAttempt = true;
           if (provider.id === "opencode") {
             if (optionKind === "allow_once") {
               const command = openCodeCommand(params.toolCall.rawInput);

@@ -28,7 +28,8 @@ jq -e '
   and .barWidget.allowMultiple == false
   and .barWidget.defaultSection == "right"
   and .barWidget.defaults == {
-    "provider":"codex",
+    "provider":"builtin",
+    "builtinModel":"",
     "codexModel":"",
     "claudeModel":"",
     "opencodeModel":"",
@@ -36,13 +37,13 @@ jq -e '
     "desktopContext":"On",
     "dangerousAutoApprove":false
   }
-  and ([.barWidget.schema[].key] | sort) == (["claudeModel", "codexModel", "dangerousAutoApprove", "desktopContext", "opencodeModel", "provider"] | sort)
+  and ([.barWidget.schema[].key] | sort) == (["builtinModel", "claudeModel", "codexModel", "dangerousAutoApprove", "desktopContext", "opencodeModel", "provider"] | sort)
   and (.barWidget.schema[] | select(.key == "dangerousAutoApprove")) == {
     "key":"dangerousAutoApprove",
     "type":"boolean",
     "label":"Dangerous auto-approve",
     "defaultValue":false,
-    "description":"Automatically select each exact ACP request\u0027s Allow once option instead of prompting."
+    "description":"Automatically select each exact tool request\u0027s Allow once option instead of prompting."
   }
 ' "$manifest" >/dev/null || fail "manifest contract drifted from the Quickchat v0.1 schema"
 

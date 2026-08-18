@@ -41,6 +41,7 @@ required=(
   package.json
   package-lock.json
   runtime/dist/quickchat-broker.js
+  runtime/dist/quickchat-broker.js.LEGAL.txt
   runtime/dist/adapters/codex-acp.js
   runtime/dist/adapters/claude-agent-acp.js
   runtime/dist/adapters/claude-agent-acp.js.LEGAL.txt
@@ -108,6 +109,7 @@ mkdir -p "$stage/runtime/dist/adapters" "$stage/runtime/bin" "$stage/runtime/pol
 
 cp "$repo_root/package.json" "$repo_root/package-lock.json" "$stage/"
 cp "$repo_root/runtime/dist/quickchat-broker.js" "$stage/runtime/dist/"
+cp "$repo_root/runtime/dist/quickchat-broker.js.LEGAL.txt" "$stage/runtime/dist/"
 cp "$repo_root/runtime/dist/adapters/codex-acp.js" "$stage/runtime/dist/adapters/"
 cp "$repo_root/runtime/dist/adapters/claude-agent-acp.js" "$stage/runtime/dist/adapters/"
 cp "$repo_root/runtime/dist/adapters/claude-agent-acp.js.LEGAL.txt" "$stage/runtime/dist/adapters/"

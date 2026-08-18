@@ -17,6 +17,8 @@
     "@agentclientprotocol/claude-agent-acp": "0.66.0",
     "@agentclientprotocol/codex-acp": "1.1.14",
     "@agentclientprotocol/sdk": "1.3.0",
+    "@earendil-works/pi-coding-agent": "0.84.2",
+    "typebox": "1.3.7",
     "zod": "4.3.6"
   },
   "devDependencies": {

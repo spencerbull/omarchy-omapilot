@@ -21,7 +21,7 @@ function submitCommand(id, question, provider, model, desktopContext, dangerousA
   var payload = command("submit", {
     id: String(id || ""),
     question: String(question || ""),
-    provider: normalizedProvider(provider) || "codex"
+    provider: normalizedProvider(provider) || "builtin"
   })
   var selectedModel = String(model || "").trim()
   if (selectedModel !== "") payload.model = selectedModel
@@ -331,11 +331,18 @@ function errorDiagnosticText(raw) {
 
 function normalizedProvider(value) {
   var provider = String(value || "").toLowerCase()
-  return ["codex", "claude", "opencode"].indexOf(provider) >= 0 ? provider : ""
+  return ["builtin", "codex", "claude", "opencode"].indexOf(provider) >= 0 ? provider : ""
+}
+
+function harnessOptions() {
+  return ["builtin", "codex", "claude", "opencode"].map(function(value) {
+    return { value: value, label: providerLabel(value) }
+  })
 }
 
 function providerLabel(value) {
   var provider = normalizedProvider(value)
+  if (provider === "builtin") return "Built-in (OmaPilot)"
   if (provider === "codex") return "Codex"
   if (provider === "claude") return "Claude"
   if (provider === "opencode") return "OpenCode"
@@ -422,8 +429,22 @@ function normalizedPermission(raw, currentRequestId) {
     kind: kind,
     authority: "device",
     detail: String(value.detail || "").slice(0, 3000),
-    allowOnce: value.allowOnce === true
+    options: normalizedPermissionOptions(value.options)
   }
+}
+
+function normalizedPermissionOptions(raw) {
+  var values = Array.isArray(raw) ? raw : []
+  var supported = ["allow_once", "allow_session", "allow_always", "reject_once", "reject_always"]
+  var result = []
+  for (var i = 0; i < values.length; i++) {
+    var decision = String(values[i] && values[i].decision || "")
+    if (supported.indexOf(decision) < 0) continue
+    var id = String(values[i] && values[i].id || "")
+    if (!/^option-[0-9]{1,3}$/.test(id)) continue
+    result.push({ id: id, decision: decision, label: String(values[i].label || "").slice(0, 48) })
+  }
+  return result
 }
 
 function isSafeExternalUrl(url) {
@@ -565,7 +586,7 @@ function normalizedHistory(input) {
       title: String(row.title || row.question || "Untitled question"),
       question: String(row.question || ""),
       answer: String(row.answer || row.markdown || ""),
-      provider: normalizedProvider(row.provider) || "codex",
+      provider: normalizedProvider(row.provider) || "builtin",
       model: String(row.model || ""),
       timestamp: String(row.createdAt || row.timestamp || ""),
       images: Array.isArray(row.images) ? row.images : [],

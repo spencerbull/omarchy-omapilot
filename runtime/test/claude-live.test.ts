@@ -14,7 +14,7 @@ afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recur
 
 describe("live automatic Claude boundary", () => {
   it.runIf(live)("loads the installed Omarchy skill", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "claude");
+    const provider = (await discoverProviders(process.env, "claude")).find((candidate) => candidate.id === "claude");
     expect(provider, "authenticated Claude must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     const tools: ToolObservation[] = [];
@@ -36,7 +36,7 @@ describe("live automatic Claude boundary", () => {
   }, 120_000);
 
   it.runIf(live)("runs a harmless command automatically inside disposable scratch", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "claude");
+    const provider = (await discoverProviders(process.env, "claude")).find((candidate) => candidate.id === "claude");
     expect(provider, "authenticated Claude must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     const events: BrokerEvent[] = [];
@@ -61,7 +61,7 @@ describe("live automatic Claude boundary", () => {
   }, 120_000);
 
   it.runIf(live)("runs an exact device command only after allow-once approval", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "claude");
+    const provider = (await discoverProviders(process.env, "claude")).find((candidate) => candidate.id === "claude");
     expect(provider, "authenticated Claude must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     const root = await mkdtemp(join(tmpdir(), "quickchat-claude-host-boundary-"));
@@ -90,7 +90,7 @@ describe("live automatic Claude boundary", () => {
   }, 120_000);
 
   it.runIf(live)("does not expose a host file when device approval is denied", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "claude");
+    const provider = (await discoverProviders(process.env, "claude")).find((candidate) => candidate.id === "claude");
     expect(provider, "authenticated Claude must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     const root = await mkdtemp(join(tmpdir(), "quickchat-claude-denied-host-read-"));
@@ -121,7 +121,7 @@ describe("live automatic Claude boundary", () => {
   }, 120_000);
 
   it.runIf(live)("uses WebSearch automatically without a permission prompt", async () => {
-    const provider = (await discoverProviders()).find((candidate) => candidate.id === "claude");
+    const provider = (await discoverProviders(process.env, "claude")).find((candidate) => candidate.id === "claude");
     expect(provider, "authenticated Claude must be discoverable for the opt-in live test").toBeDefined();
     if (provider === undefined) return;
     let permissionCount = 0;

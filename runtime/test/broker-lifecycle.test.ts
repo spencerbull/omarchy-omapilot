@@ -23,7 +23,7 @@ describe("broker lifecycle cleanup", () => {
       history: fixture.history, images: new ImageStore(fixture.paths), env: fixture.env,
       sessionCleaner: (_provider, sessionId) => { cleaned.push(sessionId); return Promise.reject(new Error("provider offline")); }
     });
-    await broker.handle({ type: "initialize", protocolVersion: 2 });
+    await broker.handle({ type: "initialize", protocolVersion: 2, harness: "codex" });
     await broker.handle({ type: "history_delete", chatId: record(1).id });
     expect(await fixture.history.list()).toEqual([]);
     expect(cleaned).toEqual(["provider-session-1"]);
@@ -39,7 +39,7 @@ describe("broker lifecycle cleanup", () => {
       history: fixture.history, images: new ImageStore(fixture.paths), env: fixture.env,
       sessionCleaner: (_provider, sessionId) => { cleaned.push(sessionId); return Promise.resolve(sessionId !== "provider-session-1"); }
     });
-    await broker.handle({ type: "initialize", protocolVersion: 2 });
+    await broker.handle({ type: "initialize", protocolVersion: 2, harness: "codex" });
     await broker.handle({ type: "history_clear" });
     expect(await fixture.history.list()).toEqual([]);
     expect(cleaned.sort()).toEqual(["provider-session-1", "provider-session-2"]);
@@ -53,7 +53,7 @@ describe("broker lifecycle cleanup", () => {
       history: fixture.history, images: new ImageStore(fixture.paths), env: fixture.env,
       sessionCleaner: (_provider, sessionId) => { cleaned.push(sessionId); return Promise.resolve(true); }
     });
-    await broker.handle({ type: "initialize", protocolVersion: 2 });
+    await broker.handle({ type: "initialize", protocolVersion: 2, harness: "codex" });
     await broker.handle({ type: "submit", id: "evict", question: "Newest", provider: "codex" });
     expect((await fixture.history.list())).toHaveLength(30);
     expect(cleaned).toContain("provider-session-0");
@@ -102,7 +102,7 @@ describe("tool permission lifecycle", () => {
       env: { ...fixture.env, FAKE_ACP_PERMISSION_ATTEMPT: "1" },
       permissionTimeoutMs: 20
     });
-    await broker.handle({ type: "initialize", protocolVersion: 2 });
+    await broker.handle({ type: "initialize", protocolVersion: 2, harness: "claude" });
     await broker.handle({ type: "submit", id: "expires", question: "Run uname", provider: "claude" });
     const permission = fixture.events.find((event) => event.type === "permission");
     expect(permission?.type).toBe("permission");

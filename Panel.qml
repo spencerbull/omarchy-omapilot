@@ -73,7 +73,6 @@ Panel {
   function selectProvider(provider) {
     var selected = String(provider || "")
     if (selected === "") return
-    Quickchat.QuickchatStore.selectProvider(selected)
     persistSettings({ provider: selected })
   }
 
@@ -157,7 +156,9 @@ Panel {
     return false
   }
 
-  function providerModelKey(provider) { return String(provider) + "Model" }
+  function providerModelKey(provider) {
+    return String(provider) + "Model"
+  }
 
   onSettingsChanged: Quickchat.QuickchatStore.configure(settings)
   Component.onCompleted: Quickchat.QuickchatStore.configure(settings)
@@ -376,7 +377,7 @@ Panel {
               QuickchatInternal.PermissionFocusGuard {
                 permissionId: Quickchat.QuickchatStore.pendingPermission
                   ? String(Quickchat.QuickchatStore.pendingPermission.id || "") : ""
-                defaultTarget: denyPermission
+                defaultTarget: denyPermission.visible ? denyPermission : permissionChoices.itemAt(0)
               }
 
               ColumnLayout {
@@ -390,8 +391,7 @@ Panel {
                 Text {
                   Layout.fillWidth: true
                   text: Quickchat.QuickchatStore.pendingPermission
-                    ? (Quickchat.QuickchatStore.pendingPermission.allowOnce ? "Allow once: " : "Blocked: ")
-                      + Quickchat.QuickchatStore.pendingPermission.title : ""
+                    ? "Approval required: " + Quickchat.QuickchatStore.pendingPermission.title : ""
                   color: root.foreground
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.body
@@ -401,7 +401,7 @@ Panel {
 
                 Text {
                   Layout.fillWidth: true
-                  text: "Review the command and working directory. Allow once may read or change device data and access the network."
+                  text: "Review the exact request and choose how long this agent may retain the approval."
                   color: Qt.darker(root.foreground, 1.45)
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
@@ -432,11 +432,10 @@ Panel {
                   }
                 }
 
-                RowLayout {
+                Flow {
                   Layout.fillWidth: true
+                  Layout.preferredHeight: implicitHeight
                   spacing: Style.spacing.md
-
-                  Item { Layout.fillWidth: true }
 
                   Button {
                     id: denyPermission
@@ -445,20 +444,26 @@ Panel {
                     background: root.surface
                     bordered: true
                     focusable: true
-                    onClicked: Quickchat.QuickchatStore.respondPermission("reject_once")
+                    visible: Quickchat.QuickchatStore.hasPermissionDecision("reject_once")
+                    onClicked: Quickchat.QuickchatStore.respondPermission(
+                      "reject_once", Quickchat.QuickchatStore.permissionChoiceId("reject_once"))
                   }
 
-                  Button {
-                    text: "Allow once"
-                    foreground: root.foreground
-                    background: root.surface
-                    accent: root.accent
-                    active: true
-                    bordered: true
-                    focusable: true
-                    enabled: Quickchat.QuickchatStore.pendingPermission
-                      && Quickchat.QuickchatStore.pendingPermission.allowOnce
-                    onClicked: Quickchat.QuickchatStore.respondPermission("allow_once")
+                  Repeater {
+                    id: permissionChoices
+                    model: Quickchat.QuickchatStore.permissionOptionsWithoutDenyOnce()
+                    delegate: Button {
+                      required property var modelData
+                      id: permissionChoice
+                      text: modelData.label
+                      foreground: root.foreground
+                      background: root.surface
+                      accent: root.accent
+                      active: modelData.decision === "allow_once"
+                      bordered: true
+                      focusable: true
+                      onClicked: Quickchat.QuickchatStore.respondPermission(modelData.decision, modelData.id)
+                    }
                   }
                 }
               }

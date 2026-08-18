@@ -3,12 +3,31 @@ import { access } from "node:fs/promises";
 import { constants } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ProviderId, ProviderInfo, ProviderPolicyInfo } from "./types.js";
+import type { HarnessId, ProviderId, ProviderInfo, ProviderPolicyInfo } from "./types.js";
+import type { ModelRuntime } from "../../node_modules/@earendil-works/pi-coding-agent/dist/core/model-runtime.js";
 import { quickchatPaths } from "./paths.js";
 import { resolveExecutable, runCommand, stripAnsi } from "./process.js";
 
 export type AgentCommand = { executable: string; args: string[]; env: NodeJS.ProcessEnv };
-export type DiscoveredProvider = ProviderInfo & { harnessPath: string; agent: AgentCommand; lockdownFeatures?: string[] };
+export type DiscoveredProvider = ProviderInfo & {
+  kind?: "acp" | "pi";
+  harnessPath: string;
+  agent: AgentCommand;
+  lockdownFeatures?: string[];
+};
+export type AcpDiscoveredProvider = DiscoveredProvider;
+export type PiDiscoveredProvider = DiscoveredProvider & {
+  kind: "pi";
+  runtime: ModelRuntime;
+  piProviderIds: string[];
+  agentDir: string;
+  sharedAgentsDir: string;
+  cwd: string;
+};
+
+export function isPiProvider(provider: DiscoveredProvider): provider is PiDiscoveredProvider {
+  return provider.kind === "pi" && "runtime" in provider && "piProviderIds" in provider;
+}
 
 const OPEN_CODE_PERMISSION = {
   "*": "deny",
@@ -33,12 +52,14 @@ const OPEN_CODE_PERMISSION = {
 } as const;
 
 const providerNames: Record<ProviderId, string> = {
+  builtin: "Built-in (OmaPilot)",
   codex: "Codex",
   claude: "Claude",
   opencode: "OpenCode"
 };
 
 const providerPolicies: Record<ProviderId, ProviderPolicyInfo> = {
+  builtin: { tools: "device-approval", web: "approved-command", hostReads: true },
   codex: { tools: "device-approval", web: "approved-command", hostReads: true },
   claude: { tools: "device-approval", web: "search", hostReads: false },
   opencode: { tools: "device-approval", web: "search", hostReads: false }
@@ -132,9 +153,29 @@ function agentEnvironment(provider: ProviderId, harnessPath: string, env: NodeJS
   return openCodePolicyEnvironment(env);
 }
 
-export async function discoverProviders(env: NodeJS.ProcessEnv = process.env): Promise<DiscoveredProvider[]> {
+export async function discoverProviders(
+  env: NodeJS.ProcessEnv = process.env,
+  harness: HarnessId = "builtin"
+): Promise<DiscoveredProvider[]> {
+  if (harness === "builtin") {
+    try {
+      if (env.QUICKCHAT_DISABLE_PI === "1") return [];
+      const { discoverPiProviders } = await import("./pi-harness.js");
+      const providers = await discoverPiProviders(env);
+      return providers;
+    } catch (error) {
+      if (env.QUICKCHAT_DEBUG_PI === "1") {
+        const detail = error instanceof Error ? `${error.name}: ${error.message}` : "unknown error";
+        process.stderr.write(`OmaPilot Pi discovery failed: ${detail.replaceAll(/[\u0000-\u001f\u007f-\u009f]/gu, " ").slice(0, 500)}\n`);
+      }
+      return [];
+    }
+  }
+
+  const requested = harness;
   const found: DiscoveredProvider[] = [];
   for (const id of ["codex", "claude", "opencode"] satisfies ProviderId[]) {
+    if (id !== requested) continue;
     const harnessPath = await resolveExecutable(id, env);
     if (harnessPath === undefined || !await authenticated(id, harnessPath, env)) continue;
     let executable: string | undefined;
@@ -165,6 +206,7 @@ export async function discoverProviders(env: NodeJS.ProcessEnv = process.env): P
     }
     const providerVersion = await version(harnessPath, env);
     found.push({
+      kind: "acp",
       id,
       name: providerNames[id],
       ...(providerVersion === undefined ? {} : { version: providerVersion }),

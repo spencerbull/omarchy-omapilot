@@ -1,7 +1,9 @@
 import { z } from "zod";
 
-export const providerIdSchema = z.enum(["codex", "claude", "opencode"]);
+export const providerIdSchema = z.enum(["builtin", "codex", "claude", "opencode"]);
 export type ProviderId = z.infer<typeof providerIdSchema>;
+export const harnessIdSchema = providerIdSchema;
+export type HarnessId = z.infer<typeof harnessIdSchema>;
 
 const contextText = (max: number) => z.string().min(1).max(max).refine(
   (value) => !/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/.test(value),
@@ -56,8 +58,9 @@ export type ContextAttachmentSelection = z.infer<typeof contextAttachmentSelecti
 const initializeCommand = z.object({
   type: z.literal("initialize"),
   protocolVersion: z.number().int().positive(),
+  harness: harnessIdSchema,
   client: z.string().max(120).optional()
-});
+}).strict();
 const submitCommand = z.object({
   type: z.literal("submit"),
   id: z.string().min(1).max(120),
@@ -97,7 +100,8 @@ const permissionResponseCommand = z.object({
   type: z.literal("permission_response"),
   id: z.string().min(1).max(120),
   permissionId: z.string().uuid(),
-  decision: z.enum(["allow_once", "reject_once"])
+  choiceId: z.string().regex(/^option-[0-9]{1,3}$/u),
+  decision: z.enum(["allow_once", "allow_session", "allow_always", "reject_once", "reject_always"])
 });
 const chatCommand = z.object({ type: z.enum(["continue_in_herdr", "history_delete"]), chatId: z.string().uuid() });
 const linkCommand = z.object({ type: z.literal("open_link"), url: z.string().max(8_192) });
@@ -175,7 +179,11 @@ export type ToolPermission = {
   kind: "execute";
   authority: "device";
   detail: string;
-  allowOnce: boolean;
+  options: Array<{
+    id: string;
+    decision: "allow_once" | "allow_session" | "allow_always" | "reject_once" | "reject_always";
+    label: string;
+  }>;
 };
 
 export type ChatRecord = {

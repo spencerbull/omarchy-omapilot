@@ -14,7 +14,7 @@ Item {
   property color background: Color.popups.background
   property color accent: Color.accent
   property string fontFamily: Style.font.family
-  readonly property var modeProviders: backend ? backend.providers : []
+  readonly property var modeProviders: Protocol.harnessOptions()
   readonly property var browserCompanion: backend && backend.browserCompanionStatus
     ? backend.browserCompanionStatus : ({
       phase: "ready", relayInstalled: false, setupAvailable: false,
@@ -476,10 +476,10 @@ Item {
             showLabel: false
             options: root.modeProviders
             value: root.backend ? root.backend.provider : ""
-            enabled: root.backend && !root.backend.busy && root.modeProviders.length > 0
+            enabled: root.backend && !root.backend.busy
             foreground: root.foreground
             background: root.background
-            Accessible.name: "AI harness"
+            Accessible.name: "Agent harness"
             onChanged: function(value) { root.providerChanged(value) }
           }
 

@@ -28,8 +28,8 @@ ShellRoot {
       : (root.previewState === "streaming" ? "streaming"
         : (root.previewState === "error" || root.previewState === "error-details"
           ? "error" : "composing"))
-    property string provider: "codex"
-    property string model: "gpt-5.4"
+    property string provider: "builtin"
+    property string model: "openai-codex::gpt-5.4"
     property string transcript: ""
     property string statusMessage: root.previewState === "waiting" ? "Preparing Codex…"
       : (root.previewState === "error" || root.previewState === "error-details"
@@ -47,11 +47,9 @@ ShellRoot {
     })
     property var pendingPermission: null
     property var providers: [
-      { value: "codex", label: "Codex", policy: { tools: "device-approval" } },
-      { value: "claude", label: "Claude", policy: { tools: "device-approval" } },
-      { value: "opencode", label: "OpenCode", policy: { tools: "device-approval" } }
+      { value: "builtin", label: "Built-in (OmaPilot)", policy: { tools: "device-approval" } }
     ]
-    property var modelOptions: [{ value: "gpt-5.4", label: "gpt-5.4" }]
+    property var modelOptions: [{ value: "openai-codex::gpt-5.4", label: "GPT-5.4 (openai-codex)" }]
     property var providerPolicy: ({ tools: "device-approval", web: "approved-command", hostReads: true })
     property var contextAttachments: root.previewState === "context" ? [{
       id: "11111111-1111-4111-8111-111111111111",

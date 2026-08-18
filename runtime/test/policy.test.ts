@@ -332,17 +332,22 @@ describe("provider security profiles", () => {
       ...process.env,
       PATH: `${resolve("runtime/test/fixtures/bin-unsafe")}:${process.env.PATH ?? ""}`,
       QUICKCHAT_CODEX_ACP: resolve("runtime/test/fake-acp-agent.mjs")
-    });
+    }, "codex");
     expect(providers.some((provider) => provider.id === "codex")).toBe(false);
   });
 
-  it("discovers automatic providers without public capability metadata", async () => {
-    const providers = await discoverProviders({
+  it("discovers only the selected ACP harness without public capability metadata", async () => {
+    const env = {
       ...process.env,
       PATH: `${resolve("runtime/test/fixtures/claude-auth")}:${resolve("runtime/test/fixtures/bin")}:${process.env.PATH ?? ""}`,
       QUICKCHAT_CODEX_ACP: resolve("runtime/test/fake-acp-agent.mjs"),
       QUICKCHAT_CLAUDE_ACP: resolve("runtime/test/fake-acp-agent.mjs")
-    });
+    };
+    const providers = (await Promise.all([
+      discoverProviders(env, "codex"),
+      discoverProviders(env, "claude"),
+      discoverProviders(env, "opencode")
+    ])).flat();
     expect(providers.map((provider) => provider.id)).toEqual(["codex", "claude", "opencode"]);
     expect(providers.every((provider) => !("capabilities" in provider))).toBe(true);
     expect(providers.map(({ id, policy }) => ({ id, policy }))).toEqual([
@@ -354,6 +359,16 @@ describe("provider security profiles", () => {
     expect(opencode).toBeDefined();
     const config = JSON.parse(opencode?.agent.env.OPENCODE_CONFIG_CONTENT ?? "{}");
     expect(config).toMatchObject({ default_agent: "build", skills: { urls: [] }, mcp: { "fixture-user-mcp": false } });
+  });
+
+  it("never substitutes ACP when the selected built-in harness is disabled", async () => {
+    const providers = await discoverProviders({
+      ...process.env,
+      QUICKCHAT_DISABLE_PI: "1",
+      PATH: `${resolve("runtime/test/fixtures/bin")}:${process.env.PATH ?? ""}`,
+      QUICKCHAT_CODEX_ACP: resolve("runtime/test/fake-acp-agent.mjs")
+    }, "builtin");
+    expect(providers).toEqual([]);
   });
 });
 

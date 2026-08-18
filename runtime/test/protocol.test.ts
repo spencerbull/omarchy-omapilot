@@ -50,6 +50,7 @@ describe("NDJSON protocol", () => {
   it("rejects malformed commands", () => {
     expect(commandSchema.safeParse({ type: "submit", id: "one", question: "", provider: "codex" }).success).toBe(false);
     expect(commandSchema.safeParse({ type: "permission_response", id: "one", permissionId: "not-a-uuid", decision: "allow_always" }).success).toBe(false);
+    expect(commandSchema.safeParse({ type: "permission_response", id: "one", permissionId: "11111111-1111-4111-8111-111111111111", choiceId: "option-1", decision: "allow_session" }).success).toBe(true);
     expect(commandSchema.safeParse({ type: "browser_companion_status" }).success).toBe(true);
     expect(commandSchema.safeParse({ type: "browser_companion_install" }).success).toBe(true);
     expect(commandSchema.safeParse({ type: "browser_companion_uninstall" }).success).toBe(true);
@@ -62,7 +63,7 @@ describe("NDJSON protocol", () => {
     const child = spawn(brokerExecutable(), [], { stdio: ["pipe", "pipe", "pipe"] });
     const events: Record<string, unknown>[] = [];
     createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write('{"type":"initialize","protocolVersion":1}\n');
+    child.stdin.write('{"type":"initialize","protocolVersion":1,"harness":"codex"}\n');
     await until(() => events.some((event) => event.code === "unsupported_protocol"));
     expect(events.some((event) => event.type === "ready")).toBe(false);
     expect(events.find((event) => event.code === "unsupported_protocol")?.message).toBe("Quickchat supports broker protocol version 2");
@@ -99,15 +100,14 @@ describe("NDJSON protocol", () => {
     const events: Record<string, unknown>[] = [];
     const lines = createInterface({ input: child.stdout });
     lines.on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write(`${JSON.stringify({ type: "initialize", protocolVersion: 2, client: "test" })}\n`);
+    child.stdin.write(`${JSON.stringify({ type: "initialize", protocolVersion: 2, harness: "codex", client: "test" })}\n`);
     await until(() => events.some((event) => event.type === "ready"));
     const ready = readySchema.parse(events.find((event) => event.type === "ready"));
     expect(ready.protocolVersion).toBe(2);
     expect(ready.features).toEqual(["desktop-context", "context-attachments"]);
     expect(ready.providers.find((provider) => provider.id === "codex")?.models).toContainEqual({ id: "test/default", name: "Default" });
     expect(ready.providers.map(({ id, policy }) => ({ id, policy }))).toEqual([
-      { id: "codex", policy: { tools: "device-approval", web: "approved-command", hostReads: true } },
-      { id: "opencode", policy: { tools: "device-approval", web: "search", hostReads: false } }
+      { id: "codex", policy: { tools: "device-approval", web: "approved-command", hostReads: true } }
     ]);
     expect(JSON.stringify(events.find((event) => event.type === "ready"))).not.toContain('"capabilities"');
     child.stdin.write(`${JSON.stringify({
@@ -136,7 +136,7 @@ describe("NDJSON protocol", () => {
     expect(promptBlocks[0]?.text).toContain("Context-only browser title");
     expect(promptBlocks[1]?.text).toBe("Say hello");
     child.stdin.write(`${JSON.stringify({ type: "history_delete", chatId: complete.chat.id })}\n`);
-    await until(async () => (await readFile(audit, "utf8")).trim() === "delete:fake-1");
+    await until(async () => (await readFile(audit, "utf8").catch(() => "")).trim() === "delete:fake-1");
     child.stdin.end(`${JSON.stringify({ type: "shutdown" })}\n`);
     await new Promise((resolveExit) => child.once("close", resolveExit));
   }, 25_000);
@@ -156,7 +156,7 @@ describe("NDJSON protocol", () => {
     });
     const events: Record<string, unknown>[] = [];
     createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+    child.stdin.write('{"type":"initialize","protocolVersion":2,"harness":"codex"}\n');
     await until(() => events.some((event) => event.type === "ready"));
     child.stdin.write('{"type":"submit","id":"short-stream","question":"Keep it short","provider":"codex"}\n');
     await until(() => events.some((event) => event.type === "content"));
@@ -186,7 +186,7 @@ describe("NDJSON protocol", () => {
     });
     const events: Record<string, unknown>[] = [];
     createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+    child.stdin.write('{"type":"initialize","protocolVersion":2,"harness":"codex"}\n');
     await until(() => events.some((event) => event.type === "ready"));
     child.stdin.write(`${JSON.stringify({
       type: "context_begin", id: "clip-1",
@@ -239,7 +239,7 @@ describe("NDJSON protocol", () => {
     });
     const events: Record<string, unknown>[] = [];
     createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+    child.stdin.write('{"type":"initialize","protocolVersion":2,"harness":"codex"}\n');
     await until(() => events.some((event) => event.type === "ready"));
     const ready = readySchema.parse(events.find((event) => event.type === "ready"));
     expect(ready.providers.find((provider) => provider.id === "codex")?.models).toContainEqual({ id: "test/default", name: "Default" });
@@ -266,7 +266,7 @@ describe("NDJSON protocol", () => {
     });
     const events: Record<string, unknown>[] = [];
     createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+    child.stdin.write('{"type":"initialize","protocolVersion":2,"harness":"codex"}\n');
     await until(() => events.some((event) => event.type === "ready"));
     child.stdin.write('{"type":"submit","id":"action-shaped","question":"open zoom","provider":"codex"}\n');
     await until(() => events.some((event) => event.type === "complete"));
@@ -305,17 +305,19 @@ describe("NDJSON protocol", () => {
     });
     const events: Record<string, unknown>[] = [];
     createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+    child.stdin.write(`${JSON.stringify({ type: "initialize", protocolVersion: 2, harness: provider })}\n`);
     await until(() => events.some((event) => event.type === "ready"));
     child.stdin.write(`${JSON.stringify({ type: "submit", id: "tool-turn", question: "Run uname", provider })}\n`);
     await until(() => events.some((event) => event.type === "permission"));
     const permission = z.object({
       type: z.literal("permission"),
-      permission: z.object({ id: z.string().uuid(), requestId: z.literal("tool-turn"), kind: z.literal("execute"), detail: z.string(), allowOnce: z.literal(true) })
+      permission: z.object({ id: z.string().uuid(), requestId: z.literal("tool-turn"), kind: z.literal("execute"), detail: z.string(), options: z.array(z.object({ id: z.string(), decision: z.string(), label: z.string() })) })
     }).parse(events.find((event) => event.type === "permission"));
     expect(permission.permission.detail).toBe('{\n  "command": "uname -s"\n}');
     expect(JSON.stringify(permission)).not.toContain("provider-allow");
-    child.stdin.write(`${JSON.stringify({ type: "permission_response", id: "tool-turn", permissionId: permission.permission.id, decision: "allow_once" })}\n`);
+    const allowChoice = permission.permission.options.find((option) => option.decision === "allow_once");
+    if (allowChoice === undefined) throw new Error("allow-once choice missing");
+    child.stdin.write(`${JSON.stringify({ type: "permission_response", id: "tool-turn", permissionId: permission.permission.id, choiceId: allowChoice.id, decision: "allow_once" })}\n`);
     await until(() => events.some((event) => event.type === "complete"));
     expect(events).toContainEqual({ type: "permission_closed", id: "tool-turn", permissionId: permission.permission.id, reason: "decided" });
     expect(events.some((event) => event.type === "error")).toBe(false);
@@ -360,13 +362,15 @@ describe("NDJSON protocol", () => {
     });
     const events: Record<string, unknown>[] = [];
     createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+    child.stdin.write('{"type":"initialize","protocolVersion":2,"harness":"claude"}\n');
     await until(() => events.some((event) => event.type === "ready"));
     child.stdin.write('{"type":"submit","id":"deny-turn","question":"Do not run it","provider":"claude"}\n');
     await until(() => events.some((event) => event.type === "permission"));
-    const permission = z.object({ type: z.literal("permission"), permission: z.object({ id: z.string().uuid() }) })
+    const permission = z.object({ type: z.literal("permission"), permission: z.object({ id: z.string().uuid(), options: z.array(z.object({ id: z.string(), decision: z.string() })) }) })
       .parse(events.find((event) => event.type === "permission"));
-    child.stdin.write(`${JSON.stringify({ type: "permission_response", id: "deny-turn", permissionId: permission.permission.id, decision: "reject_once" })}\n`);
+    const denyChoice = permission.permission.options.find((option) => option.decision === "reject_once");
+    if (denyChoice === undefined) throw new Error("deny choice missing");
+    child.stdin.write(`${JSON.stringify({ type: "permission_response", id: "deny-turn", permissionId: permission.permission.id, choiceId: denyChoice.id, decision: "reject_once" })}\n`);
     await until(() => events.some((event) => event.type === "complete"));
     expect(events).toContainEqual({ type: "permission_closed", id: "deny-turn", permissionId: permission.permission.id, reason: "decided" });
     expect(events.some((event) => event.type === "error")).toBe(false);
@@ -393,7 +397,7 @@ describe("NDJSON protocol", () => {
     });
     const events: Record<string, unknown>[] = [];
     createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+    child.stdin.write('{"type":"initialize","protocolVersion":2,"harness":"codex"}\n');
     await until(() => events.some((event) => event.type === "ready"));
     child.stdin.write('{"type":"submit","id":"fail","question":"fail","provider":"codex"}\n');
     await until(() => events.some((event) => event.type === "error"));
@@ -421,7 +425,7 @@ describe("NDJSON protocol", () => {
     });
     const events: Record<string, unknown>[] = [];
     createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-    child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+    child.stdin.write('{"type":"initialize","protocolVersion":2,"harness":"codex"}\n');
     await until(() => events.some((event) => event.type === "ready"));
     child.stdin.write('{"type":"submit","id":"cancel-me","question":"wait","provider":"codex"}\n');
     await until(() => events.some((event) => event.type === "state" && event.state === "streaming"));
@@ -485,7 +489,7 @@ async function forbiddenAttempt(provider: "codex" | "opencode", extraEnv: NodeJS
   });
   const events: Record<string, unknown>[] = [];
   createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-  child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+  child.stdin.write(`${JSON.stringify({ type: "initialize", protocolVersion: 2, harness: provider })}\n`);
   await until(() => events.some((event) => event.type === "ready"));
   child.stdin.write(`${JSON.stringify({ type: "submit", id: "forbidden", question: "Run a device command", provider })}\n`);
   await until(() => events.some((event) => event.type === "error"));
@@ -515,7 +519,7 @@ async function autoApproveAttempt(
   });
   const events: Record<string, unknown>[] = [];
   createInterface({ input: child.stdout }).on("line", (line) => events.push(parseObject(line)));
-  child.stdin.write('{"type":"initialize","protocolVersion":2}\n');
+  child.stdin.write(`${JSON.stringify({ type: "initialize", protocolVersion: 2, harness: provider })}\n`);
   await until(() => events.some((event) => event.type === "ready"));
   child.stdin.write(`${JSON.stringify({
     type: "submit", id: "auto-turn", question: "Run uname", provider,

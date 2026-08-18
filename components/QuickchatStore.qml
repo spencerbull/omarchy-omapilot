@@ -32,7 +32,7 @@ Scope {
   property var images: []
   property var providers: []
   property var history: []
-  property string provider: "codex"
+  property string provider: "builtin"
   property string model: ""
   property var pendingPermission: null
   property var permissionQueue: []
@@ -42,7 +42,8 @@ Scope {
   property bool processStarted: false
   property var queuedCommands: []
   property string stderrTail: ""
-  property string configuredProvider: "codex"
+  property string configuredProvider: "builtin"
+  property string configuredBuiltinModel: ""
   property string configuredCodexModel: ""
   property string configuredClaudeModel: ""
   property string configuredOpencodeModel: ""
@@ -53,6 +54,7 @@ Scope {
   property var latchedCaptureTarget: null
   property var contextAttachments: []
   property bool brokerContextAttachmentsSupported: false
+  property bool harnessRestartPending: false
   property string pendingContextRequestId: ""
   property var browserCompanionStatus: ({
     phase: "ready", relayInstalled: false, setupAvailable: false,
@@ -62,7 +64,7 @@ Scope {
 
   readonly property bool busy: state === "preparing" || state === "dictating" || state === "streaming" || state === "stopping"
   readonly property bool canSubmit: initialized && providers.length > 0 && !busy
-  readonly property bool canRetry: !processStarted && !broker.running && state === "unavailable"
+  readonly property bool canRetry: state === "unavailable" && (!processStarted || providers.length === 0)
   readonly property var modelOptions: Protocol.modelOptions(providers, provider)
   readonly property var providerPolicy: Protocol.providerPolicy(providers, provider)
   readonly property bool desktopContextActive: desktopContextEnabled && brokerDesktopContextSupported
@@ -94,13 +96,16 @@ Scope {
 
   function configure(settings) {
     var source = settings || {}
-    var desiredProvider = Protocol.normalizedProvider(source.provider) || "codex"
+    var desiredProvider = Protocol.normalizedProvider(source.provider) || "builtin"
+    var desiredBuiltinModel = String(source.builtinModel || "")
     var desiredCodexModel = String(source.codexModel || "")
     var desiredClaudeModel = String(source.claudeModel || "")
     var desiredOpencodeModel = String(source.opencodeModel || "")
     var desiredDangerousAutoApprove = source.dangerousAutoApprove === true
     var desiredDesktopContext = String(source.desktopContext || "On") !== "Off"
-    var changed = desiredProvider !== configuredProvider
+    var harnessChanged = desiredProvider !== configuredProvider
+    var changed = harnessChanged
+      || desiredBuiltinModel !== configuredBuiltinModel
       || desiredCodexModel !== configuredCodexModel
       || desiredClaudeModel !== configuredClaudeModel
       || desiredOpencodeModel !== configuredOpencodeModel
@@ -108,17 +113,29 @@ Scope {
       || desiredDesktopContext !== desktopContextEnabled
     if (!changed) return
     configuredProvider = desiredProvider
+    configuredBuiltinModel = desiredBuiltinModel
     configuredCodexModel = desiredCodexModel
     configuredClaudeModel = desiredClaudeModel
     configuredOpencodeModel = desiredOpencodeModel
     configuredDangerousAutoApprove = desiredDangerousAutoApprove
     desktopContextEnabled = desiredDesktopContext
     if (!desktopContextEnabled) latchedActiveWindow = null
-    if (providers.length === 0 || providerAvailable(desiredProvider)) provider = desiredProvider
+    provider = desiredProvider
     var desiredModel = desiredProvider === "claude" ? desiredClaudeModel
       : desiredProvider === "opencode" ? desiredOpencodeModel : desiredCodexModel
+    if (desiredProvider === "builtin") desiredModel = desiredBuiltinModel
     model = desiredModel
     if (providers.length > 0) selectProvider(provider)
+    if (harnessChanged && processStarted) restartForHarnessChange()
+  }
+
+  function restartForHarnessChange() {
+    harnessRestartPending = true
+    initialized = false
+    providers = []
+    state = "preparing"
+    statusMessage = "Starting " + Protocol.providerLabel(provider) + "…"
+    broker.running = false
   }
 
   function providerAvailable(value) {
@@ -162,6 +179,7 @@ Scope {
   function initialize() {
     sendCommand(Protocol.command("initialize", {
       protocolVersion: protocolVersion,
+      harness: provider,
       client: "omarchy-quickchat"
     }))
   }
@@ -303,14 +321,36 @@ Scope {
     sendCommand(Protocol.command("cancel", { id: currentId }))
   }
 
-  function respondPermission(decision) {
+  function respondPermission(decision, choiceId) {
     if (!pendingPermission || !currentId) return
-    var selected = decision === "allow_once" ? "allow_once" : "reject_once"
     sendCommand(Protocol.command("permission_response", {
       id: currentId,
       permissionId: String(pendingPermission.id || ""),
-      decision: selected
+      choiceId: String(choiceId || ""),
+      decision: String(decision || "reject_once")
     }))
+  }
+
+  function permissionOptionsWithoutDenyOnce() {
+    var options = pendingPermission && Array.isArray(pendingPermission.options) ? pendingPermission.options : []
+    var result = []
+    for (var i = 0; i < options.length; i++)
+      if (options[i].decision !== "reject_once") result.push(options[i])
+    return result
+  }
+
+  function hasPermissionDecision(decision) {
+    var options = pendingPermission && Array.isArray(pendingPermission.options) ? pendingPermission.options : []
+    for (var i = 0; i < options.length; i++)
+      if (options[i].decision === decision) return true
+    return false
+  }
+
+  function permissionChoiceId(decision) {
+    var options = pendingPermission && Array.isArray(pendingPermission.options) ? pendingPermission.options : []
+    for (var i = 0; i < options.length; i++)
+      if (options[i].decision === decision) return String(options[i].id || "")
+    return ""
   }
 
   function closePermission(permissionId) {
@@ -361,7 +401,10 @@ Scope {
     statusMessage = "Restarting OmaPilot…"
     errorDetails = null
     stderrTail = ""
-    broker.running = true
+    if (broker.running) {
+      harnessRestartPending = true
+      broker.running = false
+    } else broker.running = true
   }
 
   function activateLink(url) {
@@ -407,12 +450,15 @@ Scope {
     providers = Protocol.normalizeProviders(raw)
     if (providers.length === 0) {
       state = "unavailable"
-      statusMessage = "Sign in to Codex, Claude, or OpenCode to begin."
+      var configHome = Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")
+      statusMessage = provider === "builtin"
+        ? "Built-in (OmaPilot) needs authentication. In a terminal run PI_CODING_AGENT_DIR=\"" + configHome + "/omapilot\" pi, choose /login, then Retry."
+        : Protocol.providerLabel(provider) + " is unavailable. Install and sign in to it, then retry or choose another harness in Settings."
       errorDetails = Protocol.normalizedError({
         unavailable: true,
         code: "provider_unavailable",
         message: statusMessage,
-        retryable: false
+        retryable: true
       })
       return
     }
@@ -687,6 +733,11 @@ Scope {
       root.initialized = false
       root.pendingPermission = null
       root.permissionQueue = []
+      if (root.harnessRestartPending) {
+        root.harnessRestartPending = false
+        Qt.callLater(function() { broker.running = true })
+        return
+      }
       if (root.state !== "canceled") root.state = "unavailable"
       root.statusMessage = root.stderrTail || "OmaPilot is unavailable."
       root.errorDetails = Protocol.normalizedError({

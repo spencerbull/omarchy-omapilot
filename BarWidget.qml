@@ -174,7 +174,8 @@ BarWidget {
     fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
     onProviderChanged: function(provider) { root.persist({ provider: provider }) }
     onModelChanged: function(provider, model) {
-      var value = {}; value[provider + "Model"] = model; root.persist(value)
+      var key = provider + "Model"
+      var value = {}; value[key] = model; root.persist(value)
     }
     onSubmitted: {
       root.inlineExpanded = false

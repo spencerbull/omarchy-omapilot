@@ -81,7 +81,7 @@ function record(index: number): ChatRecord {
   const suffix = index.toString(16).padStart(12, "0");
   return {
     schemaVersion: 1, id: `00000000-0000-4000-8000-${suffix}`, createdAt: new Date(Date.UTC(2026, 7, 11, 0, 0, index)).toISOString(),
-    title: `Chat ${String(index)}`, provider: "codex", question: "Q", answer: "A", images: [],
+    title: `Chat ${String(index)}`, provider: "builtin", question: "Q", answer: "A", images: [],
     session: { resumable: false, resumeKind: "transcript" }
   };
 }

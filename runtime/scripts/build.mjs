@@ -16,7 +16,7 @@ await build({
   target: "node22",
   format: "esm",
   sourcemap: true,
-  banner: { js: "#!/usr/bin/env node" },
+  banner: { js: "#!/usr/bin/env node\nimport { createRequire as __quickchatCreateRequire } from \"node:module\";\nvar require = __quickchatCreateRequire(import.meta.url);" },
   legalComments: "external",
   absWorkingDir: projectRoot
 });

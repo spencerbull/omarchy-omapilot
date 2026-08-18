@@ -20,7 +20,7 @@ Quickchat does not edit `shell.json`, Omarchy sources, Hyprland configuration, V
 
 ## Process boundary
 
-The UI starts a separate Quickchat broker and communicates using newline-delimited JSON on stdin/stdout. The broker owns provider discovery and authentication readiness, ACP lifecycle, permission handling, streaming, cancellation, validation, history, and optional integration commands. Provider stderr is diagnostic input and must never be forwarded to persisted history without redaction.
+The UI starts a separate Quickchat broker and communicates using newline-delimited JSON on stdin/stdout. The broker owns selected-harness discovery and authentication readiness, the embedded Pi lifecycle, ACP lifecycle, permission handling, streaming, cancellation, validation, history, and optional integration commands. Provider stderr is diagnostic input and must never be forwarded to persisted history without redaction.
 
 The reviewed plugin revision contains self-contained broker and adapter bundles usable immediately after a plain clone. Release builds package those tracked bundles into a deterministic, checksum-addressed `linux-x86_64` archive with lockfile-derived SBOM and provenance. Omarchy itself still performs no install hook. Contributors use `npm ci && npm run build` to reproduce checked-in bundles; missing or incompatible runtimes fail closed.
 
@@ -32,7 +32,9 @@ The UI sends commands whose `type` is one of `initialize`, `submit`, `context_be
 
 The broker emits events whose `type` is one of `ready`, `providers`, `state`, `content`, `context_ready`, `context_attachment`, `permission`, `permission_closed`, `image`, `complete`, `error`, `dictation`, `history`, `herdr`, `link`, or `copied`. The broker's protocol tests are authoritative for exact fields and version negotiation.
 
-ACP is the broker's normalization boundary, not the policy boundary. The submit
+The broker's internal run contract is the normalization boundary, not the policy
+boundary. Initialization selects exactly one harness: the embedded Pi runtime
+or one ACP harness. Discovery failure never switches harnesses. The submit
 command contains provider/model/question plus an optional versioned desktop
 snapshot and up to four opaque context-attachment selections. QML latches the active app and
 its capture rectangle immediately before the panel takes focus
@@ -129,18 +131,19 @@ fail-closed policy for that provider. Codex keeps the pinned adapter's read-only
 on-request mode, disables native web search, and exposes only its strictly validated
 shell/unified-exec and skill-search features. It may read any user-readable host file without
 asking; tool output is sent to Codex and may be retained in the saved answer.
-Each broader-access request is bound to a broker nonce. The UI exposes only
-provider-native allow-once or reject-once; approval may run that exact command
-with current-user device and network authority. Claude copies bounded, regular-file
+Each broader-access request is bound to a broker nonce. The UI preserves the
+provider's allow/reject option identities and distinguishes session labels from
+durable labels; approval may run commands with current-user device and network
+authority for the scope stated by that option. Claude copies bounded, regular-file
 installed skill trees into a per-turn local plugin with MCP discovery disabled,
 then uses a disposable
 workspace that dynamically denies every existing top-level host path except
 system executable/library roots, hides credential-bearing environment variables,
 blocks direct process network access and WebFetch, confines writes to per-turn
 scratch, and allows WebSearch. Commands inside that boundary may run
-automatically. An exact Claude command that needs device authority accepts a
-broker-bound allow-once or reject-once decision. Allowing it runs that exact
-command outside the disposable sandbox with the current user's full device,
+automatically. A Claude command that needs device authority accepts the
+broker-bound choices offered by its adapter. Allowing it runs outside the
+disposable sandbox with the current user's full device,
 network, host-file, and process-environment authority. OpenCode automatically permits
 only its exact skill and websearch identities. Its native bash permission is
 fixed to `ask`; the broker correlates the pending execution, permission request,

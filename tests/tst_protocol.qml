@@ -147,14 +147,26 @@ TestCase {
     verify(Protocol.providerPolicyDescription("claude", { tools: "device-approval", web: "blocked", hostReads: false }).indexOf("web search") < 0)
   }
 
+  function test_harnessOptionsAreExplicitAndBuiltInFirst() {
+    var options = Protocol.harnessOptions()
+    compare(options.length, 4)
+    compare(options[0].value, "builtin")
+    compare(options[0].label, "Built-in (OmaPilot)")
+    compare(options[1].value, "codex")
+    compare(options[2].value, "claude")
+    compare(options[3].value, "opencode")
+  }
+
   function test_toolPermissionIsBoundToCurrentTurn() {
     var permission = Protocol.normalizedPermission({
       id: "permission-1", requestId: "turn-1", title: "Run uname",
-      kind: "execute", authority: "device", detail: "uname -s", allowOnce: true
+      kind: "execute", authority: "device", detail: "uname -s",
+      options: [{ id: "option-0", decision: "allow_once", label: "Allow once" }, { id: "option-1", decision: "allow_session", label: "Allow for session" }]
     }, "turn-1")
     compare(permission.detail, "uname -s")
     compare(permission.authority, "device")
-    verify(permission.allowOnce)
+    compare(permission.options.length, 2)
+    compare(permission.options[1].decision, "allow_session")
     compare(Protocol.normalizedPermission({ id: "permission-1", requestId: "other", kind: "execute" }, "turn-1"), null)
     compare(Protocol.normalizedPermission({ id: "permission-1", requestId: "turn-1", kind: "edit" }, "turn-1"), null)
     compare(Protocol.normalizedPermission({ id: "permission-1", requestId: "turn-1", kind: "local_action" }, "turn-1"), null)

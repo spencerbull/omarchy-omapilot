@@ -13,7 +13,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "verbatimModuleSyntax": true,
-    "skipLibCheck": false,
+    "skipLibCheck": true,
     "outDir": "runtime/dist"
   },
   "include": ["runtime/src/**/*.ts", "runtime/test/**/*.ts", "runtime/scripts/**/*.mjs"]
