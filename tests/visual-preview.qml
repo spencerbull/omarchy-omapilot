@@ -51,6 +51,17 @@ ShellRoot {
     ]
     property var modelOptions: [{ value: "openai-codex::gpt-5.4", label: "GPT-5.4 (openai-codex)" }]
     property var providerPolicy: ({ tools: "device-approval", web: "approved-command", hostReads: true })
+    property var builtinAuthMethods: [
+      { value: "openai-codex::oauth", label: "OpenAI (ChatGPT Plus/Pro)",
+        description: "Use your OpenAI Codex subscription in OmaPilot." },
+      { value: "openai::api_key", label: "OpenAI API key",
+        description: "Store this credential only in OmaPilot's private configuration." },
+      { value: "anthropic::oauth", label: "Anthropic (Claude Pro/Max)",
+        description: "Use your Anthropic subscription in OmaPilot." }
+    ]
+    property var builtinAuth: ({ phase: "idle", flowId: "", methodId: "", message: "",
+      url: "", verificationUri: "", userCode: "", prompt: null })
+    property bool builtinAuthBusy: false
     property var contextAttachments: root.previewState === "context" ? [{
       id: "11111111-1111-4111-8111-111111111111",
       title: "Contextual cursor article",
@@ -71,6 +82,10 @@ ShellRoot {
     function stopDictation() {}
     function cancel() {}
     function retryBroker() {}
+    function authenticateBuiltIn(methodId) {}
+    function respondBuiltInAuth(value) {}
+    function cancelBuiltInAuth() {}
+    function activateLink(url) {}
     function copyText(text) {}
     function beginContextCapture() {}
     function setContextRepresentation(id, mode) {

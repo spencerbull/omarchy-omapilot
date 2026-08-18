@@ -9,6 +9,7 @@ import { SessionManager } from "../../node_modules/@earendil-works/pi-coding-age
 import { SettingsManager } from "../../node_modules/@earendil-works/pi-coding-agent/dist/core/settings-manager.js";
 import { parseFrontmatter } from "../../node_modules/@earendil-works/pi-coding-agent/dist/utils/frontmatter.js";
 import type { InlineExtension, ToolDefinition } from "../../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/types.js";
+import type { AuthInteraction, AuthType } from "../../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/auth/types.js";
 import { registerBundledOAuthFlowLoaders } from "../../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/auth/oauth/load.js";
 import { anthropicOAuth } from "../../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/auth/oauth/anthropic.js";
 import { openaiCodexOAuth } from "../../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/auth/oauth/openai-codex.js";
@@ -22,7 +23,7 @@ import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
 import type { AcpPrompt } from "./context.js";
 import type { AcpResult, AcpRun, PermissionHandler } from "./acp.js";
 import { automaticInstructions, type PiDiscoveredProvider } from "./providers.js";
-import type { BrokerEvent, ModelOption, ProviderPolicyInfo } from "./types.js";
+import type { BrokerEvent, BuiltinAuthMethod, ModelOption, ProviderPolicyInfo } from "./types.js";
 import { quickchatPaths } from "./paths.js";
 
 const PROVIDER_GROUPS = [
@@ -94,6 +95,46 @@ async function createRuntime(env: NodeJS.ProcessEnv, directory: string): Promise
     if (key?.trim()) await runtime.setRuntimeApiKey(provider, key.trim());
   }
   return runtime;
+}
+
+export async function discoverPiAuthMethods(env: NodeJS.ProcessEnv = process.env): Promise<BuiltinAuthMethod[]> {
+  const directory = configDirectory(env);
+  const runtime = await createRuntime(env, directory);
+  const configured = new Set(configuredProviderIds(directory));
+  const allowed = new Set([...BUILTIN_PROVIDER_IDS, ...configured]);
+  const methods: BuiltinAuthMethod[] = [];
+  for (const provider of runtime.getProviders()) {
+    if (!allowed.has(provider.id)) continue;
+    if (provider.auth.oauth !== undefined) methods.push({
+      id: `${provider.id}::oauth`,
+      providerId: provider.id,
+      authType: "oauth",
+      label: provider.auth.oauth.name,
+      description: provider.auth.oauth.isSubscription === true
+        ? `Use your ${provider.name} subscription in OmaPilot.`
+        : `Sign in to ${provider.name} in your browser.`
+    });
+    if (provider.auth.apiKey?.login !== undefined) methods.push({
+      id: `${provider.id}::api_key`,
+      providerId: provider.id,
+      authType: "api_key",
+      label: provider.auth.apiKey.name,
+      description: `Store this credential only in OmaPilot's private configuration.`
+    });
+  }
+  return methods;
+}
+
+export async function loginPiProvider(
+  env: NodeJS.ProcessEnv,
+  methodId: string,
+  interaction: AuthInteraction
+): Promise<void> {
+  const methods = await discoverPiAuthMethods(env);
+  const method = methods.find((candidate) => candidate.id === methodId);
+  if (method === undefined) throw new BrokerPiError("auth_method_unavailable", "That authentication method is unavailable", false);
+  const runtime = await createRuntime(env, configDirectory(env));
+  await runtime.login(method.providerId, method.authType as AuthType, interaction);
 }
 
 function optionId(providerId: string, modelId: string, grouped: boolean): string {

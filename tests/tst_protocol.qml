@@ -18,6 +18,26 @@ TestCase {
     verify(!Protocol.isCompatibleEvent({}))
   }
 
+  function test_builtinAuthNormalizesMethodsAndProviderPrompts() {
+    var methods = Protocol.normalizedAuthMethods([
+      { id: "openai-codex::oauth", providerId: "openai-codex", authType: "oauth",
+        label: "ChatGPT", description: "Subscription" },
+      { id: "bad method", providerId: "bad", authType: "shell", label: "Bad" }
+    ])
+    compare(methods.length, 1)
+    compare(methods[0].value, "openai-codex::oauth")
+    var event = Protocol.normalizedAuthEvent({
+      phase: "prompt", flowId: "flow", methodId: "openai-codex::oauth",
+      prompt: { id: "prompt", kind: "select", message: "Choose sign-in method", options: [
+        { id: "browser", label: "Browser" }, { id: "device_code", label: "Device code" }
+      ] }
+    })
+    compare(event.prompt.kind, "select")
+    compare(event.prompt.options.length, 2)
+    compare(event.prompt.options[1].value, "device_code")
+    compare(Protocol.normalizedAuthEvent({ phase: "credential_dump" }), null)
+  }
+
   function test_desktopContextRequiresBrokerFeatureAdvertisement() {
     verify(Protocol.hasFeature(["desktop-context"], "desktop-context"))
     verify(!Protocol.hasFeature([], "desktop-context"))

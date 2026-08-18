@@ -50,6 +50,13 @@ grep -Fq 'property string configuredProvider: "builtin"' \
 grep -Fq 'harness: provider' "$repo_dir/components/QuickchatStore.qml"
 grep -Fq 'readonly property var modeProviders: Protocol.harnessOptions()' \
   "$repo_dir/components/SettingsView.qml"
+grep -Fq 'text: "Open sign-in page"' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'sendCommand(Protocol.command("auth_begin", { methodId: selected }))' \
+  "$repo_dir/components/QuickchatStore.qml"
+if grep -Fq 'PI_CODING_AGENT_DIR' "$repo_dir/components/QuickchatStore.qml"; then
+  printf 'Built-in authentication must stay embedded instead of launching Pi\n' >&2
+  exit 1
+fi
 if grep -Fq 'backendSelection' "$repo_dir/components/QuickchatStore.qml"; then
   printf 'Harness selection must not be split into backend and provider settings\n' >&2
   exit 1

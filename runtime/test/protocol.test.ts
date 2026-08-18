@@ -57,6 +57,15 @@ describe("NDJSON protocol", () => {
     expect(commandSchema.safeParse({ type: "browser_companion_open_settings", family: "firefox" }).success).toBe(true);
     expect(commandSchema.safeParse({ type: "browser_companion_open_settings", family: "other" }).success).toBe(false);
     expect(commandSchema.safeParse({ type: "browser_companion_install", command: "anything" }).success).toBe(false);
+    expect(commandSchema.safeParse({ type: "auth_begin", methodId: "openai-codex::oauth" }).success).toBe(true);
+    expect(commandSchema.safeParse({ type: "auth_begin", methodId: "openai-codex::shell" }).success).toBe(false);
+    expect(commandSchema.safeParse({
+      type: "auth_response", flowId: "11111111-1111-4111-8111-111111111111",
+      promptId: "22222222-2222-4222-8222-222222222222", value: "secret"
+    }).success).toBe(true);
+    expect(commandSchema.safeParse({
+      type: "auth_cancel", flowId: "11111111-1111-4111-8111-111111111111", extra: true
+    }).success).toBe(false);
   });
 
   it("rejects incompatible protocol versions without becoming ready", async () => {

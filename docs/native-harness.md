@@ -36,16 +36,12 @@ from `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `auth.json`:
 ```
 
 Codex subscription and Claude subscription OAuth entries use the
-`openai-codex` and `anthropic` keys respectively. A Pi CLI can initialize them
-in the same directory:
-
-```bash
-PI_CODING_AGENT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/omapilot" pi
-```
-
-Use Pi's `/login` command, exit Pi, then choose **Retry** in OmaPilot so provider
-discovery sees the new credential. OmaPilot never downloads or launches the Pi
-CLI; this is an explicit user-owned setup action.
+`openai-codex` and `anthropic` keys respectively. Normally, configure these from
+the authentication card under OmaPilot Settings. The broker invokes Pi's native
+typed login APIs in the background: secrets are entered in a password field,
+OAuth continues in the system browser, and provider prompts, device codes,
+progress, cancellation, and failures remain visible in OmaPilot. No Pi terminal
+or `/login` handoff is involved.
 
 ## OpenAI-compatible providers
 

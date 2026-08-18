@@ -93,6 +93,37 @@ describe("dictation generation guard", () => {
   });
 });
 
+describe("embedded built-in authentication", () => {
+  it("round-trips a secret prompt without launching a terminal", async () => {
+    const root = await mkdtemp(join(tmpdir(), "quickchat-broker-auth-")); roots.push(root);
+    const config = join(root, ".config/omapilot");
+    const events: BrokerEvent[] = [];
+    const broker = new QuickchatBroker(events.push.bind(events), {
+      env: {
+        ...process.env,
+        HOME: root,
+        OMAPILOT_CONFIG_DIR: config,
+        XDG_STATE_HOME: join(root, "state"),
+        XDG_CACHE_HOME: join(root, "cache"),
+        XDG_RUNTIME_DIR: join(root, "run")
+      }
+    });
+    await broker.handle({ type: "initialize", protocolVersion: 2, harness: "builtin" });
+    const methods = events.find((event) => event.type === "auth_methods");
+    expect(methods?.type === "auth_methods" ? methods.methods.map((method) => method.id) : []).toContain("openai::api_key");
+    await broker.handle({ type: "auth_begin", methodId: "openai::api_key" });
+    await vi.waitFor(() => expect(events.some((event) => event.type === "auth" && event.phase === "prompt")).toBe(true));
+    const prompt = events.find((event) => event.type === "auth" && event.phase === "prompt");
+    if (prompt?.type !== "auth" || prompt.phase !== "prompt") throw new Error("auth prompt missing");
+    expect(prompt.prompt.kind).toBe("secret");
+    await broker.handle({ type: "auth_response", flowId: prompt.flowId, promptId: prompt.prompt.id, value: "embedded-test-key" });
+    await vi.waitFor(() => expect(events.some((event) => event.type === "auth" && event.phase === "complete")).toBe(true));
+    expect(events.some((event) => event.type === "providers" && event.providers.some((provider) => provider.id === "builtin"))).toBe(true);
+    expect(await readFile(join(config, "auth.json"), "utf8")).toContain("embedded-test-key");
+    await broker.handle({ type: "shutdown" });
+  });
+});
+
 describe("tool permission lifecycle", () => {
   it("expires a pending permission with a nonce-bound closure before completing", async () => {
     const fixture = await setup();

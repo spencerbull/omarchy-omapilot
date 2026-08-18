@@ -17,6 +17,62 @@ function command(type, values) {
   return result
 }
 
+function normalizedAuthMethods(raw) {
+  var source = Array.isArray(raw) ? raw : []
+  var result = []
+  for (var i = 0; i < source.length && result.length < 32; i++) {
+    var method = source[i] && typeof source[i] === "object" ? source[i] : {}
+    var id = String(method.id || "")
+    var providerId = String(method.providerId || "")
+    var authType = String(method.authType || "")
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}::(?:api_key|oauth)$/.test(id)
+        || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(providerId)
+        || ["api_key", "oauth"].indexOf(authType) < 0) continue
+    result.push({
+      value: id,
+      label: safeContextText(method.label, 120) || providerId,
+      description: safeContextText(method.description, 240),
+      providerId: providerId,
+      authType: authType
+    })
+  }
+  return result
+}
+
+function normalizedAuthEvent(raw) {
+  var source = raw && typeof raw === "object" ? raw : {}
+  var phase = String(source.phase || "")
+  if (["starting", "prompt", "info", "browser", "device_code", "complete", "cancelled", "error"].indexOf(phase) < 0) return null
+  var result = {
+    phase: phase,
+    flowId: String(source.flowId || ""),
+    methodId: String(source.methodId || ""),
+    message: safeContextText(source.message || source.instructions, 500),
+    url: isSafeExternalUrl(source.url) ? String(source.url) : "",
+    verificationUri: isSafeExternalUrl(source.verificationUri) ? String(source.verificationUri) : "",
+    userCode: safeContextText(source.userCode, 120),
+    prompt: null
+  }
+  var prompt = source.prompt && typeof source.prompt === "object" ? source.prompt : null
+  if (prompt !== null) {
+    var kind = String(prompt.kind || "")
+    if (["text", "secret", "select", "manual_code"].indexOf(kind) >= 0) {
+      var options = []
+      var rawOptions = Array.isArray(prompt.options) ? prompt.options : []
+      for (var i = 0; i < rawOptions.length && options.length < 32; i++) {
+        var option = rawOptions[i] && typeof rawOptions[i] === "object" ? rawOptions[i] : {}
+        var optionId = safeContextText(option.id, 160)
+        if (!optionId) continue
+        options.push({ value: optionId, label: safeContextText(option.label, 120) || optionId,
+          description: safeContextText(option.description, 240) })
+      }
+      result.prompt = { id: String(prompt.id || ""), kind: kind,
+        message: safeContextText(prompt.message, 500), placeholder: safeContextText(prompt.placeholder, 500), options: options }
+    }
+  }
+  return result
+}
+
 function submitCommand(id, question, provider, model, desktopContext, dangerousAutoApprove, contextAttachments) {
   var payload = command("submit", {
     id: String(id || ""),

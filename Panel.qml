@@ -763,6 +763,7 @@ Panel {
         background: root.surface
         accent: root.accent
         fontFamily: root.fontFamily
+        onAuthenticationRequested: root.openSettings()
         onDismissed: root.showChat()
       }
 

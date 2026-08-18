@@ -6,7 +6,7 @@ import { createServer } from "node:http";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 import { afterEach, describe, expect, it } from "vitest";
-import { agentDirectory, configDirectory, discoverAgentProfiles, discoverPiProviders, existingSkillPaths, PiApprovalState, runNestedAgentPrompt, runPiQuestion } from "../src/pi-harness.js";
+import { agentDirectory, configDirectory, discoverAgentProfiles, discoverPiAuthMethods, discoverPiProviders, existingSkillPaths, loginPiProvider, PiApprovalState, runNestedAgentPrompt, runPiQuestion } from "../src/pi-harness.js";
 import type { BrokerEvent } from "../src/types.js";
 
 const roots: string[] = [];
@@ -19,6 +19,36 @@ describe("native Pi harness", () => {
     expect(agentDirectory(env)).toBe("/home/test/.agents");
     expect(configDirectory({ ...env, OMAPILOT_CONFIG_DIR: "/custom/config" })).toBe("/custom/config");
     expect(agentDirectory({ ...env, OMAPILOT_AGENTS_DIR: "/custom/agents" })).toBe("/custom/agents");
+  });
+
+  it("offers native subscription and API-key login methods without launching Pi", async () => {
+    const root = await mkdtemp(join(tmpdir(), "omapilot-pi-auth-methods-"));
+    roots.push(root);
+    const agentDir = join(root, ".config/omapilot");
+    const methods = await discoverPiAuthMethods({ HOME: root, OMAPILOT_CONFIG_DIR: agentDir });
+    expect(methods).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "openai-codex::oauth", authType: "oauth" }),
+      expect.objectContaining({ id: "openai::api_key", authType: "api_key" }),
+      expect.objectContaining({ id: "anthropic::oauth", authType: "oauth" }),
+      expect.objectContaining({ id: "anthropic::api_key", authType: "api_key" })
+    ]));
+  });
+
+  it("persists an API key through Pi's typed background login interaction", async () => {
+    const root = await mkdtemp(join(tmpdir(), "omapilot-pi-auth-login-"));
+    roots.push(root);
+    const agentDir = join(root, ".config/omapilot");
+    const prompts: Array<{ type: string; message: string }> = [];
+    await loginPiProvider({ HOME: root, OMAPILOT_CONFIG_DIR: agentDir }, "openai::api_key", {
+      signal: new AbortController().signal,
+      prompt: (prompt) => { prompts.push({ type: prompt.type, message: prompt.message }); return Promise.resolve("test-secret-key"); },
+      notify: () => undefined
+    });
+    expect(prompts).toEqual([expect.objectContaining({ type: "secret" })]);
+    const stored: unknown = JSON.parse(await readFile(join(agentDir, "auth.json"), "utf8"));
+    expect(stored).toMatchObject({ openai: { type: "api_key", key: "test-secret-key" } });
+    const providers = await discoverPiProviders({ HOME: root, OMAPILOT_CONFIG_DIR: agentDir });
+    expect(providers[0]?.models.some((model) => model.id.startsWith("openai::"))).toBe(true);
   });
 
   it("keeps session grants ephemeral and durable grants as command-free fingerprints", async () => {

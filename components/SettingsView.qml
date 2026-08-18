@@ -25,7 +25,10 @@ Item {
   readonly property bool browserCompanionBusy: backend ? backend.browserCompanionBusy === true : false
   property bool browserRemoveConfirmation: false
   property bool browserSetupExpanded: false
+  property string selectedAuthMethod: ""
+  property string authPromptSelection: ""
   readonly property bool popupOpen: providerPicker.popupOpen || modelPicker.popupOpen
+    || authMethodPicker.popupOpen || authPromptPicker.popupOpen
   readonly property bool modalInteractionActive: popupOpen
     || browserRemoveConfirmation
     || browserCompanionBusy
@@ -48,6 +51,8 @@ Item {
   function closePopups(restoreFocus) {
     providerPicker.close()
     modelPicker.close()
+    authMethodPicker.close()
+    authPromptPicker.close()
     if (restoreFocus !== false)
       Qt.callLater(function() { backButton.forceActiveFocus() })
   }
@@ -487,6 +492,193 @@ Item {
             onChanged: function(value) { root.providerChanged(value) }
           }
 
+          BorderSurface {
+            Layout.fillWidth: true
+            visible: root.backend && root.backend.provider === "builtin"
+              && root.backend.state === "unavailable" && root.backend.providers.length === 0
+            implicitHeight: authContent.implicitHeight + contentTopInset + contentBottomInset
+              + Style.spacing.xl * 2
+            color: Style.normalFillFor(root.accent, root.accent)
+            borderSpec: Border.controlSpec("normal", root.accent, root.accent)
+            radius: Style.cornerRadius
+
+            ColumnLayout {
+              id: authContent
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              anchors.leftMargin: parent.contentLeftInset + Style.spacing.xl
+              anchors.rightMargin: parent.contentRightInset + Style.spacing.xl
+              anchors.topMargin: parent.contentTopInset + Style.spacing.xl
+              spacing: Style.spacing.md
+
+              Text {
+                Layout.fillWidth: true
+                text: "Authentication required"
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.body
+                font.bold: true
+              }
+
+              Text {
+                Layout.fillWidth: true
+                text: "Sign in here with a subscription or API key. OmaPilot runs the provider flow in the background and stores credentials only in its private configuration."
+                color: Qt.darker(root.foreground, 1.35)
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                wrapMode: Text.Wrap
+                Accessible.role: Accessible.StaticText
+                Accessible.name: text
+              }
+
+              Dropdown {
+                id: authMethodPicker
+                Layout.fillWidth: true
+                visible: root.backend && !root.backend.builtinAuthBusy
+                  && String(root.backend.builtinAuth.phase || "") !== "complete"
+                showLabel: false
+                options: root.backend ? root.backend.builtinAuthMethods : []
+                value: root.selectedAuthMethod || (options.length > 0 ? String(options[0].value || "") : "")
+                enabled: options.length > 0
+                foreground: root.foreground
+                background: root.background
+                Accessible.name: "Built-in authentication method"
+                onChanged: function(value) { root.selectedAuthMethod = value }
+              }
+
+              Text {
+                Layout.fillWidth: true
+                visible: root.backend && String(root.backend.builtinAuth.message || "") !== ""
+                text: root.backend ? String(root.backend.builtinAuth.message || "") : ""
+                color: root.backend && String(root.backend.builtinAuth.phase || "") === "error"
+                  ? Color.urgent : Qt.darker(root.foreground, 1.35)
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                wrapMode: Text.Wrap
+              }
+
+              RowLayout {
+                Layout.fillWidth: true
+                visible: root.backend && (String(root.backend.builtinAuth.url || "") !== ""
+                  || String(root.backend.builtinAuth.verificationUri || "") !== "")
+                spacing: Style.spacing.md
+
+                Button {
+                  text: "Open sign-in page"
+                  iconText: "󰖟"
+                  foreground: root.foreground
+                  background: root.background
+                  accent: root.accent
+                  active: true
+                  bordered: true
+                  focusable: true
+                  onClicked: root.backend.activateLink(String(root.backend.builtinAuth.url
+                    || root.backend.builtinAuth.verificationUri || ""))
+                }
+
+                Button {
+                  visible: root.backend && String(root.backend.builtinAuth.userCode || "") !== ""
+                  text: "Copy " + (root.backend ? String(root.backend.builtinAuth.userCode || "") : "")
+                  foreground: root.foreground
+                  background: root.background
+                  bordered: true
+                  focusable: true
+                  onClicked: root.backend.copyText(String(root.backend.builtinAuth.userCode || ""))
+                }
+
+                Item { Layout.fillWidth: true }
+              }
+
+              Text {
+                Layout.fillWidth: true
+                visible: root.backend && root.backend.builtinAuth.prompt
+                text: visible ? String(root.backend.builtinAuth.prompt.message || "") : ""
+                color: root.foreground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
+                wrapMode: Text.Wrap
+              }
+
+              Dropdown {
+                id: authPromptPicker
+                Layout.fillWidth: true
+                visible: root.backend && root.backend.builtinAuth.prompt
+                  && root.backend.builtinAuth.prompt.kind === "select"
+                showLabel: false
+                options: visible ? root.backend.builtinAuth.prompt.options : []
+                value: root.authPromptSelection || (options.length > 0 ? String(options[0].value || "") : "")
+                foreground: root.foreground
+                background: root.background
+                Accessible.name: visible ? String(root.backend.builtinAuth.prompt.message || "Authentication choice") : "Authentication choice"
+                onChanged: function(value) { root.authPromptSelection = value }
+              }
+
+              TextField {
+                id: authPromptInput
+                Layout.fillWidth: true
+                visible: root.backend && root.backend.builtinAuth.prompt
+                  && root.backend.builtinAuth.prompt.kind !== "select"
+                password: visible && root.backend.builtinAuth.prompt.kind === "secret"
+                placeholderText: visible ? String(root.backend.builtinAuth.prompt.placeholder
+                  || root.backend.builtinAuth.prompt.message || "") : ""
+                maximumLength: 32768
+                foreground: root.foreground
+                accent: root.accent
+                Accessible.name: visible ? String(root.backend.builtinAuth.prompt.message || "Authentication value") : "Authentication value"
+                onVisibleChanged: if (visible) { text = ""; forceActiveFocus() }
+                onAccepted: if (visible) root.backend.respondBuiltInAuth(text)
+              }
+
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: Style.spacing.md
+
+                Button {
+                  visible: root.backend && !root.backend.builtinAuthBusy
+                    && String(root.backend.builtinAuth.phase || "") !== "complete"
+                  text: String(root.backend && root.backend.builtinAuth.phase || "") === "error" ? "Try again" : "Continue"
+                  iconText: "󰌾"
+                  foreground: root.foreground
+                  background: root.background
+                  accent: root.accent
+                  active: true
+                  bordered: true
+                  focusable: true
+                  enabled: authMethodPicker.options.length > 0
+                  onClicked: root.backend.authenticateBuiltIn(authMethodPicker.value)
+                }
+
+                Button {
+                  visible: root.backend && root.backend.builtinAuth.prompt
+                  text: "Continue"
+                  foreground: root.foreground
+                  background: root.background
+                  accent: root.accent
+                  active: true
+                  bordered: true
+                  focusable: true
+                  enabled: root.backend && root.backend.builtinAuth.prompt
+                    ? (root.backend.builtinAuth.prompt.kind === "select"
+                      ? authPromptPicker.value !== "" : authPromptInput.text !== "") : false
+                  onClicked: root.backend.respondBuiltInAuth(root.backend.builtinAuth.prompt.kind === "select"
+                    ? authPromptPicker.value : authPromptInput.text)
+                }
+
+                Button {
+                  visible: root.backend && root.backend.builtinAuthBusy
+                  text: "Cancel"
+                  foreground: root.foreground
+                  background: root.background
+                  bordered: true
+                  focusable: true
+                  onClicked: root.backend.cancelBuiltInAuth()
+                }
+
+                Item { Layout.fillWidth: true }
+              }
+            }
+          }
           Text {
             Layout.fillWidth: true
             text: "Model"

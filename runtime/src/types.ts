@@ -95,6 +95,17 @@ const browserCompanionOpenSettingsCommand = z.object({
   type: z.literal("browser_companion_open_settings"),
   family: z.enum(["chromium", "firefox"])
 }).strict();
+const authBeginCommand = z.object({
+  type: z.literal("auth_begin"),
+  methodId: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}::(?:api_key|oauth)$/u)
+}).strict();
+const authResponseCommand = z.object({
+  type: z.literal("auth_response"),
+  flowId: z.string().uuid(),
+  promptId: z.string().uuid(),
+  value: z.string().max(32_768)
+}).strict();
+const authCancelCommand = z.object({ type: z.literal("auth_cancel"), flowId: z.string().uuid() }).strict();
 const cancelCommand = z.object({ type: z.literal("cancel"), id: z.string().min(1).max(120) });
 const permissionResponseCommand = z.object({
   type: z.literal("permission_response"),
@@ -116,6 +127,9 @@ export const commandSchema = z.discriminatedUnion("type", [
   contextCancelCommand,
   browserCompanionCommand,
   browserCompanionOpenSettingsCommand,
+  authBeginCommand,
+  authResponseCommand,
+  authCancelCommand,
   contextDiscardCommand,
   cancelCommand,
   permissionResponseCommand,
@@ -140,6 +154,22 @@ export type ProviderInfo = {
   models: ModelOption[];
   defaultModel?: string;
   policy: ProviderPolicyInfo;
+};
+
+export type BuiltinAuthMethod = {
+  id: string;
+  providerId: string;
+  authType: "api_key" | "oauth";
+  label: string;
+  description: string;
+};
+
+export type BuiltinAuthPrompt = {
+  id: string;
+  kind: "text" | "secret" | "select" | "manual_code";
+  message: string;
+  placeholder?: string;
+  options?: Array<{ id: string; label: string; description?: string }>;
 };
 
 export type StoredImage = {
@@ -209,6 +239,13 @@ export type ChatView = Omit<ChatRecord, "images"> & { images: RenderableImage[] 
 export type BrokerEvent =
   | { type: "ready"; protocolVersion: 2; features: Array<"desktop-context" | "context-attachments">; providers: ProviderInfo[]; history: ChatView[] }
   | { type: "providers"; providers: ProviderInfo[] }
+  | { type: "auth_methods"; methods: BuiltinAuthMethod[] }
+  | { type: "auth"; phase: "starting"; flowId: string; methodId: string; message: string }
+  | { type: "auth"; phase: "prompt"; flowId: string; methodId: string; prompt: BuiltinAuthPrompt }
+  | { type: "auth"; phase: "info"; flowId: string; methodId: string; message: string; links?: Array<{ url: string; label?: string }> }
+  | { type: "auth"; phase: "browser"; flowId: string; methodId: string; url: string; instructions?: string }
+  | { type: "auth"; phase: "device_code"; flowId: string; methodId: string; userCode: string; verificationUri: string; expiresInSeconds?: number }
+  | { type: "auth"; phase: "complete" | "cancelled" | "error"; flowId: string; methodId: string; message: string }
   | { type: "state"; id?: string; state: "idle" | "preparing" | "streaming" | "stopping"; message?: string }
   | { type: "content"; id: string; delta: string }
   | { type: "permission"; permission: ToolPermission }

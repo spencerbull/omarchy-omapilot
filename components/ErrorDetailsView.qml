@@ -17,6 +17,7 @@ Item {
     backend ? backend.statusMessage : "OmaPilot could not complete that request.")
 
   signal dismissed()
+  signal authenticationRequested()
 
   implicitHeight: content.implicitHeight
 
@@ -184,6 +185,19 @@ Item {
             }
 
             Item { Layout.fillWidth: true }
+
+            Button {
+              visible: root.backend && root.backend.provider === "builtin"
+                && root.backend.providers.length === 0
+              text: "Open authentication"
+              foreground: root.foreground
+              background: root.background
+              accent: root.accent
+              active: true
+              bordered: true
+              focusable: true
+              onClicked: root.authenticationRequested()
+            }
 
             Button {
               visible: root.backend && root.backend.canRetry

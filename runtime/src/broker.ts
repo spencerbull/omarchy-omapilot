@@ -13,6 +13,7 @@ import { discoverProviders, fallbackModels, isPiProvider, type DiscoveredProvide
 import { resolveExecutable, runCommand } from "./process.js";
 import type { BrokerCommand, BrokerEvent, ChatRecord, ProviderId, ProviderInfo } from "./types.js";
 import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import type { AuthEvent, AuthPrompt } from "../../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/auth/types.js";
 import { BrowserCompanionServer, type BrowserCapture } from "./browser-companion.js";
 import {
   browserCompanionSetupStatus,
@@ -30,6 +31,18 @@ type PermissionWaiter = PendingToolPermission & {
   resolve: (decision: PermissionDecision) => void;
   timeout: NodeJS.Timeout;
 };
+type AuthPromptWaiter = {
+  id: string;
+  resolve: (value: string) => void;
+  reject: (error: Error) => void;
+  cleanup: () => void;
+};
+type AuthFlow = {
+  id: string;
+  methodId: string;
+  controller: AbortController;
+  prompt?: AuthPromptWaiter;
+};
 
 export class QuickchatBroker {
   readonly #emit: (event: BrokerEvent) => void;
@@ -46,6 +59,7 @@ export class QuickchatBroker {
   #runs = new Map<string, AcpRun>();
   #handoffs = new Map<string, Promise<void>>();
   #permissions = new Map<string, PermissionWaiter>();
+  #authFlow: AuthFlow | undefined;
   #submissions = new Set<string>();
   #dictationGeneration = 0;
   #browserCompanionSetupBusy = false;
@@ -90,6 +104,9 @@ export class QuickchatBroker {
       case "browser_companion_install": await this.#installBrowserCompanion(); break;
       case "browser_companion_uninstall": await this.#uninstallBrowserCompanion(); break;
       case "browser_companion_open_settings": await this.#openBrowserCompanionSettings(command.family); break;
+      case "auth_begin": this.#beginAuth(command.methodId); break;
+      case "auth_response": this.#respondAuth(command); break;
+      case "auth_cancel": this.#cancelAuth(command.flowId); break;
       case "cancel": await this.#cancel(command.id); break;
       case "permission_response": this.#respondPermission(command); break;
       case "history_list": await this.#emitHistory(); break;
@@ -113,6 +130,7 @@ export class QuickchatBroker {
       case "open_link": await this.#openLink(command.url); break;
       case "copy": await this.#copy(command.text); break;
       case "shutdown": {
+        this.#cancelAuth(this.#authFlow?.id);
         await Promise.all([...this.#runs.values()].map((run) => run.cancel()));
         await this.#browserCompanion.close();
         return false;
@@ -126,7 +144,12 @@ export class QuickchatBroker {
       this.#error("unsupported_protocol", "Quickchat supports broker protocol version 2", false);
       return;
     }
-    const discovered = await discoverProviders(this.#env, command.harness);
+    const [discovered, authMethods] = await Promise.all([
+      discoverProviders(this.#env, command.harness),
+      command.harness === "builtin"
+        ? import("./pi-harness.js").then(({ discoverPiAuthMethods }) => discoverPiAuthMethods(this.#env)).catch(() => [])
+        : Promise.resolve([])
+    ]);
     await this.#browserCompanion.start().catch(() => undefined);
     await this.#emitBrowserCompanionStatus();
     await Promise.all(discovered.map(async (provider) => {
@@ -139,6 +162,109 @@ export class QuickchatBroker {
     this.#providers = new Map(discovered.map((provider) => [provider.id, provider]));
     const history = (await this.#history.list()).map((chat) => presentChat(chat));
     this.#emit({ type: "ready", protocolVersion: 2, features: ["desktop-context", "context-attachments"], providers: discovered.map(publicProvider), history });
+    if (command.harness === "builtin") this.#emit({ type: "auth_methods", methods: authMethods });
+  }
+
+  #beginAuth(methodId: string): void {
+    if (this.#authFlow !== undefined) this.#cancelAuth(this.#authFlow.id);
+    const flow: AuthFlow = { id: randomUUID(), methodId, controller: new AbortController() };
+    this.#authFlow = flow;
+    this.#emit({ type: "auth", phase: "starting", flowId: flow.id, methodId, message: "Starting secure authentication…" });
+    void this.#runAuth(flow);
+  }
+
+  async #runAuth(flow: AuthFlow): Promise<void> {
+    try {
+      const { discoverPiAuthMethods, loginPiProvider } = await import("./pi-harness.js");
+      await loginPiProvider(this.#env, flow.methodId, {
+        signal: flow.controller.signal,
+        prompt: (prompt) => this.#promptAuth(flow, prompt),
+        notify: (event) => this.#notifyAuth(flow, event)
+      });
+      if (flow.controller.signal.aborted || this.#authFlow?.id !== flow.id) return;
+      const discovered = await discoverProviders(this.#env, "builtin");
+      this.#providers = new Map(discovered.map((provider) => [provider.id, provider]));
+      this.#emit({ type: "providers", providers: discovered.map(publicProvider) });
+      this.#emit({ type: "auth_methods", methods: await discoverPiAuthMethods(this.#env) });
+      this.#emit({ type: "auth", phase: "complete", flowId: flow.id, methodId: flow.methodId, message: "Authentication complete. OmaPilot is ready." });
+    } catch (error) {
+      if (flow.controller.signal.aborted) {
+        this.#emit({ type: "auth", phase: "cancelled", flowId: flow.id, methodId: flow.methodId, message: "Authentication cancelled." });
+      } else {
+        this.#emit({ type: "auth", phase: "error", flowId: flow.id, methodId: flow.methodId,
+          message: error instanceof Error && error.message === "Authentication prompt was cancelled"
+            ? error.message : "Authentication could not be completed. Check the details and try again." });
+      }
+    } finally {
+      flow.prompt?.cleanup();
+      if (this.#authFlow?.id === flow.id) this.#authFlow = undefined;
+    }
+  }
+
+  #promptAuth(flow: AuthFlow, prompt: AuthPrompt): Promise<string> {
+    if (flow.controller.signal.aborted || this.#authFlow?.id !== flow.id)
+      return Promise.reject(new Error("Authentication prompt was cancelled"));
+    flow.prompt?.reject(new Error("Authentication prompt was cancelled"));
+    return new Promise<string>((resolve, reject) => {
+      const promptId = randomUUID();
+      const signals = [flow.controller.signal, prompt.signal].filter((signal): signal is AbortSignal => signal !== undefined);
+      const signal = signals.length === 1 ? (signals[0] ?? flow.controller.signal) : AbortSignal.any(signals);
+      const onAbort = (): void => reject(new Error("Authentication prompt was cancelled"));
+      const cleanup = (): void => signal.removeEventListener("abort", onAbort);
+      flow.prompt = {
+        id: promptId,
+        resolve: (value) => { cleanup(); resolve(value); },
+        reject: (error) => { cleanup(); reject(error); },
+        cleanup
+      };
+      signal.addEventListener("abort", onAbort, { once: true });
+      this.#emit({
+        type: "auth", phase: "prompt", flowId: flow.id, methodId: flow.methodId,
+        prompt: {
+          id: promptId,
+          kind: prompt.type,
+          message: prompt.message,
+          ...("placeholder" in prompt && prompt.placeholder !== undefined ? { placeholder: prompt.placeholder } : {}),
+          ...(prompt.type === "select" ? { options: prompt.options.map((option) => ({ ...option })) } : {})
+        }
+      });
+    });
+  }
+
+  #notifyAuth(flow: AuthFlow, event: AuthEvent): void {
+    if (this.#authFlow?.id !== flow.id || flow.controller.signal.aborted) return;
+    if (event.type === "auth_url") {
+      if (!isAllowedExternalLink(event.url)) return;
+      this.#emit({ type: "auth", phase: "browser", flowId: flow.id, methodId: flow.methodId,
+        url: event.url, ...(event.instructions === undefined ? {} : { instructions: event.instructions }) });
+      return;
+    }
+    if (event.type === "device_code") {
+      if (!isAllowedExternalLink(event.verificationUri)) return;
+      this.#emit({ type: "auth", phase: "device_code", flowId: flow.id, methodId: flow.methodId,
+        userCode: event.userCode, verificationUri: event.verificationUri,
+        ...(event.expiresInSeconds === undefined ? {} : { expiresInSeconds: event.expiresInSeconds }) });
+      return;
+    }
+    const links = event.type === "info" ? event.links?.filter((link) => isAllowedExternalLink(link.url)).map((link) => ({ ...link })) : undefined;
+    this.#emit({ type: "auth", phase: "info", flowId: flow.id, methodId: flow.methodId,
+      message: event.message, ...(links === undefined ? {} : { links }) });
+  }
+
+  #respondAuth(command: Extract<BrokerCommand, { type: "auth_response" }>): void {
+    const flow = this.#authFlow;
+    if (flow?.id !== command.flowId || flow.prompt?.id !== command.promptId) return;
+    const prompt = flow.prompt;
+    delete flow.prompt;
+    prompt.resolve(command.value);
+  }
+
+  #cancelAuth(flowId: string | undefined): void {
+    const flow = this.#authFlow;
+    if (flow === undefined || flowId === undefined || flow.id !== flowId) return;
+    this.#authFlow = undefined;
+    flow.controller.abort();
+    flow.prompt?.reject(new Error("Authentication prompt was cancelled"));
   }
 
   async #submit(command: Extract<BrokerCommand, { type: "submit" }>): Promise<void> {
