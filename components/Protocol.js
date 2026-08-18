@@ -10,6 +10,13 @@ var validStates = [
   "complete", "canceled", "error", "unavailable", "history"
 ]
 
+function providerReadyState(currentState, providerCount) {
+  var current = String(currentState || "")
+  if (Number(providerCount || 0) > 0 && ["preparing", "unavailable"].indexOf(current) >= 0)
+    return "composing"
+  return current
+}
+
 function command(type, values) {
   var result = { type: String(type || "") }
   var source = values || {}

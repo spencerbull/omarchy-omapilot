@@ -499,6 +499,12 @@ Scope {
     }
     provider = configuredProvider
     selectProvider(configuredProvider)
+    var readyState = Protocol.providerReadyState(state, providers.length)
+    if (readyState !== state) {
+      state = readyState
+      statusMessage = ""
+      errorDetails = null
+    }
   }
 
   function prependHistory(chat) {
@@ -531,11 +537,6 @@ Scope {
       brokerContextAttachmentsSupported = Protocol.hasFeature(event.features, "context-attachments")
       applyProviders(event.providers || [])
       history = Protocol.normalizedHistory(event.history || [])
-      if (providers.length > 0 && (state === "preparing" || state === "unavailable")) {
-        state = "composing"
-        statusMessage = ""
-        errorDetails = null
-      }
       return
     }
     if (type === "providers") {

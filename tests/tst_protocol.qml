@@ -18,6 +18,13 @@ TestCase {
     verify(!Protocol.isCompatibleEvent({}))
   }
 
+  function test_readyProviderUpdateClearsStaleUnavailableState() {
+    compare(Protocol.providerReadyState("unavailable", 1), "composing")
+    compare(Protocol.providerReadyState("preparing", 1), "composing")
+    compare(Protocol.providerReadyState("complete", 1), "complete")
+    compare(Protocol.providerReadyState("unavailable", 0), "unavailable")
+  }
+
   function test_builtinAuthNormalizesMethodsAndProviderPrompts() {
     var methods = Protocol.normalizedAuthMethods([
       { id: "openai-codex::oauth", providerId: "openai-codex", authType: "oauth",
