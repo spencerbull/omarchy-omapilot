@@ -10,6 +10,9 @@ export class DictationService {
   #transcript: string;
   #generation = 0;
   #operation: Promise<void> = Promise.resolve();
+  // Whether this Voxtype speaks `record stop --wait`. Probed once, because the
+  // flag is not tied to a release the way a version check would assume.
+  #waitSupported: boolean | undefined;
 
   constructor(paths: QuickchatPaths = quickchatPaths(), env: NodeJS.ProcessEnv = process.env) {
     this.#paths = paths;
@@ -46,10 +49,60 @@ export class DictationService {
     return this.#serialize(() => this.#stop(timeoutMs));
   }
 
+  // Does this Voxtype support `record stop --wait`?
+  //
+  // Older builds have no completion signal at all, so they need the polling
+  // path below. Probed once per resolved binary.
+  async #supportsWait(): Promise<boolean> {
+    if (this.#waitSupported !== undefined) return this.#waitSupported;
+    if (this.#voxtype === undefined) return false;
+    const help = await runCommand(this.#voxtype, ["record", "stop", "--help"], { env: this.#env, timeoutMs: 5_000, maxOutput: 65_536 });
+    this.#waitSupported = help.code === 0 && help.stdout.includes("--wait");
+    return this.#waitSupported;
+  }
+
   async #stop(timeoutMs: number): Promise<string> {
+    const voxtype = this.#voxtype;
+    if (voxtype === undefined) throw new Error("Voxtype is not recording");
+    return await this.#supportsWait() ? this.#stopAndWait(voxtype, timeoutMs) : this.#stopAndPoll(voxtype, timeoutMs);
+  }
+
+  // One call that returns when the transcript is final.
+  //
+  // It distinguishes "nothing was said" from "still working", which polling
+  // cannot: when voice-activity detection finds no speech, nothing is ever
+  // written, and the poll below can only wait out its own deadline.
+  async #stopAndWait(voxtype: string, timeoutMs: number): Promise<string> {
     const generation = this.#generation;
-    if (this.#voxtype === undefined) throw new Error("Voxtype is not recording");
-    const result = await runCommand(this.#voxtype, ["record", "stop"], { env: this.#env, timeoutMs: 5_000, maxOutput: 16_384 });
+    const seconds = Math.max(1, Math.ceil(timeoutMs / 1_000));
+    const result = await runCommand(
+      voxtype,
+      ["record", "stop", "--wait", "--json", "--timeout", String(seconds), "--wait-file", this.#transcript],
+      // Give the CLI room to report its own timeout rather than being killed first.
+      { env: this.#env, timeoutMs: timeoutMs + 5_000, maxOutput: 1_000_000 }
+    );
+    if (generation !== this.#generation) throw new DictationCancelledError();
+    await rm(this.#transcript, { force: true });
+
+    let outcome: { status?: string; text?: string; message?: string } = {};
+    try {
+      outcome = JSON.parse(result.stdout.trim()) as typeof outcome;
+    } catch {
+      throw new Error(`Voxtype returned an unreadable result: ${result.stderr.trim() || result.stdout.trim()}`);
+    }
+
+    switch (outcome.status) {
+      case "ok": return (outcome.text ?? "").trim();
+      case "empty": throw new Error("Voxtype heard nothing to transcribe");
+      case "timeout": throw new Error("Voxtype transcription timed out");
+      default: throw new Error(`Voxtype could not transcribe: ${outcome.message ?? "unknown error"}`);
+    }
+  }
+
+  // Voxtype without `--wait`: no completion signal, so poll for the transcript.
+  async #stopAndPoll(voxtype: string, timeoutMs: number): Promise<string> {
+    const generation = this.#generation;
+    const result = await runCommand(voxtype, ["record", "stop"], { env: this.#env, timeoutMs: 5_000, maxOutput: 16_384 });
     if (result.code !== 0) throw new Error("Voxtype could not stop recording");
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
