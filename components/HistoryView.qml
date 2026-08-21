@@ -229,8 +229,13 @@ Item {
               tooltipText: "Delete chat"
               foreground: root.foreground
               hoverColor: Color.urgent
-              focusable: true
-              opacity: row.hot || activeFocus ? 1 : 0.0
+              // Opacity 0 still receives taps, so non-current rows would delete
+              // from empty space on pointers that never hover. Disable the
+              // control until the row is current, hovered, or this button is
+              // focused. List Delete remains the keyboard path.
+              enabled: row.hot || activeFocus
+              focusable: enabled
+              opacity: enabled ? 1 : 0
               Accessible.name: tooltipText
               onClicked: root.deleteRequested(String(modelData.id))
               Behavior on opacity {

@@ -104,6 +104,14 @@ ShellRoot {
         if (view.serverTestModels.length !== 1 || view.serverTestUrl !== "https://keyed.example/v1"
             || Number(view.serverTestModels[0].contextWindow || 0) !== 262144)
           root.fail("clearing a replacement key did not restore the existing credential path")
+        view.serverRemoveConfirmId = "keyed-server"
+        view.browserRemoveConfirmation = true
+        view.selectTab("agent")
+      } else if (root.stage === 5) {
+        if (view.selectedTab !== "agent"
+            || view.serverRemoveConfirmId !== ""
+            || view.browserRemoveConfirmation)
+          root.fail("switching tabs left a hidden confirmation armed")
         if (!root.failed) console.log("OMAPILOT_SERVER_SAVE_PROBE_OK")
         probeTimer.stop()
         Qt.quit()

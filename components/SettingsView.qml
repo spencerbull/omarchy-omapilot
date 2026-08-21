@@ -71,10 +71,10 @@ Item {
   readonly property bool popupOpen: providerPicker.popupOpen || modelPicker.popupOpen
     || authMethodPicker.popupOpen || authPromptPicker.popupOpen
   readonly property bool modalInteractionActive: popupOpen
-    || browserRemoveConfirmation
     || browserCompanionBusy
-    || quickActionEditor.interactionActive
-    || serverRemoveConfirmId !== ""
+    || (selectedTab === "desktop" && browserRemoveConfirmation)
+    || (selectedTab === "actions" && quickActionEditor.interactionActive)
+    || (selectedTab === "servers" && serverRemoveConfirmId !== "")
   implicitHeight: Style.space(560)
   readonly property color mutedForeground: Qt.darker(foreground, 1.45)
   Accessible.name: "OmaPilot settings"
@@ -137,6 +137,12 @@ Item {
     var next = Presentation.normalizedSettingsTab(id)
     if (next === selectedTab) return
     closePopups(false)
+    // Confirmations and the add-action editor are tab-local. Leaving them
+    // armed keeps modalInteractionActive true while their controls are gone,
+    // which swallows Ctrl+H / Ctrl+, and panel navigation.
+    if (next !== "servers") serverRemoveConfirmId = ""
+    if (next !== "desktop") browserRemoveConfirmation = false
+    if (next !== "actions" && quickActionEditor.adding) quickActionEditor.cancelAdding()
     selectedTab = next
   }
 
