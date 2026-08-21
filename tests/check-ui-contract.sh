@@ -151,6 +151,14 @@ grep -Fq 'running: root.atmosphereActive' "$repo_dir/components/StateLightBar.qm
 grep -Fq 'StateColor.forPhase' "$repo_dir/components/StateLightBar.qml"
 grep -Fq 'colorizationColor: root.displayedColor' "$repo_dir/components/StateLightBar.qml"
 grep -Fq 'id: promptRow' "$repo_dir/components/Composer.qml"
+grep -Fq 'iconText: "󰹑"' "$repo_dir/components/Composer.qml"
+grep -Fq '󰍬' "$repo_dir/components/Composer.qml"
+if grep -Fq 'Active window, open apps, workspaces, and playing media' \
+    "$repo_dir/components/Composer.qml"; then
+  printf 'Desktop context disclosure must be the hostname, not a capability list\n' >&2
+  exit 1
+fi
+grep -Fq 'Protocol.providerShortLabel(Quickchat.QuickchatStore.provider)' "$repo_dir/Panel.qml"
 grep -Fq 'font.pixelSize: Style.font.heading' "$repo_dir/components/Composer.qml"
 grep -Fq 'sequences: ["Ctrl+H"]' "$repo_dir/Panel.qml"
 grep -Fq '{ label: "Super+Alt+P settings", lane: "settings" }' "$repo_dir/Panel.qml"

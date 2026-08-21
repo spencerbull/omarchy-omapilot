@@ -181,6 +181,9 @@ TestCase {
     compare(options[2].value, "opencode")
     // Claude is no longer a selectable harness.
     verify(Protocol.normalizedProvider("claude") === "")
+    compare(Protocol.providerShortLabel("builtin"), "OmaPilot")
+    compare(Protocol.providerShortLabel("codex"), "Codex")
+    compare(Protocol.providerShortLabel("opencode"), "OpenCode")
   }
 
   function test_providerDiscoveryRequiresExactlyTheConfiguredHarness() {

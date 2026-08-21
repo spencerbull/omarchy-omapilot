@@ -777,12 +777,7 @@ Panel {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             elide: Text.ElideRight
-            text: {
-              var who = Protocol.providerLabel(Quickchat.QuickchatStore.provider)
-              if (Quickchat.QuickchatStore.model !== "")
-                who += " \u00b7 " + Quickchat.QuickchatStore.model
-              return who
-            }
+            text: Protocol.providerShortLabel(Quickchat.QuickchatStore.provider)
             color: Qt.darker(root.foreground, 1.35)
             font.family: root.fontFamily
             font.pixelSize: Style.font.bodySmall
@@ -798,9 +793,9 @@ Panel {
             Layout.maximumWidth: implicitWidth
             elide: Text.ElideRight
             text: Presentation.permissionNotice(root.dangerousAutoApprove)
-            color: Color.urgent
+            color: Qt.darker(root.foreground, 1.35)
             font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.bodySmall
             Accessible.role: Accessible.StaticText
             Accessible.name: text
           }

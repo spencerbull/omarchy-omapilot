@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Protocol.js" as Protocol
@@ -29,7 +30,15 @@ Item {
 
   readonly property bool inputActive: inlineMode ? inlineInput.activeFocus : promptInput.activeFocus
   property bool attachmentPopupOpen: false
+  property string hostName: ""
   readonly property bool popupOpen: inlineProvider.popupOpen || attachmentPopupOpen
+
+  FileView {
+    path: "/etc/hostname"
+    watchChanges: false
+    printErrors: false
+    onLoaded: root.hostName = String(text() || "").trim().split(/\s+/)[0]
+  }
 
   implicitWidth: inlineMode ? Style.space(360) : Style.space(520)
   implicitHeight: inlineMode ? Style.bar.sizeHorizontal : panelComposer.implicitHeight
@@ -192,14 +201,14 @@ Item {
 
     Text {
       Layout.fillWidth: true
-      visible: root.backend && root.backend.desktopContextActive
-      text: "󰍹  Active window, open apps, workspaces, and playing media are attached on send."
+      visible: root.backend && root.backend.desktopContextActive && root.hostName !== ""
+      text: root.hostName
       color: Qt.darker(root.foreground, 1.45)
       font.family: root.fontFamily
       font.pixelSize: Style.font.caption
-      wrapMode: Text.Wrap
+      elide: Text.ElideRight
       Accessible.role: Accessible.StaticText
-      Accessible.name: "Desktop context is attached on send"
+      Accessible.name: "Desktop context attached from " + root.hostName
     }
 
     // The hero: one borderless prompt line, not a boxed text area with a
@@ -265,7 +274,7 @@ Item {
         spacing: Style.spacing.xs
 
         PanelActionButton {
-          iconText: "\uf0c5"
+          iconText: "󰹑"
           tooltipText: "Clip context from the desktop"
           foreground: root.foreground
           focusable: true
@@ -275,7 +284,8 @@ Item {
         }
 
         PanelActionButton {
-          iconText: root.backend && root.backend.busy ? "\udb80\ude9b" : "\udb80\udd6c"
+          iconText: root.backend && (root.backend.busy || root.backend.state === "dictating")
+            ? "󰓛" : "󰍬"
           tooltipText: root.backend && root.backend.busy ? "Stop response" : "Dictate with Voxtype"
           foreground: root.backend && root.backend.state === "dictating" ? root.accent : root.foreground
           focusable: true

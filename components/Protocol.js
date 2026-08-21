@@ -531,6 +531,14 @@ function providerLabel(value) {
   return String(value || "")
 }
 
+function providerShortLabel(value) {
+  var provider = normalizedProvider(value)
+  if (provider === "builtin") return "OmaPilot"
+  if (provider === "codex") return "Codex"
+  if (provider === "opencode") return "OpenCode"
+  return providerLabel(value)
+}
+
 function normalizeProviders(input) {
   var source = Array.isArray(input) ? input : []
   var result = []
