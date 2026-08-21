@@ -10,7 +10,6 @@ import "components/internal" as QuickchatInternal
 import "components/Presentation.js" as Presentation
 import "components/Protocol.js" as Protocol
 import "components/QuickActions.js" as ActionCatalog
-import "components/StateColor.js" as StateColor
 
 Panel {
   id: root
@@ -63,7 +62,6 @@ Panel {
   readonly property string statePhase: failureVisible ? "error"
     : (responseActivityActive ? "thinking"
       : (Quickchat.QuickchatStore.answerMarkdown !== "" ? "answering" : "listening"))
-  readonly property color stateColor: StateColor.forPhase(root.accent, Color.urgent, root.statePhase)
   readonly property bool responseActivityActive:
     Quickchat.QuickchatStore.state === "preparing"
     || Quickchat.QuickchatStore.state === "streaming"
@@ -285,21 +283,13 @@ Panel {
         onWorkInAppRequested: root.prepareWorkInAppDraft()
       }
 
-      // Removing the header's gear took away the only route to settings, so the
-      // lanes that lost their buttons get real keys. These are advertised in the
-      // panel's hint row; an affordance nobody can find is not a design.
+      // History remains a focused-panel shortcut. Settings already has a
+      // desktop-global route (Super+Alt+P), so do not create a second binding.
       Shortcut {
         sequences: ["Ctrl+H"]
         context: Qt.WindowShortcut
         enabled: root.opened && root.panelWindowActive && !root.modalInteractionActive
         onActivated: root.viewMode === "history" ? root.showChat() : root.openHistory()
-      }
-
-      Shortcut {
-        sequences: ["Ctrl+,"]
-        context: Qt.WindowShortcut
-        enabled: root.opened && root.panelWindowActive && !root.modalInteractionActive
-        onActivated: root.viewMode === "settings" ? root.showChat() : root.openSettings()
       }
 
       ColumnLayout {
@@ -315,14 +305,11 @@ Panel {
           id: composer
           Layout.fillWidth: true
           backend: Quickchat.QuickchatStore
-          activityActive: root.responseActivityActive && root.opened
-          activityColor: root.stateColor
           foreground: root.foreground
           background: root.surface
           accent: root.accent
           fontFamily: root.fontFamily
           onSubmitted: answerScroll.resetForNewTurn()
-          onSettingsRequested: root.viewMode === "settings" ? root.showChat() : root.openSettings()
           onHistoryRequested: root.viewMode === "history" ? root.showChat() : root.openHistory()
           onEscapeRequested: root.close()
         }
@@ -330,37 +317,36 @@ Panel {
         // runner travelling its perimeter — a window inside a window. Now it sits
         // directly on the panel under one edge-lit seam, the same seam the answer
         // curtain uses, so the typed and the spoken paths present identically.
-        // The activity signal moved to the composer's filament.
         Item {
           id: answerCard
-          Layout.fillWidth: true
-          Layout.fillHeight: true
-          Layout.minimumHeight: visible ? Style.space(120) : 0
-          Layout.preferredHeight: implicitHeight
-          implicitHeight: answerLayout.implicitHeight + Style.spacing.xl
-          visible: Quickchat.QuickchatStore.question !== ""
+          readonly property bool contentVisible: Quickchat.QuickchatStore.question !== ""
             || Quickchat.QuickchatStore.answerMarkdown !== ""
             || Quickchat.QuickchatStore.state === "error"
             || Quickchat.QuickchatStore.state === "unavailable"
+          Layout.fillWidth: true
+          Layout.minimumHeight: contentVisible ? Style.space(120) : stateLightBar.implicitHeight
+          Layout.preferredHeight: implicitHeight
+          implicitHeight: contentVisible
+            ? answerLayout.implicitHeight + Style.spacing.xl
+            : stateLightBar.implicitHeight
 
-          // Brightest at the centre, gone by the edges. A full-width rule would
-          // read as a divider; this reads as light arriving with the answer.
-          Rectangle {
+          // One persistent seam carries the entire panel's state. It remains a
+          // quiet accent while composing, gathers pace while working, and
+          // settles into the answer or error hue without becoming a progress bar.
+          Quickchat.StateLightBar {
+            id: stateLightBar
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 1
-            gradient: Gradient {
-              orientation: Gradient.Horizontal
-              GradientStop { position: 0.0; color: "transparent" }
-              GradientStop { position: 0.5; color: Qt.rgba(root.stateColor.r, root.stateColor.g, root.stateColor.b,
-                root.failureVisible ? 0.0 : 0.7) }
-              GradientStop { position: 1.0; color: "transparent" }
-            }
+            phase: root.statePhase
+            accent: root.accent
+            urgent: Color.urgent
+            motionEnabled: root.motionEnabled && root.opened
           }
 
           ColumnLayout {
             id: answerLayout
+            visible: answerCard.contentVisible
             anchors.fill: parent
             anchors.topMargin: Style.spacing.xl
             spacing: Style.spacing.lg
@@ -550,10 +536,9 @@ Panel {
             Item {
               id: responseViewport
               Layout.fillWidth: true
-              Layout.fillHeight: true
-              Layout.minimumHeight: Style.space(88)
+              Layout.minimumHeight: Style.space(48)
               Layout.preferredHeight: Presentation.responseViewportHeight(
-                answerContent.implicitHeight, Style.space(88), Style.space(420))
+                answerContent.implicitHeight, Style.space(48), Style.space(420))
 
               Flickable {
                 id: answerScroll
@@ -820,15 +805,9 @@ Panel {
             Accessible.name: text
           }
 
-          // This row is now the only place settings and history are discoverable,
-          // so it has to be readable. Caption size at darker(1.6) was too faint
-          // to notice at all. "enter send" is dropped: Enter in a text field is
-          // not the thing anyone needs told.
-          // Clickable, not just advertised. Removing the gear left settings
-          // reachable only by keystroke, and a keystroke is a single point of
-          // failure: anything upstream that swallows the key makes a whole lane
-          // unreachable with no fallback. These are the same hints, but they are
-          // also the control.
+          // Keep the global settings binding and focused-panel history binding
+          // visible and clickable. "Enter send" is omitted because text fields
+          // already establish that convention.
           // Without this the auto-approve warning butts straight against the
           // first key hint and the two read as one sentence.
           Text {
@@ -844,7 +823,7 @@ Panel {
 
             Repeater {
               model: [
-                { label: "Ctrl+, settings", lane: "settings" },
+                { label: "Super+Alt+P settings", lane: "settings" },
                 { label: "Ctrl+H history", lane: "history" }
               ]
 
@@ -866,10 +845,10 @@ Panel {
                   readonly property var laneData: parent.modelData
                   text: laneData.label
                   color: hint.hovered ? root.accent : Qt.darker(root.foreground, 1.2)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.bodySmall
-                font.underline: hint.hovered
-                Accessible.role: Accessible.Button
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.bodySmall
+                  font.underline: hint.hovered
+                  Accessible.role: Accessible.Button
                   Accessible.name: "Open " + hintLabel.laneData.lane
 
                 Behavior on color {

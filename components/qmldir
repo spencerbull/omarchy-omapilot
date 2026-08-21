@@ -16,4 +16,5 @@ SettingsTabs 1.0 SettingsTabs.qml
 VoiceNode 1.0 VoiceNode.qml
 AnswerCurtain 1.0 AnswerCurtain.qml
 ActivityFilament 1.0 ActivityFilament.qml
+StateLightBar 1.0 StateLightBar.qml
 VoiceWave 1.0 VoiceWave.qml

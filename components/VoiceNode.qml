@@ -35,6 +35,23 @@ Item {
   // amplitude, so a VU meter would be a lie in pixels.
   property real level: 0
   property real presence: lit ? 1 : 0
+  // A second, much slower cycle keeps the active listening/thinking surface
+  // from feeling like a static lamp. It changes atmosphere only; it still
+  // makes no claim about audio.
+  property real tide: 0.35
+  // The brightest part of the full-width gradient wanders by only a few percent.
+  // That slight asymmetry is what keeps the edge from feeling mechanically looped.
+  property real drift: 0
+  readonly property bool atmosphereActive: motionEnabled
+    && (phase === "listening" || phase === "thinking")
+
+  function settleAtmosphere() {
+    if (!atmosphereActive) {
+      tide = 0.4
+      drift = 0
+    }
+    if (!motionEnabled) level = 0.5
+  }
 
   Behavior on presence {
     enabled: root.motionEnabled
@@ -47,17 +64,50 @@ Item {
     NumberAnimation { target: root; property: "level"; to: 1; duration: 820; easing.type: Easing.InOutSine }
     NumberAnimation { target: root; property: "level"; to: 0.34; duration: 980; easing.type: Easing.InOutSine }
   }
+  SequentialAnimation {
+    id: tideAnimation
+    running: root.atmosphereActive
+    loops: Animation.Infinite
+    NumberAnimation {
+      target: root; property: "tide"; to: 1
+      duration: root.phase === "thinking" ? 2700 : 3900
+      easing.type: Easing.InOutSine
+    }
+    NumberAnimation {
+      target: root; property: "tide"; to: 0.18
+      duration: root.phase === "thinking" ? 3400 : 4700
+      easing.type: Easing.InOutSine
+    }
+  }
+  SequentialAnimation {
+    id: driftAnimation
+    running: root.atmosphereActive
+    loops: Animation.Infinite
+    NumberAnimation {
+      target: root; property: "drift"; to: 1
+      duration: root.phase === "thinking" ? 4700 : 6300
+      easing.type: Easing.InOutSine
+    }
+    NumberAnimation {
+      target: root; property: "drift"; to: -1
+      duration: root.phase === "thinking" ? 5600 : 7100
+      easing.type: Easing.InOutSine
+    }
+  }
   // Thinking holds a low steady presence and lets the travelling filament carry
   // the motion, so listening and thinking never read as the same state.
   NumberAnimation {
-    running: root.phase !== "listening"
+    id: levelSettleAnimation
+    running: root.motionEnabled && root.lit && root.phase !== "listening"
     target: root
     property: "level"
     to: root.phase === "thinking" ? 0.42 : (root.phase === "error" ? 0.9 : 0.62)
     duration: 300
     easing.type: Easing.OutCubic
   }
-  onMotionEnabledChanged: if (!motionEnabled) level = 0.5
+  onPhaseChanged: settleAtmosphere()
+  onMotionEnabledChanged: settleAtmosphere()
+  onAtmosphereActiveChanged: settleAtmosphere()
 
   PanelWindow {
     id: surface
@@ -89,19 +139,25 @@ Item {
       }
     }
 
-    // The ember: a wide soft body of light sunk below the screen edge, so only
-    // its bloom reaches the desktop. Blur supplies both falloffs for free.
+    // The ember spans the complete output. Its transparent horizontal gradient
+    // keeps the corners quiet without leaving the lower screen visibly unlit;
+    // the body stays sunk below the edge so only its bloom reaches the desktop.
     Item {
       id: emberSource
       visible: false
-      width: parent.width * 0.82
+      anchors { left: parent.left; right: parent.right }
       height: Style.space(64)
-      anchors.horizontalCenter: parent.horizontalCenter
-      y: parent.height - Style.space(14)
+      y: parent.height - Style.space(14) - root.tide * Style.space(2)
       Rectangle {
         anchors.fill: parent
-        radius: height / 2
-        color: root.lightColor
+        gradient: Gradient {
+          orientation: Gradient.Horizontal
+          GradientStop { position: 0.0; color: Qt.rgba(root.lightColor.r, root.lightColor.g, root.lightColor.b, 0.10) }
+          GradientStop { position: 0.18 + root.drift * 0.025; color: Qt.rgba(root.lightColor.r, root.lightColor.g, root.lightColor.b, 0.48) }
+          GradientStop { position: 0.50 + root.drift * 0.055; color: root.lightColor }
+          GradientStop { position: 0.82 + root.drift * 0.025; color: Qt.rgba(root.lightColor.r, root.lightColor.g, root.lightColor.b, 0.48) }
+          GradientStop { position: 1.0; color: Qt.rgba(root.lightColor.r, root.lightColor.g, root.lightColor.b, 0.10) }
+        }
       }
     }
 
@@ -118,8 +174,8 @@ Item {
       brightness: 0.26
       colorization: 1
       colorizationColor: root.lightColor
-      opacity: root.presence * (0.34 + root.level * 0.28)
-      scale: 1 + root.level * 0.05
+      opacity: root.presence * (0.24 + root.level * 0.22 + root.tide * 0.06)
+      scale: 1 + root.level * 0.035 + root.tide * 0.018
       transformOrigin: Item.Bottom
     }
 
@@ -134,8 +190,8 @@ Item {
       brightness: 0.42
       colorization: 1
       colorizationColor: root.lightColor
-      opacity: root.presence * (0.18 + root.level * 0.18)
-      scale: 1 + root.level * 0.03
+      opacity: root.presence * (0.14 + root.level * 0.16 + root.tide * 0.04)
+      scale: 1 + root.level * 0.022 + root.tide * 0.012
       transformOrigin: Item.Bottom
     }
 

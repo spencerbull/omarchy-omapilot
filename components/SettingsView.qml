@@ -139,7 +139,7 @@ Item {
     closePopups(false)
     // Confirmations and the add-action editor are tab-local. Leaving them
     // armed keeps modalInteractionActive true while their controls are gone,
-    // which swallows Ctrl+H / Ctrl+, and panel navigation.
+    // which swallows Ctrl+H and panel navigation.
     if (next !== "servers") serverRemoveConfirmId = ""
     if (next !== "desktop") browserRemoveConfirmation = false
     if (next !== "actions" && quickActionEditor.adding) quickActionEditor.cancelAdding()

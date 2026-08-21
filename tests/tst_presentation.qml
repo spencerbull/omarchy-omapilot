@@ -13,9 +13,9 @@ TestCase {
   }
 
   function test_responseViewportHasIndependentBounds() {
-    compare(Presentation.responseViewportHeight(20, 88, 420), 88)
-    compare(Presentation.responseViewportHeight(240, 88, 420), 240)
-    compare(Presentation.responseViewportHeight(900, 88, 420), 420)
+    compare(Presentation.responseViewportHeight(20, 48, 420), 48)
+    compare(Presentation.responseViewportHeight(240, 48, 420), 240)
+    compare(Presentation.responseViewportHeight(900, 48, 420), 420)
   }
 
   function test_streamFollowOnlyWhenReaderIsNearBottom() {

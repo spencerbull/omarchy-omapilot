@@ -159,9 +159,11 @@ bonus, never a requirement.
 
 One light source, one accent, no second palette.
 
-- **Ember** — a wide soft body of light sunk below the bottom edge so only its
-  bloom reaches the desktop. Built from two stacked blooms: a wide halo for
-  atmosphere and a tight core for definition. A single wide blur reads as fog.
+- **Ember** — a full-width transparent gradient sunk below the bottom edge so
+  only its bloom reaches the desktop. Its low-energy corners keep the complete
+  lower edge alive without drawing a visible bar. Two slow, incommensurate
+  cycles shift its breath and center slightly; neither represents microphone
+  amplitude. Two stacked blooms keep atmosphere and definition separate.
 - **Filament** — a hairline at the very edge that makes the glow read as
   deliberate rather than as a rendering artifact.
 - **Runner** — while thinking, one short bright segment sweeps the filament.

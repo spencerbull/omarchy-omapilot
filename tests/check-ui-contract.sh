@@ -28,6 +28,7 @@ qml_files=(
   "$repo_dir/components/QuickActionEditor.qml"
   "$repo_dir/components/SettingsView.qml"
   "$repo_dir/components/SettingsTabs.qml"
+  "$repo_dir/components/StateLightBar.qml"
   "$repo_dir/components/ActivityFilament.qml"
   "$repo_dir/components/ResponseActivityBorder.qml"
   "$repo_dir/components/internal/PermissionFocusGuard.qml"
@@ -128,18 +129,39 @@ grep -Fq 'visible: root.viewMode === "settings"' "$repo_dir/Panel.qml"
 grep -Fq 'settingsView.popupOpen' "$repo_dir/Panel.qml"
 # The ambient redesign removed the panel header (logo, tagline, gear). The
 # chrome assertions below pin the replacement instead: a borderless hero prompt,
-# the shared activity filament, and the single hint row that now carries
-# provider identity, permission posture, and the lane shortcuts. Settings and
-# history lost their buttons, so their keys must exist or they are unreachable.
+# one answer seam, and a hint row carrying provider identity, permission posture,
+# the desktop-global settings binding, and focused-panel history navigation.
 if grep -Fq 'Quickchat.OmaPilotHeader {' "$repo_dir/Panel.qml"; then
   printf 'Panel must not reintroduce the OmaPilot header chrome\n' >&2
   exit 1
 fi
-grep -Fq 'ActivityFilament {' "$repo_dir/components/Composer.qml"
+if grep -Fq 'ActivityFilament {' "$repo_dir/components/Composer.qml"; then
+  printf 'The composer must not draw a second rule above the answer seam\n' >&2
+  exit 1
+fi
+grep -Fq 'Quickchat.StateLightBar {' "$repo_dir/Panel.qml"
+grep -Fq 'Layout.minimumHeight: contentVisible ? Style.space(120) : stateLightBar.implicitHeight' \
+  "$repo_dir/Panel.qml"
+grep -Fq 'visible: answerCard.contentVisible' "$repo_dir/Panel.qml"
+grep -Fq 'readonly property bool atmosphereActive: motionEnabled' \
+  "$repo_dir/components/StateLightBar.qml"
+grep -Fq '&& (phase === "listening" || phase === "thinking")' \
+  "$repo_dir/components/StateLightBar.qml"
+grep -Fq 'running: root.atmosphereActive' "$repo_dir/components/StateLightBar.qml"
+grep -Fq 'StateColor.forPhase' "$repo_dir/components/StateLightBar.qml"
+grep -Fq 'colorizationColor: root.displayedColor' "$repo_dir/components/StateLightBar.qml"
 grep -Fq 'id: promptRow' "$repo_dir/components/Composer.qml"
 grep -Fq 'font.pixelSize: Style.font.heading' "$repo_dir/components/Composer.qml"
 grep -Fq 'sequences: ["Ctrl+H"]' "$repo_dir/Panel.qml"
-grep -Fq 'sequences: ["Ctrl+,"]' "$repo_dir/Panel.qml"
+grep -Fq '{ label: "Super+Alt+P settings", lane: "settings" }' "$repo_dir/Panel.qml"
+if grep -Fq 'Ctrl+,' "$repo_dir/Panel.qml" "$repo_dir/components/Composer.qml"; then
+  printf 'Settings must use only the desktop-global Super+Alt+P binding\n' >&2
+  exit 1
+fi
+if grep -Fq 'id: caret' "$repo_dir/components/Composer.qml"; then
+  printf 'Prompt text must share the content left edge without a decorative caret\n' >&2
+  exit 1
+fi
 grep -Fq 'Presentation.permissionNotice(root.dangerousAutoApprove)' "$repo_dir/Panel.qml"
 grep -Fq 'text: "OmaPilot"' "$repo_dir/components/OmaPilotHeader.qml"
 grep -Fq 'source: Qt.resolvedUrl("../assets/omapilot-mark.png")' \
@@ -224,9 +246,9 @@ grep -Fq 'property bool followLatest: true' "$repo_dir/Panel.qml"
 grep -Fq 'onMovementEnded: followLatest = Presentation.isNearBottom(' "$repo_dir/Panel.qml"
 grep -Fq 'tooltipText: "Jump to the newest response"' "$repo_dir/Panel.qml"
 # The perimeter runner circled the answer card's border. The redesign removed
-# that border, so the activity signal moved to the composer's filament. The
-# component itself is retained for its motion probe and preview fixtures, but
-# the panel must not put a runner back around the response.
+# that border, so state now lives in the persistent answer seam. The old
+# component remains for its motion probe and preview fixtures, but the panel
+# must not put a runner back around the response.
 if grep -Fq 'Quickchat.ResponseActivityBorder {' "$repo_dir/Panel.qml"; then
   printf 'Panel must not reintroduce the response perimeter runner\n' >&2
   exit 1
@@ -234,8 +256,14 @@ fi
 grep -Fq 'id: sweepSource' "$repo_dir/components/ActivityFilament.qml"
 # Every state must resolve through one mapping rather than hardcoding accent.
 grep -Fq 'StateColor.forPhase' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'anchors { left: parent.left; right: parent.right }' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'property real tide: 0.35' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'property real drift: 0' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'readonly property bool atmosphereActive: motionEnabled' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'running: root.atmosphereActive' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'running: root.motionEnabled && root.lit && root.phase !== "listening"' "$repo_dir/components/VoiceNode.qml"
+grep -Fq '0.50 + root.drift * 0.055' "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'StateColor.forPhase' "$repo_dir/components/AnswerCurtain.qml"
-grep -Fq 'StateColor.forPhase' "$repo_dir/Panel.qml"
 grep -Fq 'colorizationColor: root.accent' "$repo_dir/components/ActivityFilament.qml"
 grep -Fq 'id: responseStatusSlot' "$repo_dir/Panel.qml"
 grep -Fq 'Layout.minimumWidth: Style.space(140)' "$repo_dir/Panel.qml"
@@ -268,11 +296,9 @@ if grep -Eq 'responseActivityCore|id: runnerCore|coreSpan' \
   printf 'OmaPilot perimeter motion must render as one blur without a crisp core\n' >&2
   exit 1
 fi
-# Same invariant as before the redesign, on the filament instead of the
-# perimeter runner: response motion is gated on the panel actually being open,
-# so nothing animates off screen.
-grep -Fq 'activityActive: root.responseActivityActive && root.opened' "$repo_dir/Panel.qml"
-grep -Fq 'active: root.activityActive' "$repo_dir/components/Composer.qml"
+# The persistent state light is panel-gated, so its atmosphere stops as soon as
+# the panel closes instead of animating off screen.
+grep -Fq 'motionEnabled: root.motionEnabled && root.opened' "$repo_dir/Panel.qml"
 grep -Fq 'id: activityStatus' "$repo_dir/Panel.qml"
 if grep -Eq 'WaitingIndicator|signalClock|FrameAnimation|onTriggered:' \
     "$repo_dir/Panel.qml" "$repo_dir/components/ResponseActivityBorder.qml"; then
@@ -448,6 +474,33 @@ fi
 if grep -Eq "omapilot motion probe failed|Failed to load|Type .* unavailable|Cannot assign|TypeError" \
     "$smoke_root/motion.log" || ! grep -Fq 'OMAPILOT_MOTION_PROBE_OK' "$smoke_root/motion.log"; then
   cat "$smoke_root/motion.log"
+  exit 1
+fi
+
+cp "$repo_dir/tests/voice-node-lifecycle-probe.qml" "$smoke_root/shell.qml"
+if ! QT_QPA_PLATFORM=wayland timeout 5s quickshell --no-duplicate \
+    --path "$smoke_root" --no-color >"$smoke_root/voice-node-lifecycle.log" 2>&1; then
+  cat "$smoke_root/voice-node-lifecycle.log"
+  exit 1
+fi
+if grep -Eq "omapilot voice node lifecycle probe failed|Failed to load|Type .* unavailable|Cannot assign|TypeError" \
+    "$smoke_root/voice-node-lifecycle.log" \
+    || ! grep -Fq 'OMAPILOT_VOICE_NODE_LIFECYCLE_PROBE_OK' "$smoke_root/voice-node-lifecycle.log"; then
+  cat "$smoke_root/voice-node-lifecycle.log"
+  exit 1
+fi
+
+cp "$repo_dir/tests/state-light-bar-lifecycle-probe.qml" "$smoke_root/shell.qml"
+if ! QT_QPA_PLATFORM=offscreen timeout 5s quickshell --no-duplicate \
+    --path "$smoke_root" --no-color >"$smoke_root/state-light-bar-lifecycle.log" 2>&1; then
+  cat "$smoke_root/state-light-bar-lifecycle.log"
+  exit 1
+fi
+if grep -Eq "omapilot state light bar lifecycle probe failed|Failed to load|Type .* unavailable|Cannot assign|TypeError" \
+    "$smoke_root/state-light-bar-lifecycle.log" \
+    || ! grep -Fq 'OMAPILOT_STATE_LIGHT_BAR_LIFECYCLE_PROBE_OK' \
+      "$smoke_root/state-light-bar-lifecycle.log"; then
+  cat "$smoke_root/state-light-bar-lifecycle.log"
   exit 1
 fi
 

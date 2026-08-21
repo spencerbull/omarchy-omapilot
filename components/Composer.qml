@@ -25,16 +25,10 @@ Item {
   // window activation — which Qt.WindowShortcut depends on — is not dependable.
   // Key events reach the focused editor regardless, which is why Enter and
   // Escape below have always worked.
-  signal settingsRequested()
   signal historyRequested()
 
   readonly property bool inputActive: inlineMode ? inlineInput.activeFocus : promptInput.activeFocus
   property bool attachmentPopupOpen: false
-  // Set by the owner. Motion must not run while the panel is closed, so the
-  // filament is gated on visibility rather than on backend state alone.
-  property bool activityActive: false
-  // Supplied by the owner so the filament shows the current state, not just accent.
-  property color activityColor: accent
   readonly property bool popupOpen: inlineProvider.popupOpen || attachmentPopupOpen
 
   implicitWidth: inlineMode ? Style.space(360) : Style.space(520)
@@ -209,35 +203,19 @@ Item {
     }
 
     // The hero: one borderless prompt line, not a boxed text area with a
-    // toolbar. The old surface framed OmaPilot as an app embedded in the
-    // desktop; a bare caret and a filament read as the desktop itself asking.
-    // The visible container is gone, so the input needs no border states.
+    // toolbar. Keep its text on the same left edge as context and responses;
+    // a decorative prompt glyph only indented the user's words.
     Item {
       id: promptRow
       Layout.fillWidth: true
       Layout.preferredHeight: Math.max(Style.space(34), promptInput.implicitHeight + Style.spacing.md)
       visible: !root.backend || root.backend.pendingPermission === null
 
-      HoverHandler { id: promptHover }
-
-      Text {
-        id: caret
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.topMargin: Style.spacing.xs
-        text: "\u203a"
-        color: root.accent
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.heading
-        opacity: promptInput.activeFocus ? 1 : 0.55
-        Behavior on opacity { NumberAnimation { duration: 140 } }
-      }
-
       TextArea {
         id: promptInput
         anchors {
-          left: caret.right; right: promptTools.left; top: parent.top; bottom: parent.bottom
-          leftMargin: Style.spacing.md; rightMargin: Style.spacing.md
+          left: parent.left; right: promptTools.left; top: parent.top; bottom: parent.bottom
+          rightMargin: Style.spacing.md
         }
         enabled: root.backend && !root.backend.continuationBlocked
           && root.backend.state !== "streaming" && root.backend.state !== "preparing"
@@ -265,9 +243,6 @@ Item {
           if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
               && !(event.modifiers & Qt.ShiftModifier)) {
             root.submit()
-            event.accepted = true
-          } else if (event.key === Qt.Key_Comma && (event.modifiers & Qt.ControlModifier)) {
-            root.settingsRequested()
             event.accepted = true
           } else if (event.key === Qt.Key_H && (event.modifiers & Qt.ControlModifier)) {
             root.historyRequested()
@@ -313,18 +288,6 @@ Item {
           }
         }
       }
-    }
-
-    // The filament: the composer's only edge. Dim at rest, accent on focus,
-    // and it carries the activity sweep so motion lives on the same line the
-    // user is typing on rather than around a card.
-    ActivityFilament {
-      Layout.fillWidth: true
-      visible: !root.backend || root.backend.pendingPermission === null
-      accent: root.activityColor
-      foreground: root.foreground
-      focused: promptInput.activeFocus || promptHover.hovered
-      active: root.activityActive
     }
 
     RowLayout {

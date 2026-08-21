@@ -82,6 +82,7 @@ ShellRoot {
   property string captionStyle: "plate"
   // Test harness only, never shipped: see the contrast probe in the node.
   property bool probeOn: false
+  property bool motionEnabled: true
   property string answer: ""
   // off | prompt | permission — the console's lane.
   property string console_: "off"
@@ -103,6 +104,8 @@ ShellRoot {
 
   readonly property bool nodeLit: phase !== "dormant"
   readonly property bool curtainUp: phase === "answering" || phase === "error"
+  onPhaseChanged: node.settleAtmosphere()
+  onMotionEnabledChanged: node.settleAtmosphere()
 
   // Auto-dismiss, scaled to how much there is to read rather than a flat
   // timeout — a fixed 8s eats a long answer mid-sentence. Roughly 240ms per
@@ -142,6 +145,10 @@ ShellRoot {
     }
     function answer(text: string): string { root.answer = text; return "ok" }
     function probe(value: string): string { root.probeOn = value === "on"; return root.probeOn ? "on" : "off" }
+    function motion(value: string): string {
+      root.motionEnabled = value !== "off"
+      return root.motionEnabled ? "on" : "off"
+    }
     function lane(value: string): string {
       if (["off", "prompt", "permission"].indexOf(value) === -1) return "unknown lane: " + value
       root.console_ = value
@@ -179,27 +186,53 @@ ShellRoot {
     // visualise one would be a lie in pixels.
     property real level: 0
     property real presence: root.nodeLit ? 1 : 0
+    property real tide: 0.35
+    property real drift: 0
+    readonly property bool atmosphereActive: root.motionEnabled
+      && (root.phase === "listening" || root.phase === "thinking")
+
+    function settleAtmosphere() {
+      if (!atmosphereActive) {
+        tide = 0.4
+        drift = 0
+      }
+      if (!root.motionEnabled) level = 0.5
+    }
 
     Behavior on presence {
+      enabled: root.motionEnabled
       NumberAnimation { duration: root.nodeLit ? 260 : 420; easing.type: Easing.OutCubic }
     }
 
     SequentialAnimation {
-      running: root.phase === "listening"
+      running: root.phase === "listening" && root.motionEnabled
       loops: Animation.Infinite
       NumberAnimation { target: node; property: "level"; to: 1; duration: 820; easing.type: Easing.InOutSine }
       NumberAnimation { target: node; property: "level"; to: 0.34; duration: 980; easing.type: Easing.InOutSine }
     }
+    SequentialAnimation {
+      running: node.atmosphereActive
+      loops: Animation.Infinite
+      NumberAnimation { target: node; property: "tide"; to: 1; duration: root.phase === "thinking" ? 2700 : 3900; easing.type: Easing.InOutSine }
+      NumberAnimation { target: node; property: "tide"; to: 0.18; duration: root.phase === "thinking" ? 3400 : 4700; easing.type: Easing.InOutSine }
+    }
+    SequentialAnimation {
+      running: node.atmosphereActive
+      loops: Animation.Infinite
+      NumberAnimation { target: node; property: "drift"; to: 1; duration: root.phase === "thinking" ? 4700 : 6300; easing.type: Easing.InOutSine }
+      NumberAnimation { target: node; property: "drift"; to: -1; duration: root.phase === "thinking" ? 5600 : 7100; easing.type: Easing.InOutSine }
+    }
     // Thinking holds a low, steady presence; the travelling filament carries
     // the motion instead, so the two states never read the same.
     NumberAnimation {
-      running: root.phase !== "listening"
+      running: root.motionEnabled && root.nodeLit && root.phase !== "listening"
       target: node
       property: "level"
       to: root.phase === "thinking" ? 0.42 : (root.phase === "error" ? 0.9 : 0.62)
       duration: 300
       easing.type: Easing.OutCubic
     }
+    onAtmosphereActiveChanged: settleAtmosphere()
 
     // ---- contrast probe. Not part of the design: a bright band drawn *under*
     // everything so caption legibility over a white browser can be judged
@@ -227,22 +260,26 @@ ShellRoot {
       }
     }
 
-    // ---- the ember: a wide, soft body of light sitting mostly below the
-    // screen edge, so only its bloom rises into the desktop. Blur gives the
-    // horizontal and vertical falloff for free; no gradient stack needed.
+    // ---- the ember: a transparent full-width body sitting mostly below the
+    // screen edge, so the complete lower edge stays alive without becoming a bar.
     Item {
       id: emberSource
       visible: false
-      width: parent.width * 0.54
-      height: 84
-      anchors.horizontalCenter: parent.horizontalCenter
+      anchors { left: parent.left; right: parent.right }
+      height: 64
       // Sink the body under the edge; only its top rim clears it, so what
       // reaches the desktop is bloom rather than the shape itself.
-      y: parent.height - 24
+      y: parent.height - 14 - node.tide * 2
       Rectangle {
         anchors.fill: parent
-        radius: height / 2
-        color: root.lightColor
+        gradient: Gradient {
+          orientation: Gradient.Horizontal
+          GradientStop { position: 0.0; color: Qt.rgba(root.lightColor.r, root.lightColor.g, root.lightColor.b, 0.10) }
+          GradientStop { position: 0.18 + node.drift * 0.025; color: Qt.rgba(root.lightColor.r, root.lightColor.g, root.lightColor.b, 0.48) }
+          GradientStop { position: 0.50 + node.drift * 0.055; color: root.lightColor }
+          GradientStop { position: 0.82 + node.drift * 0.025; color: Qt.rgba(root.lightColor.r, root.lightColor.g, root.lightColor.b, 0.48) }
+          GradientStop { position: 1.0; color: Qt.rgba(root.lightColor.r, root.lightColor.g, root.lightColor.b, 0.10) }
+        }
       }
     }
 
@@ -257,12 +294,12 @@ ShellRoot {
       blurEnabled: true
       blur: 1
       blurMax: 64
-      blurMultiplier: 2.6
-      brightness: 0.30
+      blurMultiplier: 3.2
+      brightness: 0.26
       colorization: 1
       colorizationColor: root.lightColor
-      opacity: node.presence * (0.30 + node.level * 0.26)
-      scale: 1 + node.level * 0.07
+      opacity: node.presence * (0.24 + node.level * 0.22 + node.tide * 0.06)
+      scale: 1 + node.level * 0.035 + node.tide * 0.018
       transformOrigin: Item.Bottom
     }
 
@@ -273,13 +310,13 @@ ShellRoot {
       autoPaddingEnabled: true
       blurEnabled: true
       blur: 1
-      blurMax: 32
-      blurMultiplier: 0.85
-      brightness: 0.55
+      blurMax: 44
+      blurMultiplier: 1.5
+      brightness: 0.42
       colorization: 1
       colorizationColor: root.lightColor
-      opacity: node.presence * (0.26 + node.level * 0.22)
-      scale: 1 + node.level * 0.03
+      opacity: node.presence * (0.14 + node.level * 0.16 + node.tide * 0.04)
+      scale: 1 + node.level * 0.022 + node.tide * 0.012
       transformOrigin: Item.Bottom
     }
 
