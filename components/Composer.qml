@@ -202,7 +202,7 @@ Item {
     Text {
       Layout.fillWidth: true
       visible: root.backend && root.backend.desktopContextActive && root.hostName !== ""
-      text: root.hostName
+      text: "󰍹  " + root.hostName
       color: Qt.darker(root.foreground, 1.45)
       font.family: root.fontFamily
       font.pixelSize: Style.font.caption
