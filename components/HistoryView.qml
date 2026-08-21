@@ -13,6 +13,7 @@ Item {
   property color background: Color.popups.background
   property color accent: Color.accent
   property string fontFamily: Style.font.family
+  property bool motionEnabled: true
   property bool confirmingClear: false
   readonly property bool modalInteractionActive: confirmingClear
 
@@ -28,35 +29,11 @@ Item {
 
   ColumnLayout {
     anchors.fill: parent
-    spacing: Style.spacing.lg
+    spacing: Style.spacing.md
 
     RowLayout {
       Layout.fillWidth: true
-
-      Text {
-        Layout.fillWidth: true
-        text: "Recent chats"
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.heading
-        font.bold: true
-      }
-
-      Button {
-        id: clearHistory
-        text: root.confirmingClear ? "Confirm clear" : "Clear all"
-        visible: root.history.length > 0
-        foreground: root.confirmingClear ? Color.urgent : root.foreground
-        background: root.background
-        bordered: true
-        focusable: true
-        onClicked: {
-          if (root.confirmingClear) {
-            root.clearRequested()
-            root.confirmingClear = false
-          } else root.confirmingClear = true
-        }
-      }
+      spacing: Style.spacing.md
 
       PanelActionButton {
         id: closeHistory
@@ -67,6 +44,64 @@ Item {
         Accessible.name: tooltipText
         onClicked: root.closeRequested()
       }
+
+      Text {
+        text: "History"
+        color: root.foreground
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        font.bold: true
+        Accessible.role: Accessible.StaticText
+        Accessible.name: "Recent chats"
+      }
+
+      Item { Layout.fillWidth: true }
+
+      Text {
+        id: clearHistory
+        visible: root.history.length > 0
+        text: root.confirmingClear ? "Clear all?" : "Clear"
+        color: root.confirmingClear
+          ? Color.urgent
+          : (activeFocus || clearHover.hovered ? root.foreground : Qt.darker(root.foreground, 1.35))
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.bodySmall
+        font.underline: clearHover.hovered || root.confirmingClear || activeFocus
+        activeFocusOnTab: visible
+        Accessible.role: Accessible.Button
+        Accessible.name: root.confirmingClear ? "Confirm clear all chats" : "Clear all chats"
+
+        Behavior on color {
+          enabled: root.motionEnabled
+          ColorAnimation { duration: 120 }
+        }
+
+        HoverHandler {
+          id: clearHover
+          cursorShape: Qt.PointingHandCursor
+        }
+
+        TapHandler { onTapped: clearHistory.activate() }
+        Keys.onReturnPressed: clearHistory.activate()
+        Keys.onEnterPressed: clearHistory.activate()
+        Keys.onSpacePressed: clearHistory.activate()
+
+        function activate() {
+          if (root.confirmingClear) {
+            root.clearRequested()
+            root.confirmingClear = false
+          } else root.confirmingClear = true
+        }
+      }
+    }
+
+    ActivityFilament {
+      Layout.fillWidth: true
+      foreground: root.foreground
+      accent: root.accent
+      focused: list.activeFocus || closeHistory.activeFocus
+      active: false
+      motionEnabled: root.motionEnabled
     }
 
     Item {
@@ -77,10 +112,10 @@ Item {
         visible: root.history.length === 0
         anchors.centerIn: parent
         width: parent.width - Style.spacing.xxl * 2
-        text: "No saved chats yet\nYour latest 30 completed answers appear here."
-        color: Qt.darker(root.foreground, 1.45)
+        text: "No saved chats yet.\nThe latest 30 completed answers appear here."
+        color: Qt.darker(root.foreground, 1.55)
         font.family: root.fontFamily
-        font.pixelSize: Style.font.body
+        font.pixelSize: Style.font.caption
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.Wrap
       }
@@ -90,7 +125,7 @@ Item {
         visible: root.history.length > 0
         anchors.fill: parent
         model: root.history
-        spacing: Style.spacing.sm
+        spacing: 0
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         activeFocusOnTab: true
@@ -112,28 +147,56 @@ Item {
           }
         }
 
-        delegate: BorderSurface {
+        delegate: Item {
           id: row
           required property var modelData
           required property int index
           width: list.width
-          height: Style.space(62)
-          color: index === list.currentIndex || rowHover.hovered
-            ? Style.hoverFillFor(root.foreground, root.accent)
-            : Style.normalFillFor(root.foreground, root.accent)
-          borderSpec: Border.controlSpec(index === list.currentIndex ? "hover-cursor" : "normal", root.foreground, root.accent)
-          radius: Style.cornerRadius
+          height: rowContent.implicitHeight + Style.spacing.lg * 2
+          Accessible.role: Accessible.ListItem
+          Accessible.name: String(modelData.title || "Chat")
 
-          HoverHandler { id: rowHover; onHoveredChanged: if (hovered) list.currentIndex = index }
+          readonly property bool current: index === list.currentIndex
+          readonly property bool hot: current || rowHover.hovered
+
+          Rectangle {
+            anchors.fill: parent
+            color: Style.hoverFillFor(root.foreground, root.accent)
+            opacity: row.hot ? 1 : 0
+            Behavior on opacity {
+              enabled: root.motionEnabled
+              NumberAnimation { duration: 120 }
+            }
+          }
+
+          Rectangle {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            width: 2
+            height: Math.max(Style.space(18), parent.height * 0.42)
+            radius: 1
+            color: root.accent
+            opacity: row.current ? 0.95 : 0
+            Behavior on opacity {
+              enabled: root.motionEnabled
+              NumberAnimation { duration: 140 }
+            }
+          }
+
+          HoverHandler {
+            id: rowHover
+            onHoveredChanged: if (hovered) list.currentIndex = index
+          }
           TapHandler { onTapped: root.chatSelected(modelData) }
 
           RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: row.contentLeftInset + Style.spacing.lg
-            anchors.rightMargin: row.contentRightInset + Style.spacing.sm
-            anchors.topMargin: row.contentTopInset + Style.spacing.md
-            anchors.bottomMargin: row.contentBottomInset + Style.spacing.md
-            spacing: Style.spacing.lg
+            id: rowContent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: Style.spacing.lg
+            anchors.rightMargin: Style.spacing.xs
+            spacing: Style.spacing.md
 
             ColumnLayout {
               Layout.fillWidth: true
@@ -145,7 +208,6 @@ Item {
                 color: root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.body
-                font.bold: true
                 elide: Text.ElideRight
               }
 
@@ -154,7 +216,7 @@ Item {
                 text: Protocol.providerLabel(modelData.provider)
                   + (modelData.model ? " · " + modelData.model : "")
                   + (modelData.timestamp ? " · " + modelData.timestamp : "")
-                color: Qt.darker(root.foreground, 1.45)
+                color: Qt.darker(root.foreground, 1.5)
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
                 elide: Text.ElideRight
@@ -168,8 +230,13 @@ Item {
               foreground: root.foreground
               hoverColor: Color.urgent
               focusable: true
+              opacity: row.hot || activeFocus ? 1 : 0.0
               Accessible.name: tooltipText
               onClicked: root.deleteRequested(String(modelData.id))
+              Behavior on opacity {
+                enabled: root.motionEnabled
+                NumberAnimation { duration: 120 }
+              }
             }
           }
         }

@@ -52,4 +52,14 @@ TestCase {
     compare(Presentation.escapeAction("chat", false, false, false, true), "cancel")
     compare(Presentation.escapeAction("chat", false, false, false, false), "close-panel")
   }
+
+  function test_settingsTabsAreAClosedLaneSet() {
+    compare(Presentation.settingsTabIds().join(","), "agent,servers,desktop,actions")
+    compare(Presentation.normalizedSettingsTab("desktop"), "desktop")
+    compare(Presentation.normalizedSettingsTab("missing"), "agent")
+    compare(Presentation.adjacentSettingsTab("agent", -1), "agent")
+    compare(Presentation.adjacentSettingsTab("agent", 1), "servers")
+    compare(Presentation.adjacentSettingsTab("actions", 1), "actions")
+    compare(Presentation.adjacentSettingsTab("", 2), "desktop")
+  }
 }

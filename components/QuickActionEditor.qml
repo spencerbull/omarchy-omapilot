@@ -20,7 +20,7 @@ ColumnLayout {
 
   signal actionsEdited(var actions)
 
-  spacing: Style.spacing.md
+  spacing: Style.spacing.lg
 
   function beginAdding() {
     if (atLimit) return
@@ -50,17 +50,13 @@ ColumnLayout {
   Repeater {
     model: root.actions
 
-    delegate: BorderSurface {
+    delegate: ColumnLayout {
       id: actionCard
       required property int index
       required property var modelData
 
       Layout.fillWidth: true
-      implicitHeight: actionFields.implicitHeight + contentTopInset + contentBottomInset
-        + Style.spacing.xl * 2
-      color: Style.normalFillFor(root.foreground, root.accent)
-      borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
-      radius: Style.cornerRadius
+      spacing: Style.spacing.sm
 
       function commitFields() {
         if (String(actionLabel.text || "").trim() === ""
@@ -73,165 +69,147 @@ ColumnLayout {
           root.actions, actionCard.index, actionLabel.text, actionPrompt.text))
       }
 
-      ColumnLayout {
-        id: actionFields
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.leftMargin: parent.contentLeftInset + Style.spacing.xl
-        anchors.rightMargin: parent.contentRightInset + Style.spacing.xl
-        anchors.topMargin: parent.contentTopInset + Style.spacing.xl
+      RowLayout {
+        Layout.fillWidth: true
         spacing: Style.spacing.sm
 
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: Style.spacing.sm
-
-          Text {
-            Layout.fillWidth: true
-            text: "Action " + String(actionCard.index + 1)
-            color: Qt.darker(root.foreground, 1.45)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            font.bold: true
-          }
-
-          PanelActionButton {
-            iconText: "󰁝"
-            tooltipText: "Move action up"
-            foreground: root.foreground
-            focusable: true
-            enabled: actionCard.index > 0
-            Accessible.name: tooltipText
-            onClicked: root.actionsEdited(
-              ActionCatalog.moveAction(root.actions, actionCard.index, -1))
-          }
-
-          PanelActionButton {
-            iconText: "󰁅"
-            tooltipText: "Move action down"
-            foreground: root.foreground
-            focusable: true
-            enabled: actionCard.index < root.actions.length - 1
-            Accessible.name: tooltipText
-            onClicked: root.actionsEdited(
-              ActionCatalog.moveAction(root.actions, actionCard.index, 1))
-          }
-
-          PanelActionButton {
-            iconText: "󰆴"
-            tooltipText: "Remove action"
-            foreground: root.foreground
-            hoverColor: Color.urgent
-            focusable: true
-            Accessible.name: tooltipText
-            onClicked: root.actionsEdited(
-              ActionCatalog.removeAction(root.actions, actionCard.index))
-          }
+        Rectangle {
+          Layout.preferredWidth: 2
+          Layout.preferredHeight: Style.space(16)
+          radius: 1
+          color: root.accent
+          opacity: 0.7
         }
 
-        TextField {
-          id: actionLabel
+        Text {
           Layout.fillWidth: true
-          text: String(actionCard.modelData.label || "")
-          placeholderText: "Button label"
-          maximumLength: 48
+          text: "Action " + String(actionCard.index + 1)
+          color: Qt.darker(root.foreground, 1.45)
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
+          font.bold: true
+        }
+
+        PanelActionButton {
+          iconText: "󰁝"
+          tooltipText: "Move action up"
           foreground: root.foreground
-          accent: root.accent
-          Accessible.name: "Quick action label"
-          onEditingFinished: actionCard.commitFields()
+          focusable: true
+          enabled: actionCard.index > 0
+          Accessible.name: tooltipText
+          onClicked: root.actionsEdited(
+            ActionCatalog.moveAction(root.actions, actionCard.index, -1))
         }
 
-        TextField {
-          id: actionPrompt
-          Layout.fillWidth: true
-          text: String(actionCard.modelData.prompt || "")
-          placeholderText: "Prompt inserted into the composer"
-          maximumLength: 1200
+        PanelActionButton {
+          iconText: "󰁅"
+          tooltipText: "Move action down"
           foreground: root.foreground
-          accent: root.accent
-          Accessible.name: "Quick action prompt"
-          onEditingFinished: actionCard.commitFields()
+          focusable: true
+          enabled: actionCard.index < root.actions.length - 1
+          Accessible.name: tooltipText
+          onClicked: root.actionsEdited(
+            ActionCatalog.moveAction(root.actions, actionCard.index, 1))
         }
-      }
-    }
-  }
 
-  BorderSurface {
-    Layout.fillWidth: true
-    visible: root.adding
-    implicitHeight: newActionFields.implicitHeight + contentTopInset + contentBottomInset
-      + Style.spacing.xl * 2
-    color: Style.focusFillFor(root.foreground, root.accent)
-    borderSpec: Border.controlSpec("focus", root.foreground, root.accent)
-    radius: Style.cornerRadius
-
-    ColumnLayout {
-      id: newActionFields
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: parent.top
-      anchors.leftMargin: parent.contentLeftInset + Style.spacing.xl
-      anchors.rightMargin: parent.contentRightInset + Style.spacing.xl
-      anchors.topMargin: parent.contentTopInset + Style.spacing.xl
-      spacing: Style.spacing.sm
-
-      Text {
-        Layout.fillWidth: true
-        text: "New quick action"
-        color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.body
-        font.bold: true
+        PanelActionButton {
+          iconText: "󰆴"
+          tooltipText: "Remove action"
+          foreground: root.foreground
+          hoverColor: Color.urgent
+          focusable: true
+          Accessible.name: tooltipText
+          onClicked: root.actionsEdited(
+            ActionCatalog.removeAction(root.actions, actionCard.index))
+        }
       }
 
       TextField {
-        id: newLabel
+        id: actionLabel
         Layout.fillWidth: true
+        text: String(actionCard.modelData.label || "")
         placeholderText: "Button label"
         maximumLength: 48
         foreground: root.foreground
         accent: root.accent
-        Accessible.name: "New quick action label"
+        Accessible.name: "Quick action label"
+        onEditingFinished: actionCard.commitFields()
       }
 
       TextField {
-        id: newPrompt
+        id: actionPrompt
         Layout.fillWidth: true
+        text: String(actionCard.modelData.prompt || "")
         placeholderText: "Prompt inserted into the composer"
         maximumLength: 1200
         foreground: root.foreground
         accent: root.accent
-        Accessible.name: "New quick action prompt"
-        Keys.onReturnPressed: root.saveNew()
+        Accessible.name: "Quick action prompt"
+        onEditingFinished: actionCard.commitFields()
+      }
+    }
+  }
+
+  ColumnLayout {
+    Layout.fillWidth: true
+    visible: root.adding
+    spacing: Style.spacing.sm
+
+    Text {
+      Layout.fillWidth: true
+      text: "New quick action"
+      color: root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.bodySmall
+      font.bold: true
+    }
+
+    TextField {
+      id: newLabel
+      Layout.fillWidth: true
+      placeholderText: "Button label"
+      maximumLength: 48
+      foreground: root.foreground
+      accent: root.accent
+      Accessible.name: "New quick action label"
+    }
+
+    TextField {
+      id: newPrompt
+      Layout.fillWidth: true
+      placeholderText: "Prompt inserted into the composer"
+      maximumLength: 1200
+      foreground: root.foreground
+      accent: root.accent
+      Accessible.name: "New quick action prompt"
+      Keys.onReturnPressed: root.saveNew()
+    }
+
+    RowLayout {
+      Layout.fillWidth: true
+      spacing: Style.spacing.md
+
+      Item { Layout.fillWidth: true }
+
+      Button {
+        text: "Cancel"
+        foreground: root.foreground
+        background: root.background
+        bordered: true
+        focusable: true
+        onClicked: root.cancelAdding()
       }
 
-      RowLayout {
-        Layout.fillWidth: true
-        spacing: Style.spacing.md
-
-        Item { Layout.fillWidth: true }
-
-        Button {
-          text: "Cancel"
-          foreground: root.foreground
-          background: root.background
-          bordered: true
-          focusable: true
-          onClicked: root.cancelAdding()
-        }
-
-        Button {
-          text: "Add"
-          foreground: root.foreground
-          background: root.background
-          accent: root.accent
-          active: true
-          bordered: true
-          focusable: true
-          enabled: root.canSaveNew && !root.atLimit
-          onClicked: root.saveNew()
-        }
+      Button {
+        text: "Add"
+        foreground: root.foreground
+        background: root.background
+        accent: root.accent
+        active: true
+        bordered: true
+        focusable: true
+        enabled: root.canSaveNew && !root.atLimit
+        onClicked: root.saveNew()
       }
     }
   }

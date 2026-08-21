@@ -65,6 +65,14 @@ ShellRoot {
     property var customProviders: []
     property var customProviderSaved: null
     property string customProviderError: ""
+    property var voxtypeOsd: ({ available: true, enabled: true, message: "" })
+    property var browserCompanionStatus: ({
+      phase: "ready", relayInstalled: false, setupAvailable: true,
+      chromiumConnected: false, firefoxConnected: false,
+      chromiumExtensionPath: "", firefoxExtensionPath: "", message: ""
+    })
+    property bool browserCompanionConnected: false
+    property bool browserCompanionBusy: false
     property var builtinAuth: ({ phase: "idle", flowId: "", methodId: "", message: "",
       url: "", verificationUri: "", userCode: "", prompt: null })
     property bool builtinAuthBusy: false
@@ -104,7 +112,7 @@ ShellRoot {
     id: previewWindow
     width: 860
     height: root.previewState === "settings" || root.previewState === "dangerous-settings"
-      || root.previewState === "actions-settings" ? 760
+      || root.previewState === "actions-settings" || root.previewState === "history" ? 760
       : (root.previewState === "error-details" ? 520 : (root.previewState === "context" ? 430 : 320))
     visible: true
     color: "transparent"
@@ -170,11 +178,36 @@ ShellRoot {
         anchors.topMargin: previewSurface.contentTopInset + Style.spacing.popupPadding
         anchors.bottomMargin: previewSurface.contentBottomInset + Style.spacing.popupPadding
         backend: backend
+        selectedTab: root.previewState === "dangerous-settings" ? "desktop"
+          : (root.previewState === "actions-settings" ? "actions" : "agent")
         dangerousAutoApprove: root.previewState === "dangerous-settings"
+        desktopContextEnabled: true
         quickActions: root.previewState === "actions-settings"
           ? ActionCatalog.addAction(ActionCatalog.defaultActions(true, true),
             "Research this", "Research this topic using current sources.", 42)
           : ActionCatalog.defaultActions(true, true)
+        foreground: Color.popups.text
+        background: Color.popups.background
+        accent: Color.accent
+        fontFamily: Style.font.family
+      }
+
+      OmaPilot.HistoryView {
+        id: historyView
+        visible: root.previewState === "history"
+        anchors.fill: parent
+        anchors.leftMargin: previewSurface.contentLeftInset + Style.spacing.popupPadding
+        anchors.rightMargin: previewSurface.contentRightInset + Style.spacing.popupPadding
+        anchors.topMargin: previewSurface.contentTopInset + Style.spacing.popupPadding
+        anchors.bottomMargin: previewSurface.contentBottomInset + Style.spacing.popupPadding
+        history: [
+          { id: "chat-1", title: "Summarize the current window", provider: "builtin",
+            model: "gpt-5.4", timestamp: "Today 14:03" },
+          { id: "chat-2", title: "Draft a reply to this thread", provider: "codex",
+            model: "gpt-5.4", timestamp: "Today 11:40" },
+          { id: "chat-3", title: "What is playing, and should I skip it?", provider: "opencode",
+            model: "", timestamp: "Yesterday 19:12" }
+        ]
         foreground: Color.popups.text
         background: Color.popups.background
         accent: Color.accent
@@ -300,12 +333,13 @@ ShellRoot {
           || root.previewState === "dangerous-settings"
           || root.previewState === "actions-settings")
         && settingsView.implicitHeight <= 0
+      var invalidHistory = root.previewState === "history" && historyView.width <= 0
       var invalidResponse = (root.previewState === "waiting"
           || root.previewState === "streaming" || root.previewState === "error")
         && responsePreview.implicitHeight <= 0
       var invalidErrorDetails = root.previewState === "error-details"
         && errorDetailsView.implicitHeight <= 0
-      if (invalidMain || invalidSettings || invalidResponse || invalidErrorDetails) {
+      if (invalidMain || invalidSettings || invalidHistory || invalidResponse || invalidErrorDetails) {
         console.error("omapilot visual preview failed: invalid component geometry")
         Qt.quit()
         return

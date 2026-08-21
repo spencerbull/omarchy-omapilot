@@ -48,10 +48,9 @@ Panel {
   readonly property real comfortableCardHeight: popup.availableCardHeight > 0
     ? Math.min(Style.space(720), Math.max(Style.space(320), popup.availableCardHeight * 0.82))
     : Style.space(720)
-  readonly property real activeNaturalHeight: viewMode === "settings" ? settingsView.implicitHeight
-    : (viewMode === "history"
-      ? Math.max(minimumContentHeight, comfortableCardHeight - popup.verticalContentInset)
-      : (viewMode === "error" ? errorView.implicitHeight : chatView.implicitHeight))
+  readonly property real activeNaturalHeight: viewMode === "settings" || viewMode === "history"
+    ? Math.max(minimumContentHeight, comfortableCardHeight - popup.verticalContentInset)
+    : (viewMode === "error" ? errorView.implicitHeight : chatView.implicitHeight)
   readonly property var responsePhase: Presentation.responsePhase(
     Quickchat.QuickchatStore.state,
     Quickchat.QuickchatStore.answerMarkdown !== "" || Quickchat.QuickchatStore.images.length > 0)
@@ -903,13 +902,19 @@ Panel {
         visible: root.viewMode === "settings"
         backend: Quickchat.QuickchatStore
         dangerousAutoApprove: root.dangerousAutoApprove
+        desktopContextEnabled: settings
+          && String(settings.desktopContext || "On") !== "Off"
         quickActions: root.quickActionItems
+        motionEnabled: root.motionEnabled
         foreground: root.foreground
         background: root.surface
         accent: root.accent
         fontFamily: root.fontFamily
         onDangerousAutoApproveRequested: function(enabled) {
           root.persistSettings({ dangerousAutoApprove: enabled === true })
+        }
+        onDesktopContextRequested: function(enabled) {
+          root.persistSettings({ desktopContext: enabled === true ? "On" : "Off" })
         }
         onProviderChanged: function(provider) { root.selectProvider(provider) }
         onModelChanged: function(provider, model) {
@@ -933,7 +938,6 @@ Panel {
         onCustomProviderRemoveRequested: function(id) {
           Quickchat.QuickchatStore.removeCustomProvider(id)
         }
-        onRecentChatsRequested: root.openHistory()
         onDismissed: root.showChat()
       }
 
@@ -956,6 +960,7 @@ Panel {
         anchors.fill: parent
         visible: root.viewMode === "history"
         history: Quickchat.QuickchatStore.history
+        motionEnabled: root.motionEnabled
         foreground: root.foreground
         background: root.surface
         accent: root.accent

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
+import "Presentation.js" as Presentation
 import "Protocol.js" as Protocol
 
 Item {
@@ -9,7 +10,10 @@ Item {
 
   required property var backend
   property bool dangerousAutoApprove: false
+  property bool desktopContextEnabled: true
   property var quickActions: []
+  property string selectedTab: "agent"
+  property bool motionEnabled: true
   property color foreground: Color.popups.text
   property color background: Color.popups.background
   property color accent: Color.accent
@@ -70,8 +74,13 @@ Item {
     || browserRemoveConfirmation
     || browserCompanionBusy
     || quickActionEditor.interactionActive
+    || serverRemoveConfirmId !== ""
+  implicitHeight: Style.space(560)
+  readonly property color mutedForeground: Qt.darker(foreground, 1.45)
+  Accessible.name: "OmaPilot settings"
 
   signal dangerousAutoApproveRequested(bool enabled)
+  signal desktopContextRequested(bool enabled)
   signal providerChanged(string provider)
   signal modelChanged(string provider, string model)
   signal quickActionsEdited(var actions)
@@ -84,6 +93,7 @@ Item {
   signal customProviderTestRequested(string baseUrl, string apiKey)
   signal customProviderRemoveRequested(string id)
   signal voxtypeOsdRequested(bool enabled)
+  signal dismissed()
 
   function resetServerForm() {
     serverFormError = ""
@@ -121,6 +131,13 @@ Item {
       return
     }
     invalidateServerTest()
+  }
+
+  function selectTab(id) {
+    var next = Presentation.normalizedSettingsTab(id)
+    if (next === selectedTab) return
+    closePopups(false)
+    selectedTab = next
   }
 
   Connections {
@@ -191,11 +208,8 @@ Item {
     serverDraftResponses = String(server.api || "") !== "openai-completions"
     serverRemoveConfirmId = ""
     serverFormExpanded = true
+    selectTab("servers")
   }
-  signal recentChatsRequested()
-  signal dismissed()
-
-  implicitHeight: settingsContent.implicitHeight
 
   function closePopups(restoreFocus) {
     providerPicker.close()
@@ -203,295 +217,119 @@ Item {
     authMethodPicker.close()
     authPromptPicker.close()
     if (restoreFocus !== false)
-      Qt.callLater(function() { backButton.forceActiveFocus() })
+      Qt.callLater(function() { tabBar.forceActiveFocus() })
   }
 
   function forceInitialFocus() {
-    backButton.forceActiveFocus()
+    if (root.authenticationRequired) selectTab("agent")
+    tabBar.forceActiveFocus()
   }
 
-  Flickable {
-    id: settingsScroll
+  ColumnLayout {
     anchors.fill: parent
-    contentWidth: width
-    contentHeight: settingsContent.implicitHeight
-    clip: true
-    boundsBehavior: Flickable.StopAtBounds
-    interactive: contentHeight > height
+    spacing: Style.spacing.md
 
-    ColumnLayout {
-      id: settingsContent
-      width: settingsScroll.width
-      spacing: Style.spacing.xxl
+    RowLayout {
+      Layout.fillWidth: true
+      spacing: Style.spacing.md
 
-      RowLayout {
+      PanelActionButton {
+        id: backButton
+        Layout.alignment: Qt.AlignTop
+        iconText: "󰁍"
+        tooltipText: "Back to conversation"
+        foreground: root.foreground
+        focusable: true
+        Accessible.name: tooltipText
+        onClicked: root.dismissed()
+      }
+
+      SettingsTabs {
+        id: tabBar
         Layout.fillWidth: true
-        spacing: Style.spacing.md
+        Layout.alignment: Qt.AlignTop
+        current: root.selectedTab
+        foreground: root.foreground
+        accent: root.accent
+        fontFamily: root.fontFamily
+        motionEnabled: root.motionEnabled
+        onSelected: function(id) { root.selectTab(id) }
+      }
+    }
 
-        PanelActionButton {
-          id: backButton
-          iconText: "󰁍"
-          tooltipText: "Back to conversation"
-          foreground: root.foreground
-          focusable: true
-          Accessible.name: tooltipText
-          onClicked: root.dismissed()
-        }
+    Item {
+      Layout.fillWidth: true
+      Layout.fillHeight: true
+
+      Flickable {
+        id: agentScroll
+        anchors.fill: parent
+        visible: root.selectedTab === "agent"
+        contentWidth: width
+        contentHeight: agentContent.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
 
         ColumnLayout {
-          Layout.fillWidth: true
-          spacing: 0
+          id: agentContent
+          width: agentScroll.width
+          spacing: Style.spacing.lg
 
           Text {
-            text: "OmaPilot settings"
-            color: root.foreground
+            Layout.fillWidth: true
+            text: "Harness"
+            color: root.mutedForeground
             font.family: root.fontFamily
-            font.pixelSize: Style.font.heading
+            font.pixelSize: Style.font.caption
             font.bold: true
           }
 
+          Dropdown {
+            id: providerPicker
+            Layout.fillWidth: true
+            showLabel: false
+            options: root.modeProviders
+            value: root.backend ? root.backend.provider : ""
+            enabled: root.backend && !root.backend.busy
+            foreground: root.foreground
+            background: root.background
+            Accessible.name: "Agent harness"
+            onChanged: function(value) { root.providerChanged(value) }
+          }
+
           Text {
-            text: "Harness, browser context, permissions, and quick actions"
-            color: Qt.darker(root.foreground, 1.45)
+            Layout.fillWidth: true
+            text: "Model"
+            color: root.mutedForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
+            font.bold: true
           }
-        }
-      }
 
-      BorderSurface {
-        Layout.fillWidth: true
-        implicitHeight: settingsFields.implicitHeight + contentTopInset + contentBottomInset + Style.spacing.xxl * 2
-        color: Style.normalFillFor(root.foreground, root.accent)
-        borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
-        radius: Style.cornerRadius
-
-        ColumnLayout {
-          id: settingsFields
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.top: parent.top
-          anchors.leftMargin: parent.contentLeftInset + Style.spacing.xxl
-          anchors.rightMargin: parent.contentRightInset + Style.spacing.xxl
-          anchors.topMargin: parent.contentTopInset + Style.spacing.xxl
-          spacing: Style.spacing.lg
-
-          // Accounts first. Signing in is the one thing a new install must do,
-          // and it was previously the last block in a scrolling panel — below
-          // permissions, servers, browser setup, and the harness picker — which
-          // is indistinguishable from missing.
-          BorderSurface {
+          Dropdown {
+            id: modelPicker
             Layout.fillWidth: true
-            // Was first-run only: `state === "unavailable" && providers.length === 0`.
-            // That hid the whole sign-in flow the moment ONE provider was
-            // authenticated, so a second account — Grok, or a registered
-            // OpenAI-compatible server — could never be added. It is now always
-            // available for the built-in harness and only *looks* urgent while
-            // nothing is authenticated.
-            visible: root.backend && root.backend.provider === "builtin"
-            implicitHeight: authContent.implicitHeight + contentTopInset + contentBottomInset
-              + Style.spacing.xl * 2
-            color: root.authenticationRequired
-              ? Style.normalFillFor(root.accent, root.accent)
-              : Style.normalFillFor(root.foreground, root.accent)
-            borderSpec: Border.controlSpec("normal",
-              root.authenticationRequired ? root.accent : root.foreground, root.accent)
-            radius: Style.cornerRadius
-
-            ColumnLayout {
-              id: authContent
-              anchors.left: parent.left
-              anchors.right: parent.right
-              anchors.top: parent.top
-              anchors.leftMargin: parent.contentLeftInset + Style.spacing.xl
-              anchors.rightMargin: parent.contentRightInset + Style.spacing.xl
-              anchors.topMargin: parent.contentTopInset + Style.spacing.xl
-              spacing: Style.spacing.md
-
-              Text {
-                Layout.fillWidth: true
-                text: root.authenticationRequired ? "Authentication required" : "Accounts"
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
-                font.bold: true
-              }
-
-              Text {
-                Layout.fillWidth: true
-                text: root.authenticationRequired
-                  ? "Sign in here with a subscription or API key. OmaPilot runs the provider flow in the background and stores credentials only in its private configuration."
-                  : "Add another account — Codex, OpenAI, Grok, or a server you registered above. Signing in adds its models to the list below; it does not replace the accounts you already have."
-                color: Qt.darker(root.foreground, 1.35)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                wrapMode: Text.Wrap
-                Accessible.role: Accessible.StaticText
-                Accessible.name: text
-              }
-
-              Dropdown {
-                id: authMethodPicker
-                Layout.fillWidth: true
-                visible: root.backend && !root.backend.builtinAuthBusy
-                showLabel: false
-                options: root.backend ? root.backend.builtinAuthMethods : []
-                value: root.selectedAuthMethod || (options.length > 0 ? String(options[0].value || "") : "")
-                enabled: options.length > 0
-                foreground: root.foreground
-                background: root.background
-                Accessible.name: "Built-in authentication method"
-                onChanged: function(value) { root.selectedAuthMethod = value }
-              }
-
-              Text {
-                Layout.fillWidth: true
-                visible: root.backend && String(root.backend.builtinAuth.message || "") !== ""
-                text: root.backend ? String(root.backend.builtinAuth.message || "") : ""
-                color: root.backend && String(root.backend.builtinAuth.phase || "") === "error"
-                  ? Color.urgent : Qt.darker(root.foreground, 1.35)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                wrapMode: Text.Wrap
-              }
-
-              RowLayout {
-                Layout.fillWidth: true
-                visible: root.backend && (String(root.backend.builtinAuth.url || "") !== ""
-                  || String(root.backend.builtinAuth.verificationUri || "") !== "")
-                spacing: Style.spacing.md
-
-                Button {
-                  text: "Open sign-in page"
-                  iconText: "󰖟"
-                  foreground: root.foreground
-                  background: root.background
-                  accent: root.accent
-                  active: true
-                  bordered: true
-                  focusable: true
-                  onClicked: root.backend.activateLink(String(root.backend.builtinAuth.url
-                    || root.backend.builtinAuth.verificationUri || ""))
-                }
-
-                Button {
-                  visible: root.backend && String(root.backend.builtinAuth.userCode || "") !== ""
-                  text: "Copy " + (root.backend ? String(root.backend.builtinAuth.userCode || "") : "")
-                  foreground: root.foreground
-                  background: root.background
-                  bordered: true
-                  focusable: true
-                  onClicked: root.backend.copyText(String(root.backend.builtinAuth.userCode || ""))
-                }
-
-                Item { Layout.fillWidth: true }
-              }
-
-              Text {
-                Layout.fillWidth: true
-                visible: root.backend && root.backend.builtinAuth.prompt
-                text: visible ? String(root.backend.builtinAuth.prompt.message || "") : ""
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                wrapMode: Text.Wrap
-              }
-
-              Dropdown {
-                id: authPromptPicker
-                Layout.fillWidth: true
-                visible: root.backend && root.backend.builtinAuth.prompt
-                  && root.backend.builtinAuth.prompt.kind === "select"
-                showLabel: false
-                options: visible ? root.backend.builtinAuth.prompt.options : []
-                value: root.authPromptSelection || (options.length > 0 ? String(options[0].value || "") : "")
-                foreground: root.foreground
-                background: root.background
-                Accessible.name: visible ? String(root.backend.builtinAuth.prompt.message || "Authentication choice") : "Authentication choice"
-                onChanged: function(value) { root.authPromptSelection = value }
-              }
-
-              TextField {
-                id: authPromptInput
-                Layout.fillWidth: true
-                visible: root.backend && root.backend.builtinAuth.prompt
-                  && root.backend.builtinAuth.prompt.kind !== "select"
-                password: visible && root.backend.builtinAuth.prompt.kind === "secret"
-                placeholderText: visible ? String(root.backend.builtinAuth.prompt.placeholder
-                  || root.backend.builtinAuth.prompt.message || "") : ""
-                maximumLength: 32768
-                foreground: root.foreground
-                accent: root.accent
-                Accessible.name: visible ? String(root.backend.builtinAuth.prompt.message || "Authentication value") : "Authentication value"
-                onVisibleChanged: if (visible) { text = ""; forceActiveFocus() }
-                onAccepted: if (visible) root.backend.respondBuiltInAuth(text)
-              }
-
-              RowLayout {
-                Layout.fillWidth: true
-                spacing: Style.spacing.md
-
-                Button {
-                  visible: root.backend && !root.backend.builtinAuthBusy
-                  text: String(root.backend && root.backend.builtinAuth.phase || "") === "error" ? "Try again"
-                    : (root.authenticationRequired ? "Continue" : "Sign in")
-                  iconText: "󰌾"
-                  foreground: root.foreground
-                  background: root.background
-                  accent: root.accent
-                  active: true
-                  bordered: true
-                  focusable: true
-                  enabled: authMethodPicker.options.length > 0
-                  onClicked: root.backend.authenticateBuiltIn(authMethodPicker.value)
-                }
-
-                Button {
-                  visible: root.backend && root.backend.builtinAuth.prompt
-                  text: "Continue"
-                  foreground: root.foreground
-                  background: root.background
-                  accent: root.accent
-                  active: true
-                  bordered: true
-                  focusable: true
-                  enabled: root.backend && root.backend.builtinAuth.prompt
-                    ? (root.backend.builtinAuth.prompt.kind === "select"
-                      ? authPromptPicker.value !== "" : authPromptInput.text !== "") : false
-                  onClicked: root.backend.respondBuiltInAuth(root.backend.builtinAuth.prompt.kind === "select"
-                    ? authPromptPicker.value : authPromptInput.text)
-                }
-
-                Button {
-                  visible: root.backend && root.backend.builtinAuthBusy
-                  text: "Cancel"
-                  foreground: root.foreground
-                  background: root.background
-                  bordered: true
-                  focusable: true
-                  onClicked: root.backend.cancelBuiltInAuth()
-                }
-
-                Item { Layout.fillWidth: true }
-              }
+            showLabel: false
+            options: root.backend && root.backend.modelOptions.length > 0
+              ? root.backend.modelOptions
+              : [{ value: "", label: "Harness default" }]
+            value: root.backend ? root.backend.model : ""
+            enabled: root.backend && !root.backend.busy
+            foreground: root.foreground
+            background: root.background
+            Accessible.name: "AI model"
+            onChanged: function(value) {
+              root.backend.model = value
+              root.modelChanged(root.backend.provider, value)
             }
           }
 
           Text {
             Layout.fillWidth: true
-            text: "Permissions"
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.subtitle
-            font.bold: true
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: root.dangerousAutoApprove
-              ? "OmaPilot auto-approves each exact, inspectable device request."
-              : "Device changes stay behind an exact, inspectable approval."
-            color: Qt.darker(root.foreground, 1.45)
+            visible: root.backend
+            text: !root.backend ? "" : Protocol.providerPolicyDescription(root.backend.provider, root.backend.providerPolicy)
+            color: root.mutedForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
@@ -499,24 +337,11 @@ Item {
             Accessible.name: text
           }
 
-          Toggle {
-            Layout.fillWidth: true
-            label: "Dangerous auto-approve"
-            description: "Approve each exact device action automatically instead of prompting."
-            checked: root.dangerousAutoApprove
-            enabled: root.backend && !root.backend.busy
-            foreground: root.foreground
-            accent: checked ? Color.urgent : root.accent
-            fontFamily: root.fontFamily
-            Accessible.name: label
-            onClicked: root.dangerousAutoApproveRequested(!root.dangerousAutoApprove)
-          }
-
           Text {
             Layout.fillWidth: true
-            visible: root.dangerousAutoApprove
-            text: "Approval prompts are skipped. Commands may read, change, or delete device data and use the network."
-            color: Color.urgent
+            visible: root.backend && root.backend.modelOptions.length === 0
+            text: "Using the harness default. This harness did not expose a model catalog."
+            color: root.mutedForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
@@ -524,91 +349,208 @@ Item {
             Accessible.name: text
           }
 
-          PanelSeparator {
+          ColumnLayout {
             Layout.fillWidth: true
-            Layout.topMargin: Style.spacing.md
-            foreground: root.foreground
-          }
+            visible: root.backend && root.backend.provider === "builtin"
+            spacing: Style.spacing.md
 
-          PanelSeparator {
-            Layout.fillWidth: true
-            Layout.topMargin: Style.spacing.md
-            foreground: root.foreground
-          }
+            Text {
+              Layout.fillWidth: true
+              text: root.authenticationRequired ? "Authentication required" : "Accounts"
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: root.authenticationRequired ? Style.font.body : Style.font.caption
+              font.bold: true
+            }
 
-          Text {
-            Layout.fillWidth: true
-            text: "Voice indicator"
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.subtitle
-            font.bold: true
+            Text {
+              Layout.fillWidth: true
+              text: root.authenticationRequired
+                ? "Sign in with a subscription or API key. Credentials stay in OmaPilot's private configuration."
+                : "Add Codex, OpenAI, Grok, or a server from the Servers tab."
+              color: root.mutedForeground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.Wrap
+              Accessible.role: Accessible.StaticText
+              Accessible.name: text
+            }
+
+            Dropdown {
+              id: authMethodPicker
+              Layout.fillWidth: true
+              visible: root.backend && !root.backend.builtinAuthBusy
+              showLabel: false
+              options: root.backend ? root.backend.builtinAuthMethods : []
+              value: root.selectedAuthMethod || (options.length > 0 ? String(options[0].value || "") : "")
+              enabled: options.length > 0
+              foreground: root.foreground
+              background: root.background
+              Accessible.name: "Built-in authentication method"
+              onChanged: function(value) { root.selectedAuthMethod = value }
+            }
+
+            Text {
+              Layout.fillWidth: true
+              visible: root.backend && String(root.backend.builtinAuth.message || "") !== ""
+              text: root.backend ? String(root.backend.builtinAuth.message || "") : ""
+              color: root.backend && String(root.backend.builtinAuth.phase || "") === "error"
+                ? Color.urgent : root.mutedForeground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.Wrap
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              visible: root.backend && (String(root.backend.builtinAuth.url || "") !== ""
+                || String(root.backend.builtinAuth.verificationUri || "") !== "")
+              spacing: Style.spacing.md
+
+              Button {
+                text: "Open sign-in page"
+                iconText: "󰖟"
+                foreground: root.foreground
+                background: root.background
+                accent: root.accent
+                active: true
+                bordered: true
+                focusable: true
+                onClicked: root.backend.activateLink(String(root.backend.builtinAuth.url
+                  || root.backend.builtinAuth.verificationUri || ""))
+              }
+
+              Button {
+                visible: root.backend && String(root.backend.builtinAuth.userCode || "") !== ""
+                text: "Copy " + (root.backend ? String(root.backend.builtinAuth.userCode || "") : "")
+                foreground: root.foreground
+                background: root.background
+                bordered: true
+                focusable: true
+                onClicked: root.backend.copyText(String(root.backend.builtinAuth.userCode || ""))
+              }
+
+              Item { Layout.fillWidth: true }
+            }
+
+            Text {
+              Layout.fillWidth: true
+              visible: root.backend && root.backend.builtinAuth.prompt
+              text: visible ? String(root.backend.builtinAuth.prompt.message || "") : ""
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              wrapMode: Text.Wrap
+            }
+
+            Dropdown {
+              id: authPromptPicker
+              Layout.fillWidth: true
+              visible: root.backend && root.backend.builtinAuth.prompt
+                && root.backend.builtinAuth.prompt.kind === "select"
+              showLabel: false
+              options: visible ? root.backend.builtinAuth.prompt.options : []
+              value: root.authPromptSelection || (options.length > 0 ? String(options[0].value || "") : "")
+              foreground: root.foreground
+              background: root.background
+              Accessible.name: visible ? String(root.backend.builtinAuth.prompt.message || "Authentication choice") : "Authentication choice"
+              onChanged: function(value) { root.authPromptSelection = value }
+            }
+
+            TextField {
+              id: authPromptInput
+              Layout.fillWidth: true
+              visible: root.backend && root.backend.builtinAuth.prompt
+                && root.backend.builtinAuth.prompt.kind !== "select"
+              password: visible && root.backend.builtinAuth.prompt.kind === "secret"
+              placeholderText: visible ? String(root.backend.builtinAuth.prompt.placeholder
+                || root.backend.builtinAuth.prompt.message || "") : ""
+              maximumLength: 32768
+              foreground: root.foreground
+              accent: root.accent
+              Accessible.name: visible ? String(root.backend.builtinAuth.prompt.message || "Authentication value") : "Authentication value"
+              onVisibleChanged: if (visible) { text = ""; forceActiveFocus() }
+              onAccepted: if (visible) root.backend.respondBuiltInAuth(text)
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: Style.spacing.md
+
+              Button {
+                visible: root.backend && !root.backend.builtinAuthBusy
+                text: String(root.backend && root.backend.builtinAuth.phase || "") === "error" ? "Try again"
+                  : (root.authenticationRequired ? "Continue" : "Sign in")
+                iconText: "󰌾"
+                foreground: root.foreground
+                background: root.background
+                accent: root.accent
+                active: true
+                bordered: true
+                focusable: true
+                enabled: authMethodPicker.options.length > 0
+                onClicked: root.backend.authenticateBuiltIn(authMethodPicker.value)
+              }
+
+              Button {
+                visible: root.backend && root.backend.builtinAuth.prompt
+                text: "Continue"
+                foreground: root.foreground
+                background: root.background
+                accent: root.accent
+                active: true
+                bordered: true
+                focusable: true
+                enabled: root.backend && root.backend.builtinAuth.prompt
+                  ? (root.backend.builtinAuth.prompt.kind === "select"
+                    ? authPromptPicker.value !== "" : authPromptInput.text !== "") : false
+                onClicked: root.backend.respondBuiltInAuth(root.backend.builtinAuth.prompt.kind === "select"
+                  ? authPromptPicker.value : authPromptInput.text)
+              }
+
+              Button {
+                visible: root.backend && root.backend.builtinAuthBusy
+                text: "Cancel"
+                foreground: root.foreground
+                background: root.background
+                bordered: true
+                focusable: true
+                onClicked: root.backend.cancelBuiltInAuth()
+              }
+
+              Item { Layout.fillWidth: true }
+            }
           }
+        }
+      }
+
+      Flickable {
+        id: serversScroll
+        anchors.fill: parent
+        visible: root.selectedTab === "servers"
+        contentWidth: width
+        contentHeight: serversContent.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
+
+        ColumnLayout {
+          id: serversContent
+          width: serversScroll.width
+          spacing: Style.spacing.lg
 
           Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: root.voxtypeOsd.available
-              ? "Voxtype draws its own waveform at the bottom of the screen, in the same place as OmaPilot's voice glow. Turning it off leaves one indicator instead of two."
-              : "Voxtype's configuration was not found, so its on-screen display cannot be switched from here."
-            color: Qt.darker(root.foreground, 1.45)
+            text: "Register an OpenAI-compatible /responses or /chat/completions endpoint. Test /models before saving. Keys go to auth.json, never into the definition."
+            color: root.mutedForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
           }
 
-          Toggle {
-            Layout.fillWidth: true
-            visible: root.voxtypeOsd.available
-            label: "Voxtype on-screen display"
-            description: "Off leaves OmaPilot's glow as the only recording indicator. Restarts the Voxtype daemon."
-            checked: root.voxtypeOsd.enabled
-            foreground: root.foreground
-            accent: root.accent
-            fontFamily: root.fontFamily
-            Accessible.name: label
-            onClicked: root.voxtypeOsdRequested(!root.voxtypeOsd.enabled)
-          }
-
           Text {
             Layout.fillWidth: true
-            wrapMode: Text.Wrap
-            visible: String(root.voxtypeOsd.message || "") !== ""
-            text: String(root.voxtypeOsd.message || "")
-            color: Color.urgent
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-          }
-
-          PanelSeparator {
-            Layout.fillWidth: true
-            Layout.topMargin: Style.spacing.md
-            foreground: root.foreground
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: "OpenAI-compatible servers"
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.subtitle
-            font.bold: true
-          }
-
-          Text {
-            Layout.fillWidth: true
-            wrapMode: Text.Wrap
-            text: "Register any endpoint that speaks the OpenAI /responses or /chat/completions API. Test /models first; those discovered models join the built-in harness when you save. API keys are optional and go to auth.json, never into the definition."
-            color: Qt.darker(root.foreground, 1.45)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-          }
-
-          // Saved servers were invisible when the list was empty, so adding one
-          // looked like nothing had happened. An explicit empty state, and a
-          // per-server sign-in line, make the actual state legible.
-          Text {
-            Layout.fillWidth: true
-            visible: root.savedServers.length === 0
+            visible: root.savedServers.length === 0 && !root.serverFormExpanded
             text: "No servers added yet."
             color: Qt.darker(root.foreground, 1.55)
             font.family: root.fontFamily
@@ -618,67 +560,79 @@ Item {
           Repeater {
             model: root.savedServers
 
-            RowLayout {
+            ColumnLayout {
               required property var modelData
               readonly property int liveModels: root.backend && root.backend.modelOptions
                 ? Protocol.customProviderModelCount(root.backend.modelOptions, modelData.id) : 0
               Layout.fillWidth: true
-              spacing: Style.spacing.md
+              spacing: Style.spacing.sm
 
-              ColumnLayout {
+              RowLayout {
                 Layout.fillWidth: true
-                spacing: 0
-                Text {
-                  Layout.fillWidth: true
-                  text: modelData.name + "  \u00b7  " + modelData.apiLabel
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.bodySmall
-                  elide: Text.ElideRight
-                }
-                Text {
-                  Layout.fillWidth: true
-                  text: modelData.baseUrl + "  \u00b7  " + modelData.models.length
-                    + (modelData.models.length === 1 ? " model" : " models")
-                  color: Qt.darker(root.foreground, 1.5)
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                  elide: Text.ElideMiddle
-                }
-                Text {
-                  Layout.fillWidth: true
-                  text: liveModels > 0
-                    ? "Connected \u00b7 " + liveModels + (liveModels === 1 ? " model available" : " models available")
-                    : (modelData.requiresAuth
-                      ? "Not signed in \u2014 edit this server and enter its API key"
-                      : "No API key required \u00b7 refreshing models")
-                  color: liveModels > 0 ? Qt.darker(root.foreground, 1.5) : root.accent
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                  elide: Text.ElideRight
-                }
-              }
+                spacing: Style.spacing.md
 
-              Button {
-                text: "Edit"
-                foreground: Qt.darker(root.foreground, 1.3)
-                background: root.background
-                bordered: true
-                focusable: true
-                onClicked: root.editServer(modelData)
-              }
+                Rectangle {
+                  Layout.preferredWidth: 2
+                  Layout.preferredHeight: Style.space(28)
+                  radius: 1
+                  color: liveModels > 0 ? root.accent : Qt.darker(root.foreground, 1.8)
+                }
 
-              Button {
-                text: root.serverRemoveConfirmId === modelData.id ? "Confirm removal" : "Remove"
-                foreground: root.serverRemoveConfirmId === modelData.id ? Color.urgent : Qt.darker(root.foreground, 1.3)
-                background: root.background
-                bordered: true
-                focusable: true
-                onClicked: {
-                  if (root.serverRemoveConfirmId === modelData.id) {
-                    root.customProviderRemoveRequested(modelData.id)
-                    root.serverRemoveConfirmId = ""
-                  } else root.serverRemoveConfirmId = modelData.id
+                ColumnLayout {
+                  Layout.fillWidth: true
+                  spacing: 0
+                  Text {
+                    Layout.fillWidth: true
+                    text: modelData.name + "  \u00b7  " + modelData.apiLabel
+                    color: root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.bodySmall
+                    elide: Text.ElideRight
+                  }
+                  Text {
+                    Layout.fillWidth: true
+                    text: modelData.baseUrl + "  \u00b7  " + modelData.models.length
+                      + (modelData.models.length === 1 ? " model" : " models")
+                    color: Qt.darker(root.foreground, 1.5)
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                    elide: Text.ElideMiddle
+                  }
+                  Text {
+                    Layout.fillWidth: true
+                    text: liveModels > 0
+                      ? "Connected \u00b7 " + liveModels + (liveModels === 1 ? " model available" : " models available")
+                      : (modelData.requiresAuth
+                        ? "Not signed in \u2014 edit this server and enter its API key"
+                        : "No API key required \u00b7 refreshing models")
+                    color: liveModels > 0 ? Qt.darker(root.foreground, 1.5) : root.accent
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                    elide: Text.ElideRight
+                  }
+                }
+
+                Button {
+                  text: "Edit"
+                  foreground: Qt.darker(root.foreground, 1.3)
+                  background: root.background
+                  bordered: true
+                  focusable: true
+                  onClicked: root.editServer(modelData)
+                }
+
+                Button {
+                  text: root.serverRemoveConfirmId === modelData.id ? "Confirm removal" : "Remove"
+                  foreground: root.serverRemoveConfirmId === modelData.id ? Color.urgent : Qt.darker(root.foreground, 1.3)
+                  background: root.background
+                  bordered: true
+                  focusable: true
+                  onClicked: {
+                    if (root.serverRemoveConfirmId === modelData.id) {
+                      root.customProviderRemoveRequested(modelData.id)
+                      root.serverRemoveConfirmId = ""
+                    } else root.serverRemoveConfirmId = modelData.id
+                  }
                 }
               }
             }
@@ -757,10 +711,6 @@ Item {
               }
             }
 
-            // Signing in used to be a separate trip through Accounts, which left
-            // a freshly added server contributing no models and looking broken.
-            // The key is sent straight to the harness login and stored in
-            // auth.json; it is never written to models.json.
             TextField {
               Layout.fillWidth: true
               placeholderText: root.serverEditingId === ""
@@ -814,21 +764,16 @@ Item {
               wrapMode: Text.Wrap
             }
 
-            RowLayout {
-              Layout.fillWidth: true
-              spacing: Style.spacing.md
-
-              Toggle {
-                enabled: !root.serverSavePending
-                checked: root.serverDraftResponses
-                label: "Use the /responses API"
-                description: "Turn off for servers that only implement /chat/completions."
-                foreground: root.foreground
-                accent: root.accent
-                fontFamily: root.fontFamily
-                Accessible.name: label
-                onClicked: root.serverDraftResponses = !root.serverDraftResponses
-              }
+            Toggle {
+              enabled: !root.serverSavePending
+              checked: root.serverDraftResponses
+              label: "Use the /responses API"
+              description: "Turn off for servers that only implement /chat/completions."
+              foreground: root.foreground
+              accent: root.accent
+              fontFamily: root.fontFamily
+              Accessible.name: label
+              onClicked: root.serverDraftResponses = !root.serverDraftResponses
             }
 
             Text {
@@ -851,8 +796,6 @@ Item {
               active: true
               bordered: true
               focusable: true
-              // Deliberately always clickable. Disabling it hid the reason a save
-              // could not proceed, which read as the button being broken.
               onClicked: {
                 var missing = []
                 if (root.serverDraftId.trim() === "") missing.push("an id")
@@ -876,25 +819,101 @@ Item {
               }
             }
           }
+        }
+      }
 
-          Text {
+      Flickable {
+        id: desktopScroll
+        anchors.fill: parent
+        visible: root.selectedTab === "desktop"
+        contentWidth: width
+        contentHeight: desktopContent.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
+
+        ColumnLayout {
+          id: desktopContent
+          width: desktopScroll.width
+          spacing: Style.spacing.lg
+
+          Toggle {
             Layout.fillWidth: true
-            text: "Browser context"
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.subtitle
-            font.bold: true
+            label: "Dangerous auto-approve"
+            description: "Approve each exact device action automatically instead of prompting."
+            checked: root.dangerousAutoApprove
+            enabled: root.backend && !root.backend.busy
+            foreground: root.foreground
+            accent: checked ? Color.urgent : root.accent
+            fontFamily: root.fontFamily
+            Accessible.name: label
+            onClicked: root.dangerousAutoApproveRequested(!root.dangerousAutoApprove)
           }
 
           Text {
             Layout.fillWidth: true
-            text: "Select semantic page elements and choose Element, Text, or Screenshot before sharing context. OmaPilot handles setup from here—no terminal command is required."
-            color: Qt.darker(root.foreground, 1.45)
+            visible: root.dangerousAutoApprove
+            text: "Approval prompts are skipped. Commands may read, change, or delete device data and use the network."
+            color: Color.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
             Accessible.role: Accessible.StaticText
             Accessible.name: text
+          }
+
+          Toggle {
+            Layout.fillWidth: true
+            label: "Desktop context"
+            description: "Attach the active window, open apps, workspaces, and playing media on send."
+            checked: root.desktopContextEnabled
+            foreground: root.foreground
+            accent: root.accent
+            fontFamily: root.fontFamily
+            Accessible.name: label
+            onClicked: root.desktopContextRequested(!root.desktopContextEnabled)
+          }
+
+          Toggle {
+            Layout.fillWidth: true
+            visible: root.voxtypeOsd.available
+            label: "Voxtype on-screen display"
+            description: "Off leaves OmaPilot's glow as the only recording indicator. Restarts the Voxtype daemon."
+            checked: root.voxtypeOsd.enabled
+            foreground: root.foreground
+            accent: root.accent
+            fontFamily: root.fontFamily
+            Accessible.name: label
+            onClicked: root.voxtypeOsdRequested(!root.voxtypeOsd.enabled)
+          }
+
+          Text {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            visible: !root.voxtypeOsd.available
+            text: "Voxtype's configuration was not found, so its on-screen display cannot be switched from here."
+            color: root.mutedForeground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          Text {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            visible: String(root.voxtypeOsd.message || "") !== ""
+            text: String(root.voxtypeOsd.message || "")
+            color: Color.urgent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          Text {
+            Layout.fillWidth: true
+            text: "Browser context"
+            color: root.mutedForeground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            font.bold: true
           }
 
           RowLayout {
@@ -934,8 +953,8 @@ Item {
                   ? "Use the OmaPilot extension icon once per site to grant page access."
                   : (root.browserCompanion.relayInstalled === true
                     ? "Restart Chromium, then pin the OmaPilot extension and enable the current site."
-                    : "Choose Enable browser context to install the relay and bundled extension automatically, then restart your browser.")
-                color: Qt.darker(root.foreground, 1.45)
+                    : "Enable browser context to install the relay and bundled extension, then restart the browser.")
+                color: root.mutedForeground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
                 wrapMode: Text.Wrap
@@ -1025,7 +1044,7 @@ Item {
             Text {
               Layout.fillWidth: true
               text: "Restart the browser first. If the extension is not loaded, open Extensions, enable Developer mode, choose Load unpacked, and select the bundled Chromium folder."
-              color: Qt.darker(root.foreground, 1.45)
+              color: root.mutedForeground
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               wrapMode: Text.Wrap
@@ -1070,7 +1089,7 @@ Item {
             Text {
               Layout.fillWidth: true
               text: "Open This Firefox, choose Load Temporary Add-on, then select manifest.json from the bundled Firefox folder. Repeat after each browser restart until a signed store build is available."
-              color: Qt.darker(root.foreground, 1.45)
+              color: root.mutedForeground
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               wrapMode: Text.Wrap
@@ -1148,117 +1167,28 @@ Item {
               onClicked: root.browserRemoveConfirmation = false
             }
           }
+        }
+      }
+
+      Flickable {
+        id: actionsScroll
+        anchors.fill: parent
+        visible: root.selectedTab === "actions"
+        contentWidth: width
+        contentHeight: actionsContent.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
+
+        ColumnLayout {
+          id: actionsContent
+          width: actionsScroll.width
+          spacing: Style.spacing.lg
 
           Text {
             Layout.fillWidth: true
-            visible: !root.browserCompanionConnected && root.browserCompanion.relayInstalled !== true
-            text: "OmaPilot registers the native-messaging host and adds its bundled extension to detected Omarchy Chromium-family browsers for you. Firefox and Zen still require browser confirmation to load the temporary Firefox build."
-            color: Qt.darker(root.foreground, 1.45)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.Wrap
-            Accessible.role: Accessible.StaticText
-            Accessible.name: text
-          }
-
-          PanelSeparator {
-            Layout.fillWidth: true
-            Layout.topMargin: Style.spacing.md
-            foreground: root.foreground
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: "Harness"
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.subtitle
-            font.bold: true
-          }
-
-          Dropdown {
-            id: providerPicker
-            Layout.fillWidth: true
-            showLabel: false
-            options: root.modeProviders
-            value: root.backend ? root.backend.provider : ""
-            enabled: root.backend && !root.backend.busy
-            foreground: root.foreground
-            background: root.background
-            Accessible.name: "Agent harness"
-            onChanged: function(value) { root.providerChanged(value) }
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: "Model"
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.subtitle
-            font.bold: true
-          }
-
-          Dropdown {
-            id: modelPicker
-            Layout.fillWidth: true
-            showLabel: false
-            options: root.backend && root.backend.modelOptions.length > 0
-              ? root.backend.modelOptions
-              : [{ value: "", label: "Harness default" }]
-            value: root.backend ? root.backend.model : ""
-            enabled: root.backend && !root.backend.busy
-            foreground: root.foreground
-            background: root.background
-            Accessible.name: "AI model"
-            onChanged: function(value) {
-              root.backend.model = value
-              root.modelChanged(root.backend.provider, value)
-            }
-          }
-
-          Text {
-            Layout.fillWidth: true
-            visible: root.backend
-            text: !root.backend ? "" : Protocol.providerPolicyDescription(root.backend.provider, root.backend.providerPolicy)
-            color: Qt.darker(root.foreground, 1.45)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.Wrap
-            Accessible.role: Accessible.StaticText
-            Accessible.name: text
-          }
-
-          Text {
-            Layout.fillWidth: true
-            visible: root.backend && root.backend.modelOptions.length === 0
-            text: "Using the harness default. This harness did not expose a model catalog."
-            color: Qt.darker(root.foreground, 1.45)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            wrapMode: Text.Wrap
-            Accessible.role: Accessible.StaticText
-            Accessible.name: text
-          }
-
-          PanelSeparator {
-            Layout.fillWidth: true
-            Layout.topMargin: Style.spacing.md
-            foreground: root.foreground
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: "Quick actions"
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.subtitle
-            font.bold: true
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: "Add, edit, remove, or reorder the prompts shown on an empty conversation."
-            color: Qt.darker(root.foreground, 1.45)
+            text: "Prompts shown on an empty conversation. Up to five."
+            color: root.mutedForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
@@ -1275,34 +1205,6 @@ Item {
             accent: root.accent
             fontFamily: root.fontFamily
             onActionsEdited: function(actions) { root.quickActionsEdited(actions) }
-          }
-
-          PanelSeparator {
-            Layout.fillWidth: true
-            Layout.topMargin: Style.spacing.md
-            foreground: root.foreground
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: "Conversation"
-            color: root.foreground
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.subtitle
-            font.bold: true
-          }
-
-          Button {
-            Layout.fillWidth: true
-            iconText: "󰋚"
-            text: "Recent chats"
-            tooltipText: "Browse up to 30 completed answers"
-            foreground: root.foreground
-            background: root.background
-            bordered: true
-            focusable: true
-            Accessible.name: tooltipText
-            onClicked: root.recentChatsRequested()
           }
         }
       }

@@ -27,6 +27,8 @@ qml_files=(
   "$repo_dir/components/QuickActions.qml"
   "$repo_dir/components/QuickActionEditor.qml"
   "$repo_dir/components/SettingsView.qml"
+  "$repo_dir/components/SettingsTabs.qml"
+  "$repo_dir/components/ActivityFilament.qml"
   "$repo_dir/components/ResponseActivityBorder.qml"
   "$repo_dir/components/internal/PermissionFocusGuard.qml"
   "$repo_dir/components/internal/PanelKeyboardNavigation.qml"
@@ -172,7 +174,10 @@ grep -Fq 'modalInteractionActive: root.modalInteractionActive' \
 grep -Fq 'Accessible.name: tooltipText' "$repo_dir/components/QuickActions.qml"
 grep -Fq 'quickActionsJson' "$repo_dir/Panel.qml"
 grep -Fq 'onQuickActionsEdited:' "$repo_dir/Panel.qml"
-grep -Fq 'text: "OmaPilot settings"' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'Accessible.name: "OmaPilot settings"' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'SettingsTabs {' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'property string selectedTab: "agent"' "$repo_dir/components/SettingsView.qml"
+grep -Fq '{ id: "agent", label: "Agent" }' "$repo_dir/components/Presentation.js"
 grep -Fq 'QuickActionEditor {' "$repo_dir/components/SettingsView.qml"
 grep -Fq 'maximumActions = 5' "$repo_dir/components/QuickActions.js"
 grep -Fq 'function moveAction(actions, index, delta)' "$repo_dir/components/QuickActions.js"
@@ -180,7 +185,11 @@ grep -Fq 'function removeAction(actions, index)' "$repo_dir/components/QuickActi
 grep -Fq 'ActionCatalog.addAction(' "$repo_dir/components/QuickActionEditor.qml"
 grep -Fq 'ActionCatalog.updateAction(' "$repo_dir/components/QuickActionEditor.qml"
 grep -Fq 'label: "Dangerous auto-approve"' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'label: "Desktop context"' "$repo_dir/components/SettingsView.qml"
 grep -Fq 'text: "Browser context"' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'onDesktopContextRequested:' "$repo_dir/Panel.qml"
+grep -Fq 'text: "History"' "$repo_dir/components/HistoryView.qml"
+grep -Fq 'ActivityFilament {' "$repo_dir/components/HistoryView.qml"
 grep -Fq 'text: root.browserCompanion.relayInstalled === true ? "Repair browser setup" : "Enable browser context"' \
   "$repo_dir/components/SettingsView.qml"
 grep -Fq 'onBrowserCompanionInstallRequested:' "$repo_dir/Panel.qml"
@@ -486,7 +495,7 @@ if grep -Eq "visual preview failed|Failed to load|Type .* unavailable|Cannot ass
   exit 1
 fi
 
-for preview_state in actions-settings waiting streaming error error-details context; do
+for preview_state in settings actions-settings history waiting streaming error error-details context; do
   preview_output="$repo_dir/screenshots/implementation-omapilot-$preview_state.png"
   OMAPILOT_PREVIEW_STATE="$preview_state" OMAPILOT_PREVIEW_PATH="$preview_output" \
     QT_QPA_PLATFORM=offscreen timeout 5s quickshell --no-duplicate \

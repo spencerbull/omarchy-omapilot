@@ -66,3 +66,30 @@ function escapeAction(viewMode, composerPopupOpen, settingsPopupOpen,
   if (busy) return "cancel"
   return "close-panel"
 }
+
+function settingsTabs() {
+  return [
+    { id: "agent", label: "Agent" },
+    { id: "servers", label: "Servers" },
+    { id: "desktop", label: "Desktop" },
+    { id: "actions", label: "Actions" }
+  ]
+}
+
+function settingsTabIds() {
+  return settingsTabs().map(function(tab) { return tab.id })
+}
+
+function normalizedSettingsTab(value) {
+  var id = String(value || "")
+  return settingsTabIds().indexOf(id) >= 0 ? id : "agent"
+}
+
+function adjacentSettingsTab(current, delta) {
+  var ids = settingsTabIds()
+  var index = ids.indexOf(normalizedSettingsTab(current))
+  var next = index + finiteNumber(delta, 0)
+  if (next < 0) next = 0
+  if (next >= ids.length) next = ids.length - 1
+  return ids[next]
+}

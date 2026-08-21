@@ -238,7 +238,7 @@ families. Its rules are:
 
 Native messaging requires registration outside the plugin directory, so it is
 enabled only with the user's explicit consent. The primary setup path does not
-require a terminal: open **OmaPilot settings → Browser context** and choose
+require a terminal: open **OmaPilot settings → Desktop** and choose
 **Enable browser context**. OmaPilot registers the user-local relay and adds the
 bundled unpacked extension to detected Omarchy Chromium-family browser flags.
 Restart the browser afterward, pin the OmaPilot extension, then choose **Enable
