@@ -1,0 +1,27 @@
+#!/bin/sh
+# A Voxtype that speaks the 0.7.6 waiting interface.
+# VOXTYPE_FAKE_STATUS picks the outcome; default ok.
+printf '%s\n' "$*" >> "$VOXTYPE_AUDIT"
+if [ "$1" = "status" ]; then
+  exit 0
+fi
+if [ "$1" = "record" ] && [ "$2" = "start" ]; then
+  exit 0
+fi
+if [ "$1" = "record" ] && [ "$2" = "stop" ] && [ "$3" = "--help" ]; then
+  printf 'Usage: voxtype record stop [OPTIONS]\n      --wait  Block until the transcription is final\n'
+  exit 0
+fi
+if [ "$1" = "record" ] && [ "$2" = "stop" ]; then
+  case "${VOXTYPE_FAKE_STATUS:-ok}" in
+    ok)      printf '{"status":"ok","text":"the quick brown fox","chars":19,"message":null}\n'; exit 0 ;;
+    empty)   printf '{"status":"empty","text":"","chars":0,"message":"nothing was said"}\n'; exit 3 ;;
+    timeout) printf '{"status":"timeout","text":"","chars":0,"message":"no outcome within 1s"}\n'; exit 4 ;;
+    error)   printf '{"status":"error","text":"","chars":0,"message":"disk went away"}\n'; exit 1 ;;
+    garbage) printf 'not json at all\n'; exit 1 ;;
+  esac
+fi
+if [ "$1" = "record" ] && [ "$2" = "cancel" ]; then
+  exit 0
+fi
+exit 1
