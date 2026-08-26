@@ -12,10 +12,11 @@ Item {
   property color background: Color.popups.background
   property color accent: Color.accent
   property string fontFamily: Style.font.family
+  readonly property color mutedForeground: Qt.darker(foreground, 1.45)
   property bool motionEnabled: true
   property bool confirmingClear: false
   readonly property bool modalInteractionActive: confirmingClear
-  implicitHeight: Math.min(Style.space(360), 94 + history.length * 30)
+  implicitHeight: Math.min(Style.space(360), Style.space(94 + history.length * 30))
 
   signal chatSelected(var chat)
   signal deleteRequested(string chatId)
@@ -33,10 +34,10 @@ Item {
 
     RowLayout {
       Layout.fillWidth: true
-      Layout.preferredHeight: 56
-      Layout.leftMargin: 17
-      Layout.rightMargin: 17
-      spacing: 9
+      Layout.preferredHeight: Style.space(56)
+      Layout.leftMargin: Style.spacing.panelPadding
+      Layout.rightMargin: Style.spacing.panelPadding
+      spacing: Style.space(9)
 
       PanelActionButton {
         id: closeHistory
@@ -51,8 +52,8 @@ Item {
       Text {
         text: "History"
         color: root.foreground
-        font.family: "JetBrains Mono"
-        font.pixelSize: 17
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.heading
         font.bold: false
         Accessible.role: Accessible.StaticText
         Accessible.name: "Recent chats"
@@ -95,7 +96,7 @@ Item {
 
     ActivityFilament {
       Layout.fillWidth: true
-      Layout.preferredHeight: 1
+      Layout.preferredHeight: Style.spacing.hairline
       foreground: root.foreground
       accent: root.accent
       focused: list.activeFocus || closeHistory.activeFocus
@@ -151,7 +152,7 @@ Item {
           required property var modelData
           required property int index
           width: list.width
-          height: 30
+          height: Style.space(30)
           Accessible.role: Accessible.ListItem
           Accessible.name: String(modelData.title || "Chat")
 
@@ -175,25 +176,25 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: 17
-            anchors.rightMargin: 10
-            spacing: 9
+            anchors.leftMargin: Style.spacing.panelPadding
+            anchors.rightMargin: Style.spacing.xl
+            spacing: Style.space(9)
 
             Text {
-              Layout.preferredWidth: 48
+              Layout.preferredWidth: Style.space(48)
               text: String(modelData.timestamp || "")
-              color: "#6f7077"
-              font.family: "JetBrains Mono"
-              font.pixelSize: 10
+              color: root.mutedForeground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
               elide: Text.ElideRight
             }
 
             Text {
               Layout.fillWidth: true
               text: modelData.title
-              color: "#d5d5da"
-              font.family: "JetBrains Mono"
-              font.pixelSize: 11
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
               elide: Text.ElideRight
             }
 
@@ -225,39 +226,39 @@ Item {
 
     Item {
       Layout.fillWidth: true
-      Layout.preferredHeight: 37
+      Layout.preferredHeight: Style.space(37)
 
       Rectangle {
         anchors.fill: parent
-        color: "#0c0c0f"
+        color: root.background
       }
 
       Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: 1
-        color: "#1d1e22"
+        height: Style.spacing.hairline
+        color: Style.normalBorderFor(root.foreground, root.accent)
       }
 
       RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 17
-        anchors.rightMargin: 17
+        anchors.leftMargin: Style.spacing.panelPadding
+        anchors.rightMargin: Style.spacing.panelPadding
 
         Text {
           Layout.fillWidth: true
           text: root.history.length + " entries · local only"
-          color: "#6f7077"
-          font.family: "JetBrains Mono"
-          font.pixelSize: 10
+          color: root.mutedForeground
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
         }
 
         Text {
           text: "esc close"
-          color: "#74757c"
-          font.family: "JetBrains Mono"
-          font.pixelSize: 10
+          color: root.mutedForeground
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
         }
       }
     }

@@ -21,33 +21,34 @@ BorderSurface {
 
   signal actionRequested()
 
-  implicitHeight: 34
-  color: "#0a0a0d"
-  borderSpec: Border.flat("#292a2f", 1)
-  radius: 0
+  implicitHeight: Style.space(34)
+  color: Style.normalFillFor(foreground, accent)
+  borderSpec: Border.controlSpec("normal", foreground, accent)
+  radius: Style.cornerRadius
   Accessible.role: Accessible.Grouping
   Accessible.name: titleText + ". " + detailText
 
   RowLayout {
     id: content
     anchors.fill: parent
-    anchors.leftMargin: 10
-    anchors.rightMargin: 10
-    spacing: 9
+    anchors.leftMargin: root.contentLeftInset + Style.spacing.xl
+    anchors.rightMargin: root.contentRightInset + Style.spacing.xl
+    spacing: Style.space(9)
 
     Text {
       Layout.fillWidth: true
       text: root.titleText
-      color: "#d5d5da"
-      font.family: "JetBrains Mono"
-      font.pixelSize: 12
+      color: root.foreground
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.body
       elide: Text.ElideRight
     }
 
     Button {
       text: root.actionText
-      foreground: "#58d1dc"
-      background: "#0a0a0d"
+      foreground: root.accent
+      background: root.background
+      fontFamily: root.fontFamily
       active: false
       bordered: false
       focusable: true

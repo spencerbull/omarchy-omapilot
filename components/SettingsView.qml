@@ -102,7 +102,7 @@ Item {
     || (selectedTab === "actions" && quickActionEditor.interactionActive)
     || (selectedTab === "servers" && serverRemoveConfirmId !== "")
   implicitHeight: Style.space(560)
-  readonly property color mutedForeground: "#8d8e95"
+  readonly property color mutedForeground: Qt.darker(foreground, 1.45)
   Accessible.name: "OmaPilot settings"
 
   signal dangerousAutoApproveRequested(bool enabled)
@@ -321,22 +321,16 @@ Item {
     tabBar.forceActiveFocus()
   }
 
-  Rectangle {
-    anchors.fill: parent
-    color: root.background
-    Accessible.ignored: true
-  }
-
   ColumnLayout {
     anchors.fill: parent
     spacing: 0
 
     RowLayout {
       Layout.fillWidth: true
-      Layout.preferredHeight: 56
-      Layout.leftMargin: 17
-      Layout.rightMargin: 17
-      spacing: 9
+      Layout.preferredHeight: Style.space(56)
+      Layout.leftMargin: Style.spacing.panelPadding
+      Layout.rightMargin: Style.spacing.panelPadding
+      spacing: Style.space(9)
 
       PanelActionButton {
         id: backButton
@@ -352,8 +346,8 @@ Item {
       Text {
         text: "Settings"
         color: root.foreground
-        font.family: "JetBrains Mono"
-        font.pixelSize: 17
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.heading
         Accessible.role: Accessible.Heading
         Accessible.name: text
       }
@@ -373,18 +367,18 @@ Item {
 
     Rectangle {
       Layout.fillWidth: true
-      Layout.preferredHeight: 1
-      color: "#1d1e22"
+      Layout.preferredHeight: Style.spacing.hairline
+      color: Style.normalBorderFor(root.foreground, root.accent)
       Accessible.ignored: true
     }
 
     Item {
       Layout.fillWidth: true
       Layout.fillHeight: true
-      Layout.leftMargin: 17
-      Layout.rightMargin: 17
-      Layout.topMargin: 14
-      Layout.bottomMargin: 15
+      Layout.leftMargin: Style.spacing.panelPadding
+      Layout.rightMargin: Style.spacing.panelPadding
+      Layout.topMargin: Style.spacing.xxxl
+      Layout.bottomMargin: Style.space(15)
 
       Flickable {
         id: agentScroll
@@ -399,7 +393,7 @@ Item {
         ColumnLayout {
           id: agentContent
           width: agentScroll.width
-          spacing: 12
+          spacing: Style.spacing.xxl
 
           Text {
             Layout.fillWidth: true
@@ -662,7 +656,7 @@ Item {
         ColumnLayout {
           id: skillsContent
           width: skillsScroll.width
-          spacing: 12
+          spacing: Style.spacing.xxl
 
           Text {
             Layout.fillWidth: true
@@ -696,9 +690,9 @@ Item {
                 spacing: Style.spacing.md
 
                 Rectangle {
-                  Layout.preferredWidth: 2
+                  Layout.preferredWidth: Style.spacing.xxs
                   Layout.preferredHeight: Style.space(36)
-                  radius: 1
+                  radius: Style.space(1)
                   color: modelData.state === "ready" ? root.accent
                     : (modelData.state === "degraded" ? Color.urgent : Qt.darker(root.foreground, 1.8))
                 }
@@ -855,7 +849,7 @@ Item {
         ColumnLayout {
           id: voiceContent
           width: voiceScroll.width
-          spacing: 12
+          spacing: Style.spacing.xxl
 
           Text {
             Layout.fillWidth: true
@@ -1180,7 +1174,7 @@ Item {
         ColumnLayout {
           id: serversContent
           width: serversScroll.width
-          spacing: 12
+          spacing: Style.spacing.xxl
 
           Text {
             Layout.fillWidth: true
@@ -1215,9 +1209,9 @@ Item {
                 spacing: Style.spacing.md
 
                 Rectangle {
-                  Layout.preferredWidth: 2
+                  Layout.preferredWidth: Style.spacing.xxs
                   Layout.preferredHeight: Style.space(28)
-                  radius: 1
+                  radius: Style.space(1)
                   color: liveModels > 0 ? root.accent : Qt.darker(root.foreground, 1.8)
                 }
 
@@ -1478,7 +1472,7 @@ Item {
         ColumnLayout {
           id: desktopContent
           width: desktopScroll.width
-          spacing: 12
+          spacing: Style.spacing.xxl
 
           Toggle {
             Layout.fillWidth: true
@@ -1634,7 +1628,7 @@ Item {
               Layout.preferredHeight: Style.space(8)
               radius: width / 2
               color: root.browserCompanionConnected ? root.accent
-                : (root.browserCompanion.phase === "failed" ? Color.urgent : Color.muted)
+                : (root.browserCompanion.phase === "failed" ? Color.urgent : root.mutedForeground)
             }
 
             ColumnLayout {
@@ -1892,7 +1886,7 @@ Item {
         ColumnLayout {
           id: actionsContent
           width: actionsScroll.width
-          spacing: 12
+          spacing: Style.spacing.xxl
 
           Text {
             Layout.fillWidth: true
@@ -1921,11 +1915,11 @@ Item {
 
     Item {
       Layout.fillWidth: true
-      Layout.preferredHeight: 37
+      Layout.preferredHeight: Style.space(37)
 
       Rectangle {
         anchors.fill: parent
-        color: "#0c0c0f"
+        color: root.background
         Accessible.ignored: true
       }
 
@@ -1933,50 +1927,49 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: 1
-        color: "#1d1e22"
+        height: Style.spacing.hairline
+        color: Style.normalBorderFor(root.foreground, root.accent)
         Accessible.ignored: true
       }
 
       RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 17
-        anchors.rightMargin: 17
-        spacing: 5
+        anchors.leftMargin: Style.spacing.panelPadding
+        anchors.rightMargin: Style.spacing.panelPadding
+        spacing: Style.space(5)
 
         Text {
           Layout.fillWidth: true
           text: "OmaPilot / settings / " + root.selectedTab
-          color: "#6f7077"
-          font.family: "JetBrains Mono"
-          font.pixelSize: 10
+          color: root.mutedForeground
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
           Accessible.role: Accessible.StaticText
           Accessible.name: text
         }
 
-        Rectangle {
-          width: settingsFooterKey.implicitWidth + 10
-          height: settingsFooterKey.implicitHeight + 2
-          color: "#1b1c20"
-          border.width: 1
-          border.color: "#2b2c31"
-          radius: 0
+        BorderSurface {
+          Layout.preferredWidth: settingsFooterKey.implicitWidth + Style.spacing.xl
+          Layout.preferredHeight: settingsFooterKey.implicitHeight + Style.spacing.xxs
+          color: Style.normalFillFor(root.foreground, root.accent)
+          borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
+          radius: Style.cornerRadius
 
           Text {
             id: settingsFooterKey
             anchors.centerIn: parent
             text: "esc"
-            color: "#a0a1a8"
-            font.family: "JetBrains Mono"
-            font.pixelSize: 10
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
           }
         }
 
         Text {
           text: "back"
-          color: "#74757c"
-          font.family: "JetBrains Mono"
-          font.pixelSize: 10
+          color: root.mutedForeground
+          font.family: root.fontFamily
+          font.pixelSize: Style.font.caption
         }
       }
     }

@@ -1,7 +1,5 @@
 import QtQuick
-import QtQuick.Controls as QQC
 import qs.Commons
-import qs.Ui
 
 Item {
   id: root
@@ -12,6 +10,7 @@ Item {
   property string fontFamily: Style.font.family
   property bool active: false
   property bool motionEnabled: true
+  property real pulse: 0.65
 
   implicitWidth: size
   implicitHeight: size
@@ -23,13 +22,34 @@ Item {
     NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
   }
 
+  onActiveChanged: if (!active) pulse = 0.65
+
+  SequentialAnimation {
+    running: root.active && root.visible && root.motionEnabled
+    loops: Animation.Infinite
+    NumberAnimation {
+      target: root
+      property: "pulse"
+      to: 1
+      duration: 620
+      easing.type: Easing.InOutSine
+    }
+    NumberAnimation {
+      target: root
+      property: "pulse"
+      to: 0.42
+      duration: 740
+      easing.type: Easing.InOutSine
+    }
+  }
+
   Rectangle {
     anchors.centerIn: parent
     width: root.size
     height: root.size
     radius: Style.cornerRadius
-    color: root.accent
-    opacity: root.active ? 0.10 : 0
+    color: Style.hoverFillFor(root.foreground, root.accent)
+    opacity: root.active ? 1 : 0
 
     Behavior on opacity {
       enabled: root.motionEnabled
@@ -37,18 +57,12 @@ Item {
     }
   }
 
-  QQC.Button {
-    id: mark
-    anchors.fill: parent
-    enabled: false
-    opacity: 1
-    focusPolicy: Qt.NoFocus
-    padding: 0
-    display: QQC.AbstractButton.IconOnly
-    background: null
-    icon.source: Qt.resolvedUrl("../assets/omapilot-mark.png")
-    icon.width: Math.round(root.size)
-    icon.height: Math.round(root.size)
-    icon.color: root.accent
+  SplitIndicator {
+    anchors.centerIn: parent
+    width: root.size * 0.72
+    height: root.size * 0.46
+    gap: width * 0.18
+    accent: root.accent
+    level: root.active ? root.pulse : 0.65
   }
 }

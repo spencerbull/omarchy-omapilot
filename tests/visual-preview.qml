@@ -20,7 +20,7 @@ ShellRoot {
   QtObject {
     id: backend
     property bool initialized: true
-    property bool busy: false
+    property bool busy: root.previewState === "dictating"
     property bool canSubmit: true
     property bool providerReady: true
     property bool continuationBlocked: false
@@ -28,13 +28,16 @@ ShellRoot {
     property bool canRetry: false
     property bool contextCaptureAvailable: true
     property bool desktopContextActive: false
-    property string state: root.previewState === "waiting" ? "preparing"
+    property string state: root.previewState === "dictating" ? "dictating"
+      : (root.previewState === "waiting" ? "preparing"
       : (root.previewState === "streaming" ? "streaming"
         : (root.previewState === "error" || root.previewState === "error-details"
-          ? "error" : "composing"))
+          ? "error" : "composing")))
     property string provider: "builtin"
     property string model: "openai-codex::gpt-5.4"
     property string transcript: ""
+    property bool dictationMetered: root.previewState === "dictating"
+    property real dictationLevel: root.previewState === "dictating" ? 0.78 : 0
     property string statusMessage: root.previewState === "waiting" ? "Preparing Codex…"
       : (root.previewState === "error" || root.previewState === "error-details"
         ? "The harness stopped before completing the response." : "")
@@ -194,7 +197,8 @@ ShellRoot {
 
       ColumnLayout {
         visible: root.previewState === "empty" || root.previewState === "dangerous"
-          || root.previewState === "context" || root.previewState === "setup-voice"
+          || root.previewState === "context" || root.previewState === "dictating"
+          || root.previewState === "setup-voice"
           || root.previewState === "setup-hotkeys"
         anchors.fill: parent
         anchors.leftMargin: previewSurface.contentLeftInset + Style.spacing.popupPadding
@@ -397,10 +401,10 @@ ShellRoot {
         id: errorDetailsView
         visible: root.previewState === "error-details"
         anchors.fill: parent
-        anchors.leftMargin: previewSurface.contentLeftInset + Style.spacing.popupPadding
-        anchors.rightMargin: previewSurface.contentRightInset + Style.spacing.popupPadding
-        anchors.topMargin: previewSurface.contentTopInset + Style.spacing.popupPadding
-        anchors.bottomMargin: previewSurface.contentBottomInset + Style.spacing.popupPadding
+        anchors.leftMargin: previewSurface.contentLeftInset
+        anchors.rightMargin: previewSurface.contentRightInset
+        anchors.topMargin: previewSurface.contentTopInset
+        anchors.bottomMargin: previewSurface.contentBottomInset
         backend: backend
         details: backend.errorDetails
         foreground: Color.popups.text
@@ -416,7 +420,8 @@ ShellRoot {
     running: true
     repeat: false
     onTriggered: {
-      var invalidMain = (root.previewState === "empty" || root.previewState === "dangerous" || root.previewState === "context")
+      var invalidMain = (root.previewState === "empty" || root.previewState === "dangerous"
+          || root.previewState === "context" || root.previewState === "dictating")
         && (header.implicitHeight <= 0 || composer.implicitHeight <= 0
           || actions.implicitHeight <= 0)
       var invalidSettings = (root.previewState === "settings"

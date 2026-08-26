@@ -115,7 +115,6 @@ Item {
     Rectangle {
       anchors.fill: parent
       color: Color.menu.scrim
-      opacity: root.dragging ? 0.5 : 0.34
     }
 
     Item {

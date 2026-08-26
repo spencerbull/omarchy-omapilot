@@ -32,6 +32,7 @@ Panel {
   readonly property color foreground: bar ? bar.foreground : Color.popups.text
   readonly property color surface: Color.popups.background
   readonly property color accent: Color.accent
+  readonly property color mutedForeground: Qt.darker(foreground, 1.45)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool dangerousAutoApprove: settings
     && settings.dangerousAutoApprove === true
@@ -304,7 +305,6 @@ Panel {
     Item {
       id: panelFocus
       anchors.fill: parent
-      anchors.margins: -Math.max(1, Style.space(2))
       focus: true
       Keys.onPressed: function(event) { panelKeyboardNavigation.handleKey(event) }
 
@@ -330,15 +330,6 @@ Panel {
         onActivated: root.viewMode === "history" ? root.showChat() : root.openHistory()
       }
 
-      Rectangle {
-        anchors.fill: parent
-        color: "#101114"
-        border.width: 1
-        border.color: "#2f3036"
-        radius: 0
-        Accessible.ignored: true
-      }
-
       ColumnLayout {
         id: chatView
         anchors.fill: parent
@@ -348,13 +339,14 @@ Panel {
         OmaPilot.Composer {
           id: composer
           Layout.fillWidth: true
-          Layout.leftMargin: 17
-          Layout.rightMargin: 17
+          Layout.leftMargin: Style.spacing.panelPadding
+          Layout.rightMargin: Style.spacing.panelPadding
           backend: OmaPilot.OmaPilotStore
           foreground: root.foreground
           background: root.surface
           accent: root.accent
           fontFamily: root.fontFamily
+          motionEnabled: root.motionEnabled
           onSubmitted: answerScroll.resetForNewTurn()
           onHistoryRequested: root.viewMode === "history" ? root.showChat() : root.openHistory()
           onEscapeRequested: root.close()
@@ -362,18 +354,18 @@ Panel {
 
         Rectangle {
           Layout.fillWidth: true
-          Layout.preferredHeight: 1
-          color: "#1d1e22"
+          Layout.preferredHeight: Style.spacing.hairline
+          color: Style.normalBorderFor(root.foreground, root.accent)
           Accessible.ignored: true
         }
 
         OmaPilot.SetupGuide {
           id: setupGuide
           Layout.fillWidth: true
-          Layout.leftMargin: 17
-          Layout.rightMargin: 17
-          Layout.topMargin: 14
-          Layout.bottomMargin: 15
+          Layout.leftMargin: Style.spacing.panelPadding
+          Layout.rightMargin: Style.spacing.panelPadding
+          Layout.topMargin: Style.spacing.xxxl
+          Layout.bottomMargin: Style.space(15)
           visible: (root.setupStage === "voice" || root.setupStage === "hotkeys")
             && OmaPilot.OmaPilotStore.question === ""
             && OmaPilot.OmaPilotStore.answerMarkdown === ""
@@ -395,36 +387,34 @@ Panel {
           Layout.minimumHeight: 0
           Layout.preferredHeight: implicitHeight
           implicitHeight: contentVisible
-            ? answerLayout.implicitHeight + 30
+            ? answerLayout.implicitHeight + Style.space(30)
             : 0
 
-          Rectangle {
+          PanelSeparator {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 1
-            color: "#1d1e22"
-            Accessible.ignored: true
+            foreground: root.foreground
           }
 
           ColumnLayout {
             id: answerLayout
             visible: answerCard.contentVisible
             anchors.fill: parent
-            anchors.leftMargin: 17
-            anchors.rightMargin: 17
-            anchors.topMargin: 14
-            anchors.bottomMargin: 15
-            spacing: 11
+            anchors.leftMargin: Style.spacing.panelPadding
+            anchors.rightMargin: Style.spacing.panelPadding
+            anchors.topMargin: Style.spacing.xxxl
+            anchors.bottomMargin: Style.space(15)
+            spacing: Style.space(11)
 
             Text {
               id: activityStatus
               Layout.fillWidth: true
               visible: root.responseActivityActive
               text: root.activityStatusText
-              color: "#8d8e95"
-              font.family: "JetBrains Mono"
-              font.pixelSize: 10
+              color: root.mutedForeground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
               elide: Text.ElideRight
               maximumLineCount: 1
               Accessible.role: Accessible.StaticText
@@ -451,7 +441,7 @@ Panel {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                spacing: 9
+                spacing: Style.space(9)
 
                 RowLayout {
                   Layout.fillWidth: true
@@ -465,9 +455,9 @@ Panel {
                     Layout.fillWidth: true
                     text: OmaPilot.OmaPilotStore.pendingPermission
                       ? OmaPilot.OmaPilotStore.pendingPermission.title : ""
-                    color: "#8d8e95"
+                    color: root.mutedForeground
                     font.family: root.fontFamily
-                    font.pixelSize: 11
+                    font.pixelSize: Style.font.bodySmall
                     wrapMode: Text.Wrap
                   }
                 }
@@ -475,9 +465,9 @@ Panel {
                 Text {
                   Layout.fillWidth: true
                   text: "Review the exact request before it runs."
-                  color: "#f0f0f2"
+                  color: root.foreground
                   font.family: root.fontFamily
-                  font.pixelSize: 15
+                  font.pixelSize: Style.font.title
                   wrapMode: Text.Wrap
                 }
 
@@ -495,9 +485,9 @@ Panel {
                     width: parent.width
                     text: OmaPilot.OmaPilotStore.pendingPermission
                       ? OmaPilot.OmaPilotStore.pendingPermission.detail : ""
-                    color: "#d5d5da"
-                    font.family: "JetBrains Mono"
-                    font.pixelSize: 11
+                    color: root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.bodySmall
                     wrapMode: Text.WrapAnywhere
                     textFormat: Text.PlainText
                     readOnly: true
@@ -548,7 +538,7 @@ Panel {
               visible: OmaPilot.OmaPilotStore.state === "complete"
                 && (OmaPilot.OmaPilotStore.answerMarkdown !== ""
                   || OmaPilot.OmaPilotStore.images.length > 0)
-              spacing: 9
+              spacing: Style.space(9)
 
               OmaPilot.ResponseBadge {
                 responseClass: OmaPilot.OmaPilotStore.response.class
@@ -557,9 +547,9 @@ Panel {
               Text {
                 Layout.fillWidth: true
                 text: Presentation.responseSummary(OmaPilot.OmaPilotStore.response)
-                color: "#8d8e95"
+                color: root.mutedForeground
                 font.family: root.fontFamily
-                font.pixelSize: 11
+                font.pixelSize: Style.font.bodySmall
                 elide: Text.ElideRight
                 Accessible.role: Accessible.StaticText
                 Accessible.name: text
@@ -581,7 +571,7 @@ Panel {
             Item {
               id: responseViewport
               Layout.fillWidth: true
-              Layout.minimumHeight: 1
+              Layout.minimumHeight: Style.spacing.hairline
               Layout.preferredHeight: Presentation.responseViewportHeight(
                 answerContent.implicitHeight, 1, Style.space(420))
 
@@ -648,7 +638,7 @@ Panel {
                 Column {
                   id: answerContent
                   width: answerScroll.width
-                  spacing: 11
+                  spacing: Style.space(11)
 
                   OmaPilot.ErrorNotice {
                     width: parent.width
@@ -698,9 +688,9 @@ Panel {
                     visible: OmaPilot.OmaPilotStore.answerMarkdown !== "" || OmaPilot.OmaPilotStore.images.length > 0
                     markdown: OmaPilot.OmaPilotStore.answerMarkdown
                     images: OmaPilot.OmaPilotStore.images
-                    foreground: "#f0f0f2"
-                    background: "#101114"
-                    accent: "#58d1dc"
+                    foreground: root.foreground
+                    background: root.surface
+                    accent: root.accent
                     fontFamily: root.fontFamily
                     onLinkActivated: function(url) { OmaPilot.OmaPilotStore.activateLink(url) }
                     onImageLoadRequested: function(image) { OmaPilot.OmaPilotStore.requestImage(image) }
@@ -714,6 +704,10 @@ Panel {
                   OmaPilot.CommandReceipt {
                     width: parent.width
                     receipt: OmaPilot.OmaPilotStore.response.receipt
+                    foreground: root.foreground
+                    background: root.surface
+                    accent: root.accent
+                    fontFamily: root.fontFamily
                   }
                 }
               }
@@ -741,7 +735,7 @@ Panel {
               Layout.fillWidth: true
               visible: OmaPilot.OmaPilotStore.answerMarkdown !== ""
                 || OmaPilot.OmaPilotStore.currentChatId !== ""
-              spacing: 6
+              spacing: Style.spacing.md
 
               Item { Layout.fillWidth: true }
 
@@ -769,10 +763,10 @@ Panel {
         OmaPilot.QuickActions {
           id: quickActions
           Layout.fillWidth: true
-          Layout.leftMargin: 17
-          Layout.rightMargin: 17
-          Layout.topMargin: 8
-          Layout.bottomMargin: 8
+          Layout.leftMargin: Style.spacing.panelPadding
+          Layout.rightMargin: Style.spacing.panelPadding
+          Layout.topMargin: Style.spacing.lg
+          Layout.bottomMargin: Style.spacing.lg
           visible: OmaPilot.OmaPilotStore.question === ""
             && OmaPilot.OmaPilotStore.answerMarkdown === ""
             && !OmaPilot.OmaPilotStore.busy
@@ -788,35 +782,33 @@ Panel {
 
         Item {
           Layout.fillWidth: true
-          Layout.preferredHeight: 37
+          Layout.preferredHeight: Style.space(37)
 
           Rectangle {
             anchors.fill: parent
-            color: "#0c0c0f"
+            color: root.surface
             Accessible.ignored: true
           }
 
-          Rectangle {
+          PanelSeparator {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 1
-            color: "#1d1e22"
-            Accessible.ignored: true
+            foreground: root.foreground
           }
 
           RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 17
-            anchors.rightMargin: 17
-            spacing: 12
+            anchors.leftMargin: Style.spacing.panelPadding
+            anchors.rightMargin: Style.spacing.panelPadding
+            spacing: Style.spacing.xxl
 
             Text {
               Layout.fillWidth: true
               text: "OmaPilot"
-              color: "#6f7077"
-              font.family: "JetBrains Mono"
-              font.pixelSize: 10
+              color: root.mutedForeground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
               Accessible.role: Accessible.StaticText
               Accessible.name: text
             }
@@ -831,9 +823,9 @@ Panel {
                 required property var modelData
                 id: footerLane
                 text: modelData.label
-                color: activeFocus || footerLaneHover.hovered ? "#58d1dc" : "#74757c"
-                font.family: "JetBrains Mono"
-                font.pixelSize: 10
+                color: activeFocus || footerLaneHover.hovered ? root.accent : root.mutedForeground
+                font.family: root.fontFamily
+                font.pixelSize: Style.font.caption
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
                 Accessible.name: "Open " + modelData.label
@@ -862,32 +854,31 @@ Panel {
                 readonly property var parts: modelData.split(" ")
                 readonly property string keyLabel: parts.length > 0 ? parts[0] : ""
                 readonly property string actionLabel: parts.slice(1).join(" ")
-                spacing: 5
+                spacing: Style.space(5)
 
-                Rectangle {
-                  width: footerKey.implicitWidth + 10
-                  height: footerKey.implicitHeight + 2
-                  color: "#1b1c20"
-                  border.width: 1
-                  border.color: "#2b2c31"
-                  radius: 0
+                BorderSurface {
+                  width: footerKey.implicitWidth + Style.spacing.xl
+                  height: footerKey.implicitHeight + Style.spacing.xxs
+                  color: Style.normalFillFor(root.foreground, root.accent)
+                  borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
+                  radius: Style.cornerRadius
 
                   Text {
                     id: footerKey
                     anchors.centerIn: parent
                     text: parent.parent.keyLabel
-                    color: "#a0a1a8"
-                    font.family: "JetBrains Mono"
-                    font.pixelSize: 10
+                    color: root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
                   }
                 }
 
                 Text {
                   anchors.verticalCenter: parent.verticalCenter
                   text: parent.actionLabel
-                  color: "#74757c"
-                  font.family: "JetBrains Mono"
-                  font.pixelSize: 10
+                  color: root.mutedForeground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.caption
                 }
               }
             }
@@ -912,10 +903,10 @@ Panel {
         ttsVoice: root.ttsVoice
         quickActions: root.quickActionItems
         motionEnabled: root.motionEnabled
-        foreground: "#f0f0f2"
-        background: "#101114"
-        accent: "#58d1dc"
-        fontFamily: "JetBrains Mono"
+        foreground: root.foreground
+        background: root.surface
+        accent: root.accent
+        fontFamily: root.fontFamily
         onDangerousAutoApproveRequested: function(enabled) {
           root.persistSettings({ dangerousAutoApprove: enabled === true })
         }
@@ -1034,7 +1025,7 @@ Panel {
         anchors.fill: parent
         visible: root.previewSource !== ""
         z: 100
-        color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.82)
+        color: Color.menu.scrim
 
         TapHandler { onTapped: root.previewSource = "" }
 

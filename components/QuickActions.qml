@@ -21,7 +21,7 @@ Item {
     id: actionFlow
     anchors.left: parent.left
     anchors.right: parent.right
-    spacing: 4
+    spacing: Style.spacing.sm
 
     Repeater {
       model: root.actions
@@ -36,10 +36,10 @@ Item {
         tooltipText: text + (String(modelData.id || "") === "work-in-app"
           && root.workInAppShortcutText !== ""
           ? " (" + root.workInAppShortcutText + ")" : "")
-        foreground: "#b9bac1"
-        background: "#101114"
-        accent: "#58d1dc"
-        fontFamily: "JetBrains Mono"
+        foreground: root.foreground
+        background: root.background
+        accent: root.accent
+        fontFamily: root.fontFamily
         bordered: false
         focusable: true
         leftAlign: true

@@ -33,9 +33,11 @@ qml_files=(
   "$repo_dir/components/SettingsTabs.qml"
   "$repo_dir/components/SegmentVisualizer.qml"
   "$repo_dir/components/SetupGuide.qml"
+  "$repo_dir/components/SplitIndicator.qml"
   "$repo_dir/components/SpectrumVisualizer.qml"
   "$repo_dir/components/StateLightBar.qml"
   "$repo_dir/components/ThinkingScanner.qml"
+  "$repo_dir/components/VoiceAction.qml"
   "$repo_dir/components/VoiceNode.qml"
   "$repo_dir/components/VoiceWave.qml"
   "$repo_dir/components/DotFieldVisualizer.qml"
@@ -209,7 +211,7 @@ if grep -Fq 'Active window, open apps, workspaces, and playing media' \
   printf 'Desktop context disclosure must be the hostname, not a capability list\n' >&2
   exit 1
 fi
-grep -Fq 'font.pixelSize: 17' "$repo_dir/components/Composer.qml"
+grep -Fq 'font.pixelSize: Style.font.heading' "$repo_dir/components/Composer.qml"
 grep -Fq 'cursorDelegate: Rectangle {' "$repo_dir/components/Composer.qml"
 grep -Fq 'sequences: ["Ctrl+H"]' "$repo_dir/Panel.qml"
 grep -Fq 'OmaPilot.ResponseBadge {' "$repo_dir/Panel.qml"
@@ -232,10 +234,11 @@ if grep -Fq 'id: caret' "$repo_dir/components/Composer.qml"; then
 fi
 grep -Fq 'dangerousAutoApprove: root.dangerousAutoApprove' "$repo_dir/Panel.qml"
 grep -Fq 'text: "OmaPilot"' "$repo_dir/components/OmaPilotHeader.qml"
-grep -Fq 'source: Qt.resolvedUrl("../assets/omapilot-mark.png")' \
-  "$repo_dir/components/OmaPilotMark.qml"
-grep -Fq 'display: QQC.AbstractButton.IconOnly' "$repo_dir/components/OmaPilotMark.qml"
-grep -Fq 'icon.color: root.accent' "$repo_dir/components/OmaPilotMark.qml"
+grep -Fq 'SplitIndicator {' "$repo_dir/components/OmaPilotMark.qml"
+grep -Fq 'gap: width * 0.18' "$repo_dir/components/OmaPilotMark.qml"
+grep -Fq 'VoiceAction {' "$repo_dir/components/Composer.qml"
+grep -Fq 'levelMetered: root.backend && "dictationMetered" in root.backend' \
+  "$repo_dir/components/Composer.qml"
 grep -Fq 'iconComponent: Component {' "$repo_dir/BarWidget.qml"
 test -s "$repo_dir/assets/omapilot-mark.png"
 if grep -RFq 'interactionMode' "$repo_dir/BarWidget.qml" "$repo_dir/Panel.qml" "$repo_dir/components"; then
@@ -540,8 +543,22 @@ if grep -Eq 'WaitingIndicator|signalClock|FrameAnimation' \
   printf 'OmaPilot perimeter motion must not retain the per-frame route implementation\n' >&2
   exit 1
 fi
-if grep -Eq '"#[[:xdigit:]]{3,8}"' "$repo_dir/components/ResponseActivityBorder.qml"; then
-  printf 'OmaPilot perimeter motion must inherit the active theme accent\n' >&2
+theme_qml=(
+  "$repo_dir/Panel.qml"
+  "$repo_dir/Ambient.qml"
+  "$repo_dir/BarWidget.qml"
+  "$repo_dir/ContextCaptureOverlay.qml"
+  "$repo_dir/components"
+)
+if grep -REq --include='*.qml' \
+    "[\"']#[[:xdigit:]]{3,8}[\"']|font\\.family:[[:space:]]*[\"']" \
+    "${theme_qml[@]}"; then
+  printf 'OmaPilot production QML must inherit Omarchy palette and typography tokens\n' >&2
+  exit 1
+fi
+if grep -RE --include='*.qml' 'font\.pixelSize:' "${theme_qml[@]}" \
+    | grep -Ev 'Style\.font\.[[:alnum:]_]+' >/dev/null; then
+  printf 'OmaPilot production QML must inherit Omarchy palette and typography tokens\n' >&2
   exit 1
 fi
 if grep -Fq 'Easing.OutBack' "$repo_dir/components/OmaPilotMark.qml"; then
@@ -852,7 +869,7 @@ if grep -Eq "visual preview failed|Failed to load|Type .* unavailable|Cannot ass
 fi
 
 for preview_state in settings skills-settings voice-settings desktop-settings actions-settings \
-    setup-voice setup-hotkeys history waiting streaming error error-details context; do
+    setup-voice setup-hotkeys history waiting streaming error error-details context dictating; do
   preview_output="$repo_dir/screenshots/implementation-omapilot-$preview_state.png"
   OMAPILOT_PREVIEW_STATE="$preview_state" OMAPILOT_PREVIEW_PATH="$preview_output" \
     QT_QPA_PLATFORM=offscreen timeout 5s quickshell --no-duplicate \

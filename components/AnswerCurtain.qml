@@ -3,6 +3,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import qs.Ui
 import "StateColor.js" as StateColor
 import "." as OmaPilot
 
@@ -79,23 +80,22 @@ Item {
       y: -height * (1 - card.slid) + Style.space(14) * card.slid
       opacity: card.slid
 
-      Rectangle {
+      BorderSurface {
         anchors.fill: parent
         radius: Style.cornerRadius
-        color: Qt.rgba(Color.popups.background.r, Color.popups.background.g,
-                       Color.popups.background.b, 0.97)
-        border.width: Style.normalBorderWidth
-        border.color: Qt.rgba(root.lightColor.r, root.lightColor.g, root.lightColor.b, 0.28)
+        color: Color.popups.background
+        borderSpec: Border.surfaceSpec(
+          "popups", "border", Color.popups.border, Math.max(1, Style.normalBorderWidth))
       }
 
       // An edge-lit seam along the top: brightest at the centre, gone by the
       // corners. A flat bar of colour would read as a progress indicator; the
       // gradient reads as the same light the node emits, arriving from above.
       Rectangle {
-        width: parent.width - 2
-        height: 1
+        width: parent.width - Style.spacing.xxs
+        height: Style.spacing.hairline
         anchors.horizontalCenter: parent.horizontalCenter
-        y: 1
+        y: Style.spacing.hairline
         gradient: Gradient {
           orientation: Gradient.Horizontal
           GradientStop { position: 0.0; color: "transparent" }
@@ -112,7 +112,7 @@ Item {
         width: parent.width * 0.7
         height: Style.space(4)
         anchors.horizontalCenter: parent.horizontalCenter
-        y: parent.height - 2
+        y: parent.height - Style.spacing.xxs
         Rectangle { anchors.fill: parent; radius: height / 2; color: root.lightColor }
       }
       MultiEffect {

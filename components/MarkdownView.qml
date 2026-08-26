@@ -125,7 +125,7 @@ Item {
       readOnly: true
       color: root.foreground
       font.family: root.fontFamily
-      font.pixelSize: 15
+      font.pixelSize: Style.font.title
       wrapMode: Text.Wrap
       selectByMouse: true
       onLinkActivated: function(link) { root.linkActivated(String(link)) }
@@ -201,7 +201,7 @@ Item {
           selectionColor: Style.selectionFillFor(root.foreground, root.accent)
           selectedTextColor: root.foreground
           font.family: root.fontFamily
-          font.pixelSize: 11
+          font.pixelSize: Style.font.bodySmall
           wrapMode: TextEdit.NoWrap
           Accessible.name: (block.language || "Code") + " block"
         }

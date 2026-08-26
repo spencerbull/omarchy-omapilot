@@ -19,19 +19,21 @@ Item {
   signal dismissed()
   signal authenticationRequested()
 
-  implicitHeight: content.implicitHeight
+  implicitHeight: Style.space(360)
 
   function forceInitialFocus() {
     backButton.forceActiveFocus()
   }
 
   ColumnLayout {
-    id: content
     anchors.fill: parent
-    spacing: Style.spacing.xxl
+    spacing: 0
 
     RowLayout {
       Layout.fillWidth: true
+      Layout.preferredHeight: Style.space(56)
+      Layout.leftMargin: Style.spacing.panelPadding
+      Layout.rightMargin: Style.spacing.panelPadding
       spacing: Style.spacing.md
 
       PanelActionButton {
@@ -65,35 +67,43 @@ Item {
       }
     }
 
-    BorderSurface {
+    Rectangle {
+      Layout.fillWidth: true
+      Layout.preferredHeight: Style.spacing.hairline
+      color: Style.normalBorderFor(root.foreground, root.accent)
+      Accessible.ignored: true
+    }
+
+    Flickable {
+      id: detailsScroll
       Layout.fillWidth: true
       Layout.fillHeight: true
-      implicitHeight: detailsContent.implicitHeight + contentTopInset + contentBottomInset
-        + Style.spacing.xxl * 2
-      color: Style.normalFillFor(Color.urgent, Color.urgent)
-      borderSpec: Border.controlSpec("normal", Color.urgent, Color.urgent)
-      radius: Style.cornerRadius
+      contentWidth: width
+      contentHeight: detailsCard.implicitHeight + Style.spacing.panelPadding * 2
+      boundsBehavior: Flickable.StopAtBounds
+      interactive: contentHeight > height
       clip: true
 
-      Flickable {
-        id: detailsScroll
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.leftMargin: parent.contentLeftInset + Style.spacing.xxl
-        anchors.rightMargin: parent.contentRightInset + Style.spacing.xxl
-        anchors.topMargin: parent.contentTopInset + Style.spacing.xxl
-        anchors.bottomMargin: parent.contentBottomInset + Style.spacing.xxl
-        contentWidth: width
-        contentHeight: detailsContent.implicitHeight
-        boundsBehavior: Flickable.StopAtBounds
-        interactive: contentHeight > height
+      BorderSurface {
+        id: detailsCard
+        x: Style.spacing.panelPadding
+        y: Style.spacing.panelPadding
+        width: Math.max(0, detailsScroll.width - Style.spacing.panelPadding * 2)
+        implicitHeight: detailsContent.implicitHeight + contentTopInset + contentBottomInset
+        padding: Style.spacing.xxl
+        color: Style.normalFillFor(Color.urgent, Color.urgent)
+        borderSpec: Border.controlSpec("normal", Color.urgent, Color.urgent)
+        radius: Style.cornerRadius
         clip: true
 
         ColumnLayout {
           id: detailsContent
-          width: detailsScroll.width
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.top: parent.top
+          anchors.leftMargin: parent.contentLeftInset
+          anchors.rightMargin: parent.contentRightInset
+          anchors.topMargin: parent.contentTopInset
           spacing: Style.spacing.lg
 
           Text {
@@ -120,9 +130,11 @@ Item {
             Accessible.name: text
           }
 
-          PanelSeparator {
+          Rectangle {
             Layout.fillWidth: true
-            foreground: root.foreground
+            Layout.preferredHeight: Style.spacing.hairline
+            color: Style.normalBorderFor(root.foreground, root.accent)
+            Accessible.ignored: true
           }
 
           RowLayout {
@@ -143,6 +155,7 @@ Item {
               color: root.foreground
               font.family: root.fontFamily
               font.pixelSize: Style.font.bodySmall
+              wrapMode: TextEdit.WrapAnywhere
               textFormat: Text.PlainText
               readOnly: true
               selectByMouse: true
@@ -170,8 +183,9 @@ Item {
             }
           }
 
-          RowLayout {
+          Flow {
             Layout.fillWidth: true
+            Layout.preferredHeight: implicitHeight
             spacing: Style.spacing.md
 
             Button {
@@ -183,8 +197,6 @@ Item {
               focusable: true
               onClicked: root.backend.copyText(Protocol.errorDiagnosticText(root.normalized))
             }
-
-            Item { Layout.fillWidth: true }
 
             Button {
               visible: root.backend && root.backend.provider === "builtin"

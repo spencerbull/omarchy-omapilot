@@ -8,6 +8,8 @@ HistoryView 1.0 HistoryView.qml
 MarkdownView 1.0 MarkdownView.qml
 OmaPilotHeader 1.0 OmaPilotHeader.qml
 OmaPilotMark 1.0 OmaPilotMark.qml
+SplitIndicator 1.0 SplitIndicator.qml
+VoiceAction 1.0 VoiceAction.qml
 QuickActions 1.0 QuickActions.qml
 QuickActionEditor 1.0 QuickActionEditor.qml
 CommandReceipt 1.0 CommandReceipt.qml

@@ -74,11 +74,10 @@ ColumnLayout {
         spacing: Style.spacing.sm
 
         Rectangle {
-          Layout.preferredWidth: 2
+          Layout.preferredWidth: Style.spacing.xxs
           Layout.preferredHeight: Style.space(16)
-          radius: 1
+          radius: Style.space(1)
           color: root.accent
-          opacity: 0.7
         }
 
         Text {

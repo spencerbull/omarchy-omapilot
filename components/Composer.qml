@@ -15,7 +15,8 @@ Item {
   property color background: Color.popups.background
   property color accent: Color.accent
   property string fontFamily: Style.font.family
-  property string monoFontFamily: "JetBrains Mono"
+  property string monoFontFamily: Style.font.family
+  property bool motionEnabled: true
 
   signal providerChanged(string provider)
   signal modelChanged(string provider, string model)
@@ -140,16 +141,21 @@ Item {
       }
     }
 
-    PanelActionButton {
+    VoiceAction {
       Layout.alignment: Qt.AlignVCenter
       iconText: root.backend && root.backend.state === "dictating" ? "󰓛" : "󰍬"
       tooltipText: root.backend && root.backend.state === "dictating" ? "Stop dictation"
         : (root.backend && root.backend.voiceEnabled === false ? "Enable voice in Settings" : "Dictate")
       foreground: root.foreground
-      focusable: true
+      accent: root.accent
+      listening: root.backend && root.backend.state === "dictating"
+      levelMetered: root.backend && "dictationMetered" in root.backend
+        && root.backend.dictationMetered === true
+      level: root.backend && "dictationLevel" in root.backend
+        ? Number(root.backend.dictationLevel || 0) : 0
+      motionEnabled: root.motionEnabled
       enabled: root.backend && root.backend.providerReady && !root.backend.continuationBlocked
         && root.backend.state !== "streaming" && root.backend.state !== "preparing"
-      Accessible.name: tooltipText
       onClicked: {
         if (root.backend.state === "dictating") root.backend.stopDictation()
         else root.backend.startDictation()
@@ -178,30 +184,38 @@ Item {
     visible: !root.inlineMode
     spacing: 0
 
-    Repeater {
-      id: attachmentRepeater
-      model: root.backend && Array.isArray(root.backend.contextAttachments)
-        ? root.backend.contextAttachments : []
-      onItemAdded: Qt.callLater(root.refreshAttachmentPopupState)
-      onItemRemoved: Qt.callLater(root.refreshAttachmentPopupState)
+    ColumnLayout {
+      Layout.fillWidth: true
+      Layout.topMargin: Style.spacing.lg
+      Layout.bottomMargin: Style.spacing.lg
+      spacing: Style.spacing.sm
+      visible: attachmentRepeater.count > 0
 
-      ContextAttachmentPreview {
-        required property var modelData
-        Layout.fillWidth: true
-        backend: root.backend
-        attachment: modelData
-        foreground: root.foreground
-        background: root.background
-        accent: root.accent
-        fontFamily: root.fontFamily
-        onPopupOpenChanged: root.refreshAttachmentPopupState()
+      Repeater {
+        id: attachmentRepeater
+        model: root.backend && Array.isArray(root.backend.contextAttachments)
+          ? root.backend.contextAttachments : []
+        onItemAdded: Qt.callLater(root.refreshAttachmentPopupState)
+        onItemRemoved: Qt.callLater(root.refreshAttachmentPopupState)
+
+        ContextAttachmentPreview {
+          required property var modelData
+          Layout.fillWidth: true
+          backend: root.backend
+          attachment: modelData
+          foreground: root.foreground
+          background: root.background
+          accent: root.accent
+          fontFamily: root.fontFamily
+          onPopupOpenChanged: root.refreshAttachmentPopupState()
+        }
       }
     }
 
     Item {
       id: promptRow
       Layout.fillWidth: true
-      Layout.preferredHeight: 56
+      Layout.preferredHeight: Style.space(56)
       visible: !root.backend || root.backend.pendingPermission === null
 
       TextArea {
@@ -217,22 +231,23 @@ Item {
           : (root.backend && root.backend.initialized
             ? "Ask, or name a workspace, app, or setting"
             : "Starting OmaPilot\u2026")
-        placeholderTextColor: root.showingQuestion ? "#f0f0f2" : "#74757c"
-        color: "#f0f0f2"
+        placeholderTextColor: root.showingQuestion
+          ? root.foreground : Qt.darker(root.foreground, 1.45)
+        color: root.foreground
         selectionColor: Style.selectionFillFor(root.foreground, root.accent)
-        selectedTextColor: "#eeeef1"
+        selectedTextColor: root.foreground
         font.family: root.monoFontFamily
-        font.pixelSize: 17
+        font.pixelSize: Style.font.heading
         wrapMode: TextEdit.NoWrap
         background: null
         cursorDelegate: Rectangle {
-          width: root.showingQuestion || root.draftText.length === 0 ? 0 : 8
-          height: 20
-          color: "#58d1dc"
+          width: root.showingQuestion || root.draftText.length === 0 ? 0 : Style.space(8)
+          height: Style.space(20)
+          color: root.accent
         }
         leftPadding: 0
-        topPadding: 15
-        bottomPadding: 14
+        topPadding: Style.space(15)
+        bottomPadding: Style.spacing.xxxl
         Accessible.name: "OmaPilot request"
         onTextEdited: root.draftText = text
 
@@ -256,7 +271,7 @@ Item {
         id: promptTools
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        spacing: 7
+        spacing: Style.space(7)
 
         PanelActionButton {
           iconText: "󰹑"
@@ -268,14 +283,20 @@ Item {
           onClicked: root.backend.beginContextCapture()
         }
 
-        PanelActionButton {
+        VoiceAction {
           iconText: root.backend && (root.backend.busy || root.backend.state === "dictating")
             ? "󰓛" : "󰍬"
-          tooltipText: root.backend && root.backend.busy ? "Stop response" : "Dictate with Voxtype"
-          foreground: root.backend && root.backend.state === "dictating" ? root.accent : root.foreground
-          focusable: true
+          tooltipText: root.backend && root.backend.state === "dictating" ? "Stop dictation"
+            : (root.backend && root.backend.busy ? "Stop response" : "Dictate with Voxtype")
+          foreground: root.foreground
+          accent: root.accent
+          listening: root.backend && root.backend.state === "dictating"
+          levelMetered: root.backend && "dictationMetered" in root.backend
+            && root.backend.dictationMetered === true
+          level: root.backend && "dictationLevel" in root.backend
+            ? Number(root.backend.dictationLevel || 0) : 0
+          motionEnabled: root.motionEnabled
           enabled: root.backend && root.backend.providerReady && !root.backend.continuationBlocked
-          Accessible.name: tooltipText
           onClicked: {
             if (root.backend.busy && root.backend.state !== "dictating") root.backend.cancel()
             else if (root.backend.state === "dictating") root.backend.stopDictation()

@@ -19,7 +19,7 @@ Item {
 
   signal selected(string id)
 
-  implicitHeight: 24
+  implicitHeight: Style.space(24)
   implicitWidth: tabRow.implicitWidth
   activeFocusOnTab: true
   Accessible.role: Accessible.PageTabList
@@ -53,7 +53,7 @@ Item {
   Row {
     id: tabRow
     anchors.verticalCenter: parent.verticalCenter
-    spacing: 16
+    spacing: Style.space(16)
 
     Repeater {
       id: tabRepeater
@@ -68,9 +68,9 @@ Item {
 
         text: String(modelData.label || "")
         color: tabLabel.currentTab || tabHover.hovered || (root.activeFocus && index === root.currentIndex)
-          ? root.accent : "#74757c"
-        font.family: "JetBrains Mono"
-        font.pixelSize: 10
+          ? root.accent : Qt.darker(root.foreground, 1.45)
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.caption
         font.bold: false
         Accessible.role: Accessible.PageTab
         Accessible.name: text
@@ -94,17 +94,17 @@ Item {
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.bottom: parent.bottom
-    height: 1
+    height: Style.spacing.hairline
 
     Rectangle {
       anchors.fill: parent
-      color: "#1d1e22"
+      color: Style.normalBorderFor(root.foreground, root.accent)
     }
 
     Rectangle {
       id: activeSegment
       height: parent.height
-      width: Math.max(24, activeTabWidth)
+      width: Math.max(Style.space(24), activeTabWidth)
       x: activeTabX
       color: root.accent
 
@@ -114,7 +114,7 @@ Item {
       }
       readonly property real activeTabWidth: {
         var item = tabRepeater.itemAt(root.currentIndex)
-        return item ? item.width : 24
+        return item ? item.width : Style.space(24)
       }
     }
   }

@@ -18,10 +18,11 @@ BorderSurface {
   readonly property var representationOptions: Protocol.contextRepresentationOptions(attachment)
   readonly property bool popupOpen: representationSelector.popupOpen
 
-  implicitHeight: Style.space(86)
+  implicitHeight: Style.space(92)
   color: Style.normalFillFor(foreground, accent)
   borderSpec: Border.controlSpec("normal", foreground, accent)
   radius: Style.cornerRadius
+  padding: Style.spacing.md
 
   function selectedPreview() {
     var values = attachment && attachment.representations && attachment.representations.length !== undefined
@@ -38,14 +39,17 @@ BorderSurface {
 
   RowLayout {
     anchors.fill: parent
-    anchors.margins: Style.spacing.sm
+    anchors.leftMargin: root.contentLeftInset
+    anchors.rightMargin: root.contentRightInset
+    anchors.topMargin: root.contentTopInset
+    anchors.bottomMargin: root.contentBottomInset
     spacing: Style.spacing.md
 
     Rectangle {
-      Layout.preferredWidth: Style.space(92)
+      Layout.preferredWidth: Style.space(80)
       Layout.fillHeight: true
       radius: Math.max(1, Style.cornerRadius - Style.spacing.xxs)
-      color: Qt.darker(root.background, 1.15)
+      color: Style.normalFillFor(root.foreground, root.accent)
       clip: true
 
       Image {
@@ -61,11 +65,10 @@ BorderSurface {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.margins: Style.spacing.xxs
-        width: kindLabel.implicitWidth + Style.spacing.sm
-        height: kindLabel.implicitHeight + Style.spacing.xxs
+        width: kindLabel.implicitWidth + Style.spacing.md * 2
+        height: kindLabel.implicitHeight + Style.spacing.xxs * 2
         radius: height / 2
-        color: Color.popups.background
-        opacity: 0.9
+        color: root.background
 
         Text {
           id: kindLabel
@@ -98,7 +101,7 @@ BorderSurface {
         Layout.fillWidth: true
         Layout.fillHeight: true
         text: root.selectedPreview()
-        color: Qt.darker(root.foreground, 1.4)
+        color: Qt.darker(root.foreground, 1.45)
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         maximumLineCount: 2

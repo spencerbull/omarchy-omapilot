@@ -1,40 +1,32 @@
 import QtQuick
+import qs.Commons
+import qs.Ui
 
-Item {
+BorderSurface {
   id: root
 
   property string responseClass: "ANSWER"
-  property string fontFamily: "JetBrains Mono"
-  readonly property var colors: {
-    var palettes = {
-      "ACTION": { foreground: "#3fc48c", background: "#1e3329" },
-      "ANSWER": { foreground: "#b8c9ff", background: "#29283d" },
-      "CONFIRM": { foreground: "#f2c36b", background: "#403019" },
-      "PLAN": { foreground: "#f2c36b", background: "#403019" },
-      "UNSURE": { foreground: "#f2a293", background: "#422623" }
-    }
-    return palettes[root.responseClass] || palettes.ANSWER
-  }
+  property color foreground: Color.popups.text
+  property color accent: Color.accent
+  property string fontFamily: Style.font.family
+  readonly property color tone: responseClass === "UNSURE" ? Color.urgent : accent
 
-  implicitWidth: label.implicitWidth + 12
-  implicitHeight: 18
+  implicitWidth: label.implicitWidth + Style.spacing.xxl
+  implicitHeight: Style.space(18)
+  color: Style.selectedFillFor(tone, tone, tone)
+  borderSpec: Border.controlSpec("normal", tone, tone, tone)
+  radius: Style.cornerRadius
   Accessible.role: Accessible.StaticText
   Accessible.name: root.responseClass
 
-  Rectangle {
-    anchors.fill: parent
-    color: root.colors.background
-    radius: 0
-
-    Text {
-      id: label
-      anchors.centerIn: parent
-      text: root.responseClass
-      color: root.colors.foreground
-      font.family: root.fontFamily
-      font.pixelSize: 9
-      font.bold: true
-      font.letterSpacing: 0.5
-    }
+  Text {
+    id: label
+    anchors.centerIn: parent
+    text: root.responseClass
+    color: root.tone
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
+    font.bold: true
+    font.letterSpacing: Style.spaceReal(0.5)
   }
 }
