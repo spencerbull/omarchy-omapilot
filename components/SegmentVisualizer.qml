@@ -5,22 +5,25 @@ import qs.Commons
 Item {
   id: root
 
-  property color accent: Color.accent
+  property color accent: OmaPilotPalette.accent
   property real level: 0.5
   property bool levelMetered: false
   property real intensity: 1
+  property bool compact: false
   property bool motionEnabled: true
-  readonly property int columns: 27
-  readonly property int rows: 7
+  readonly property int columns: compact ? 9 : 27
+  readonly property int rows: compact ? 3 : 7
   readonly property real boundedLevel: Math.max(0, Math.min(1, level))
   readonly property real visualLevel: levelMetered && boundedLevel > 0.025
     ? Math.min(1, Math.pow((boundedLevel - 0.025) / 0.975, 0.62) * 1.18)
     : (levelMetered ? 0 : boundedLevel * 0.78)
-  readonly property real trackWidth: width * 0.76
-  readonly property real columnGap: Math.max(2, Style.spaceReal(3))
-  readonly property real rowGap: Math.max(2, Math.min(Style.spaceReal(4), height * 0.035))
-  readonly property real segmentHeight: Math.max(4, Math.min(Style.spaceReal(9), height * 0.085))
-  readonly property real segmentWidth: Math.max(4,
+  readonly property real trackWidth: width * (compact ? 0.9 : 0.76)
+  readonly property real columnGap: compact ? 2 : Math.max(2, Style.spaceReal(3))
+  readonly property real rowGap: compact ? 2
+    : Math.max(2, Math.min(Style.spaceReal(4), height * 0.035))
+  readonly property real segmentHeight: compact ? Math.max(2, height * 0.16)
+    : Math.max(4, Math.min(Style.spaceReal(9), height * 0.085))
+  readonly property real segmentWidth: Math.max(compact ? 2 : 4,
     (trackWidth - columnGap * (columns - 1)) / columns)
   readonly property real gridHeight: rows * segmentHeight + (rows - 1) * rowGap
   property real phase: 0
@@ -74,7 +77,7 @@ Item {
             width: segmentColumn.width
             height: root.segmentHeight
             color: !active ? root.alphaColor(root.accent, 0.13)
-              : root.alphaColor(peak ? Qt.lighter(root.accent, 1.35) : root.accent,
+              : root.alphaColor(root.accent,
                 peak ? 0.95 : Math.max(0.38, 0.76 - index * 0.055))
           }
         }

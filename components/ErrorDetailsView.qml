@@ -9,9 +9,9 @@ Item {
 
   required property var backend
   property var details: null
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   readonly property var normalized: Protocol.normalizedError(details,
     backend ? backend.statusMessage : "OmaPilot could not complete that request.")
@@ -34,7 +34,7 @@ Item {
       Layout.preferredHeight: Style.space(56)
       Layout.leftMargin: Style.spacing.panelPadding
       Layout.rightMargin: Style.spacing.panelPadding
-      spacing: Style.spacing.md
+      spacing: Style.space(9)
 
       PanelActionButton {
         id: backButton
@@ -60,7 +60,7 @@ Item {
 
         Text {
           text: "What OmaPilot received from the current harness"
-          color: Qt.darker(root.foreground, 1.45)
+          color: OmaPilotPalette.darkForeground
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
         }
@@ -70,7 +70,7 @@ Item {
     Rectangle {
       Layout.fillWidth: true
       Layout.preferredHeight: Style.spacing.hairline
-      color: Style.normalBorderFor(root.foreground, root.accent)
+      color: OmaPilotPalette.normalBorder(root.foreground)
       Accessible.ignored: true
     }
 
@@ -91,8 +91,9 @@ Item {
         width: Math.max(0, detailsScroll.width - Style.spacing.panelPadding * 2)
         implicitHeight: detailsContent.implicitHeight + contentTopInset + contentBottomInset
         padding: Style.spacing.xxl
-        color: Style.normalFillFor(Color.urgent, Color.urgent)
-        borderSpec: Border.controlSpec("normal", Color.urgent, Color.urgent)
+        color: OmaPilotPalette.normalFill(OmaPilotPalette.urgent)
+        borderSpec: Border.flat(
+          OmaPilotPalette.normalBorder(OmaPilotPalette.urgent), Style.normalBorderWidth)
         radius: Style.cornerRadius
         clip: true
 
@@ -109,7 +110,7 @@ Item {
           Text {
             Layout.fillWidth: true
             text: root.normalized.title
-            color: Color.urgent
+            color: OmaPilotPalette.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.subtitle
             font.bold: true
@@ -133,7 +134,7 @@ Item {
           Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Style.spacing.hairline
-            color: Style.normalBorderFor(root.foreground, root.accent)
+            color: OmaPilotPalette.normalBorder(root.foreground)
             Accessible.ignored: true
           }
 
@@ -143,7 +144,7 @@ Item {
 
             Text {
               text: "Code"
-              color: Qt.darker(root.foreground, 1.45)
+              color: OmaPilotPalette.darkForeground
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               font.bold: true
@@ -168,7 +169,7 @@ Item {
 
             Text {
               text: "Retryable"
-              color: Qt.darker(root.foreground, 1.45)
+              color: OmaPilotPalette.darkForeground
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               font.bold: true
@@ -191,6 +192,7 @@ Item {
             Button {
               iconText: "󰆏"
               text: "Copy details"
+              iconSize: fontSize
               foreground: root.foreground
               background: root.background
               bordered: true

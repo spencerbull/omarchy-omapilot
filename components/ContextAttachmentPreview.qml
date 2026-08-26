@@ -9,9 +9,9 @@ BorderSurface {
 
   required property var backend
   required property var attachment
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
 
   readonly property string selectedMode: Protocol.contextRepresentationMode(attachment)
@@ -19,8 +19,8 @@ BorderSurface {
   readonly property bool popupOpen: representationSelector.popupOpen
 
   implicitHeight: Style.space(92)
-  color: Style.normalFillFor(foreground, accent)
-  borderSpec: Border.controlSpec("normal", foreground, accent)
+  color: OmaPilotPalette.normalFill(foreground)
+  borderSpec: Border.flat(OmaPilotPalette.normalBorder(foreground), Style.normalBorderWidth)
   radius: Style.cornerRadius
   padding: Style.spacing.md
 
@@ -49,7 +49,7 @@ BorderSurface {
       Layout.preferredWidth: Style.space(80)
       Layout.fillHeight: true
       radius: Math.max(1, Style.cornerRadius - Style.spacing.xxs)
-      color: Style.normalFillFor(root.foreground, root.accent)
+      color: OmaPilotPalette.normalFill(root.foreground)
       clip: true
 
       Image {
@@ -101,7 +101,7 @@ BorderSurface {
         Layout.fillWidth: true
         Layout.fillHeight: true
         text: root.selectedPreview()
-        color: Qt.darker(root.foreground, 1.45)
+        color: OmaPilotPalette.darkForeground
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         maximumLineCount: 2
@@ -123,16 +123,15 @@ BorderSurface {
       onChanged: function(value) { root.backend.setContextRepresentation(root.attachment.id, value) }
     }
 
-    Button {
+    PanelActionButton {
       Layout.alignment: Qt.AlignVCenter
       iconText: "󰆴"
       tooltipText: "Remove context"
       foreground: root.foreground
-      background: root.background
+      hoverColor: OmaPilotPalette.urgent
+      size: Style.space(34)
       bordered: true
       focusable: true
-      horizontalPadding: Style.spacing.md
-      verticalPadding: Style.spacing.md
       Accessible.name: tooltipText
       onClicked: root.backend.removeContextAttachment(root.attachment.id)
     }

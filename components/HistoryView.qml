@@ -8,11 +8,11 @@ Item {
   id: root
 
   property var history: []
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
-  readonly property color mutedForeground: Qt.darker(foreground, 1.45)
+  readonly property color mutedForeground: OmaPilotPalette.darkForeground
   property bool motionEnabled: true
   property bool confirmingClear: false
   readonly property bool modalInteractionActive: confirmingClear
@@ -66,8 +66,8 @@ Item {
         visible: root.history.length > 0
         text: root.confirmingClear ? "Clear all?" : "Clear"
         color: root.confirmingClear
-          ? Color.urgent
-          : (activeFocus || clearHover.hovered ? root.foreground : Qt.darker(root.foreground, 1.35))
+          ? OmaPilotPalette.urgent
+          : (activeFocus || clearHover.hovered ? root.foreground : OmaPilotPalette.darkForeground)
         font.family: root.fontFamily
         font.pixelSize: Style.font.bodySmall
         font.underline: clearHover.hovered || root.confirmingClear || activeFocus
@@ -113,7 +113,7 @@ Item {
         anchors.centerIn: parent
         width: parent.width - Style.spacing.xxl * 2
         text: "No saved chats yet.\nThe latest 30 completed answers appear here."
-        color: Qt.darker(root.foreground, 1.55)
+        color: OmaPilotPalette.darkForeground
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         horizontalAlignment: Text.AlignHCenter
@@ -161,7 +161,7 @@ Item {
 
           Rectangle {
             anchors.fill: parent
-            color: Style.hoverFillFor(root.foreground, root.accent)
+            color: OmaPilotPalette.hoverFill(root.foreground)
             opacity: row.hot ? 1 : 0
           }
 
@@ -208,7 +208,7 @@ Item {
               iconText: "󰆴"
               tooltipText: "Delete chat"
               foreground: root.foreground
-              hoverColor: Color.urgent
+              hoverColor: OmaPilotPalette.urgent
               // Opacity 0 still receives taps, so non-current rows would delete
               // from empty space on pointers that never hover. Disable the
               // control until the row is current, hovered, or this button is
@@ -238,7 +238,7 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         height: Style.spacing.hairline
-        color: Style.normalBorderFor(root.foreground, root.accent)
+        color: OmaPilotPalette.normalBorder(root.foreground)
       }
 
       RowLayout {

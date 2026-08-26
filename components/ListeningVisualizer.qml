@@ -5,16 +5,16 @@ import "Protocol.js" as Protocol
 Item {
   id: root
 
-  property string visualizer: "kitt"
-  property color accent: Color.accent
+  property string visualizer: "segments"
+  property color accent: OmaPilotPalette.accent
   property real level: 0.5
   property bool levelMetered: false
   property real intensity: 1
+  property bool compact: false
   property bool motionEnabled: true
   readonly property string selectedVisualizer:
-    Protocol.normalizedVoiceVisualizer(visualizer) || "kitt"
+    Protocol.normalizedVoiceVisualizer(visualizer) || "segments"
   readonly property bool rendererLoaded: visualizerLoader.status === Loader.Ready
-  readonly property bool voiceBoxActive: selectedVisualizer === "kitt"
   readonly property real rendererPhase: rendererLoaded && visualizerLoader.item !== null
     && visualizerLoader.item.phase !== undefined ? Number(visualizerLoader.item.phase) : 0
 
@@ -22,11 +22,9 @@ Item {
     id: visualizerLoader
     anchors.fill: parent
     active: root.visible
-    sourceComponent: root.selectedVisualizer === "bumper" ? bumperComponent
-      : (root.selectedVisualizer === "segments" ? segmentsComponent
-        : (root.selectedVisualizer === "spectrum" ? spectrumComponent
-          : (root.selectedVisualizer === "dots" ? dotsComponent
-            : waveComponent)))
+    sourceComponent: root.selectedVisualizer === "segments" ? segmentsComponent
+      : (root.selectedVisualizer === "spectrum" ? spectrumComponent
+        : (root.selectedVisualizer === "dots" ? dotsComponent : waveComponent))
   }
 
   Component {
@@ -34,22 +32,10 @@ Item {
     VoiceWave {
       accent: root.accent
       level: root.level
-      levelMetered: root.levelMetered
       intensity: root.intensity
+      compact: root.compact
       motionEnabled: root.motionEnabled
       motionStyle: "listening"
-      visualizer: root.selectedVisualizer
-    }
-  }
-
-  Component {
-    id: bumperComponent
-    BumperVisualizer {
-      accent: root.accent
-      level: root.level
-      levelMetered: root.levelMetered
-      intensity: root.intensity
-      motionEnabled: root.motionEnabled
     }
   }
 
@@ -60,6 +46,7 @@ Item {
       level: root.level
       levelMetered: root.levelMetered
       intensity: root.intensity
+      compact: root.compact
       motionEnabled: root.motionEnabled
     }
   }
@@ -71,6 +58,7 @@ Item {
       level: root.level
       levelMetered: root.levelMetered
       intensity: root.intensity
+      compact: root.compact
       motionEnabled: root.motionEnabled
     }
   }
@@ -82,6 +70,7 @@ Item {
       level: root.level
       levelMetered: root.levelMetered
       intensity: root.intensity
+      compact: root.compact
       motionEnabled: root.motionEnabled
     }
   }

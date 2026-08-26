@@ -6,15 +6,15 @@ BorderSurface {
   id: root
 
   property string responseClass: "ANSWER"
-  property color foreground: Color.popups.text
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
-  readonly property color tone: responseClass === "UNSURE" ? Color.urgent : accent
+  readonly property color tone: responseClass === "UNSURE" ? OmaPilotPalette.urgent : accent
 
   implicitWidth: label.implicitWidth + Style.spacing.xxl
   implicitHeight: Style.space(18)
-  color: Style.selectedFillFor(tone, tone, tone)
-  borderSpec: Border.controlSpec("normal", tone, tone, tone)
+  color: OmaPilotPalette.selectedFill(tone)
+  borderSpec: Border.flat(OmaPilotPalette.normalBorder(tone), Style.normalBorderWidth)
   radius: Style.cornerRadius
   Accessible.role: Accessible.StaticText
   Accessible.name: root.responseClass

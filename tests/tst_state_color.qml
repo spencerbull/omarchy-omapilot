@@ -1,87 +1,68 @@
 import QtQuick
 import QtTest
 import "../components/StateColor.js" as StateColor
+import "../components/PaletteParser.js" as PaletteParser
 
 TestCase {
   name: "OmaPilotStateColor"
 
+  readonly property color accent: "#7aa2f7"
+  readonly property color thinking: "#e09145"
+  readonly property color finished: "#84a86a"
   readonly property color urgent: "#a55555"
 
-  function phases() {
-    return ["listening", "thinking", "answering"]
+  function phaseColor(phase) {
+    return StateColor.forPhase(accent, thinking, finished, urgent, phase)
   }
 
-  function test_everyStateIsVisiblyDistinctInAnyTheme() {
-    // A blue accent, a warm one, a green one, and a near-grey one. The green
-    // case is the interesting one: an absolute "success green" would have
-    // collided with the accent, which is why the states rotate instead.
-    var accents = ["#7aa2f7", "#c4746e", "#8fb573", "#cacccc", "#111111", "#ffffff"]
-    for (var a = 0; a < accents.length; a++) {
-      var accent = accents[a]
-      var seen = []
-      for (var p = 0; p < phases().length; p++)
-        seen.push(StateColor.forPhase(accent, urgent, phases()[p]))
-      for (var i = 0; i < seen.length; i++) {
-        for (var j = i + 1; j < seen.length; j++) {
-          // Either a clear hue separation, or a clear saturation separation for
-          // a monochrome accent whose listening state stays grey on purpose.
-          var byHue = StateColor.hueDistance(seen[i], seen[j]) > 0.07
-          var bySaturation = Math.abs(seen[i].hslSaturation - seen[j].hslSaturation) > 0.2
-          verify(byHue || bySaturation,
-            "states " + phases()[i] + "/" + phases()[j] + " too close for accent " + accent)
-        }
-      }
-    }
+  function test_eachStateUsesItsThemeRoleUnchanged() {
+    compare(Qt.colorEqual(phaseColor("listening"), accent), true)
+    compare(Qt.colorEqual(phaseColor("thinking"), thinking), true)
+    compare(Qt.colorEqual(phaseColor("answering"), finished), true)
+    compare(Qt.colorEqual(phaseColor("error"), urgent), true)
   }
 
-  function test_failureUsesTheThemeUrgentRoleUnchanged() {
-    // Urgent is the one role a theme defines specifically to mean "wrong", so it
-    // is passed through rather than derived.
-    var failed = StateColor.forPhase("#7aa2f7", urgent, "error")
-    compare(Qt.colorEqual(failed, urgent), true)
+  function test_themePaletteUsesNamedOrangeAndGreen() {
+    var roles = PaletteParser.parse(
+      'background = "#111111"\nforeground = "#eeeeee"\naccent = "#7788aa"\n'
+      + 'muted = "#777777"\nred = "#cc6666"\nyellow = "#d8a657"\n'
+      + 'orange = "#e1875c"\ngreen = "#a9b665"\ncolor2 = "#111111"\ncolor3 = "#222222"')
+    compare(Qt.colorEqual(roles.orange, "#e1875c"), true)
+    compare(Qt.colorEqual(roles.green, "#a9b665"), true)
+    compare(roles.valid, true)
   }
 
-  function test_listeningSpeaksWithTheThemeAccent() {
-    // Listening keeps the accent's own hue; only saturation and lightness are
-    // clamped for legibility.
-    var accent = "#7aa2f7"
-    var listening = StateColor.forPhase(accent, urgent, "listening")
-    verify(StateColor.hueDistance(listening, accent) < 0.001)
+  function test_themePaletteIgnoresAnsiRoles() {
+    var roles = PaletteParser.parse(
+      'color2 = "#9ece6a"\ncolor3 = "#e0af68"')
+    compare(roles.orange, "")
+    compare(roles.green, "")
+    compare(roles.valid, false)
   }
 
-  function test_aDesaturatedAccentStillProducesThreeDifferentStates() {
-    // A monochrome theme must keep its identity state monochrome — inventing a
-    // hue for listening would put a colour on screen the palette never defines.
-    // The derived states still lift saturation, because rotating hue on a grey
-    // yields grey and would leave all three identical.
-    var grey = "#cacccc"
-    var listening = StateColor.forPhase(grey, urgent, "listening")
-    var thinking = StateColor.forPhase(grey, urgent, "thinking")
-    var answering = StateColor.forPhase(grey, urgent, "answering")
-    verify(!Qt.colorEqual(listening, thinking))
-    verify(!Qt.colorEqual(thinking, answering))
-    verify(!Qt.colorEqual(listening, answering))
-    verify(listening.hslSaturation < 0.1, "listening must not invent saturation a grey theme lacks")
-    verify(thinking.hslSaturation > 0.2, "derived states need saturation to be distinguishable")
+  function test_secondaryTextFallsBackToReadableNamedRole() {
+    compare(PaletteParser.readableSecondary(
+      "#c0c0c0", "#808080", "#000000", "#ffffff"), "#000000")
+    compare(PaletteParser.readableSecondary(
+      "#a5a4a4", "#747474", "#f9f8f8", "#111a27"), "#a5a4a4")
   }
 
-  function test_lightnessStaysInALegibleBandForExtremeAccents() {
-    // Pure black and pure white accents must not produce an invisible state.
-    var accents = ["#000000", "#ffffff"]
-    for (var a = 0; a < accents.length; a++) {
-      for (var p = 0; p < phases().length; p++) {
-        var result = StateColor.forPhase(accents[a], urgent, phases()[p])
-        verify(result.hslLightness >= 0.42 && result.hslLightness <= 0.72,
-          "lightness out of band for " + accents[a] + " " + phases()[p])
-      }
+  function test_monochromeThemeDoesNotInventColour() {
+    var greyAccent = "#8d8d8d"
+    var greyForeground = "#ffffff"
+    var greyMuted = "#5c5c5c"
+    var greyUrgent = "#a4a4a4"
+    var phases = ["listening", "thinking", "answering", "error"]
+    for (var i = 0; i < phases.length; i++) {
+      var result = StateColor.forPhase(
+        greyAccent, greyForeground, greyMuted, greyUrgent, phases[i])
+      var color = Qt.darker(result, 1.0)
+      verify(color.hslSaturation < 0.01,
+             phases[i] + " introduced colour into a monochrome theme")
     }
   }
 
   function test_dormantDoesNotInventAColour() {
-    // Dormant draws nothing, so it must resolve to the same value as listening
-    // rather than a fourth hue that briefly flashes on the way in.
-    var accent = "#7aa2f7"
-    compare(Qt.colorEqual(StateColor.forPhase(accent, urgent, "dormant"),
-                          StateColor.forPhase(accent, urgent, "listening")), true)
+    compare(Qt.colorEqual(phaseColor("dormant"), accent), true)
   }
 }

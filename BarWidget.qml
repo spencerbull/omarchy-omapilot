@@ -157,6 +157,8 @@ BarWidget {
     anchors.fill: parent
     visible: !root.inlineActive
     bar: root.bar
+    foreground: OmaPilot.OmaPilotPalette.foreground
+    activeColor: OmaPilot.OmaPilotPalette.accent
     text: ""
     iconComponent: Component {
       OmaPilot.OmaPilotMark {
@@ -185,8 +187,8 @@ BarWidget {
     visible: root.inlineActive
     inlineMode: true
     backend: OmaPilot.OmaPilotStore
-    foreground: root.bar ? root.bar.foreground : Color.bar.text
-    background: Color.bar.background
+    foreground: OmaPilot.OmaPilotPalette.bar.text
+    background: OmaPilot.OmaPilotPalette.bar.background
     fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
     onProviderChanged: function(provider) { root.persist({ provider: provider }) }
     onModelChanged: function(provider, model) {

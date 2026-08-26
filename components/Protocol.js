@@ -579,18 +579,28 @@ function normalizedTtsProvider(value) {
 
 function normalizedVoiceVisualizer(value) {
   var visualizer = String(value || "").toLowerCase()
-  return ["kitt", "bumper", "segments", "spectrum", "dots", "line"]
+  return ["segments", "spectrum", "dots", "line"]
     .indexOf(visualizer) >= 0 ? visualizer : ""
 }
 
 function voiceVisualizerOptions() {
   return [
-    { value: "kitt", label: "KITT voice box" },
-    { value: "bumper", label: "Bumper sweep" },
-    { value: "segments", label: "Segments only" },
+    { value: "segments", label: "Segments" },
     { value: "spectrum", label: "Mirrored spectrum" },
     { value: "dots", label: "Dot field" },
     { value: "line", label: "Animated line" }
+  ]
+}
+
+function normalizedThinkingVisualizer(value) {
+  var visualizer = String(value || "").toLowerCase()
+  return ["scanner", "bumper"].indexOf(visualizer) >= 0 ? visualizer : ""
+}
+
+function thinkingVisualizerOptions() {
+  return [
+    { value: "scanner", label: "Luminous scanner" },
+    { value: "bumper", label: "Bumper sweep" }
   ]
 }
 

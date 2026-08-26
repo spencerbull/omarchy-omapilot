@@ -12,8 +12,8 @@ import qs.Commons
 Item {
   id: root
 
-  property color accent: Color.accent
-  property color foreground: Color.popups.text
+  property color accent: OmaPilotPalette.accent
+  property color foreground: OmaPilotPalette.popups.text
   property bool focused: false
   property bool active: false
   property bool motionEnabled: true
@@ -25,7 +25,7 @@ Item {
   Rectangle {
     id: rail
     anchors.fill: parent
-    color: root.focused ? root.accent : Qt.darker(root.foreground, 1.9)
+    color: root.focused ? root.accent : OmaPilotPalette.muted
     opacity: root.active ? 0.2 : (root.focused ? 0.7 : 0.28)
     Behavior on opacity {
       enabled: root.motionEnabled

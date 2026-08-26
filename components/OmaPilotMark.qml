@@ -5,8 +5,8 @@ Item {
   id: root
 
   property real size: Style.space(42)
-  property color foreground: Color.popups.text
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   property bool active: false
   property bool motionEnabled: true
@@ -48,7 +48,7 @@ Item {
     width: root.size
     height: root.size
     radius: Style.cornerRadius
-    color: Style.hoverFillFor(root.foreground, root.accent)
+    color: OmaPilotPalette.hoverFill(root.foreground)
     opacity: root.active ? 1 : 0
 
     Behavior on opacity {
@@ -57,12 +57,11 @@ Item {
     }
   }
 
-  SplitIndicator {
+  ThinRingIndicator {
     anchors.centerIn: parent
-    width: root.size * 0.72
-    height: root.size * 0.46
-    gap: width * 0.18
+    width: root.size * (64 / 112)
+    height: width
     accent: root.accent
-    level: root.active ? root.pulse : 0.65
+    level: root.active ? root.pulse : 1
   }
 }

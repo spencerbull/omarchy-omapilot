@@ -7,9 +7,9 @@ Item {
   id: root
 
   property var actions: ActionCatalog.defaultActions(true, true)
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   property string workInAppShortcutText: ""
   signal actionRequested(string actionId, string prompt)

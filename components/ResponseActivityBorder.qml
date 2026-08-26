@@ -8,7 +8,7 @@ Item {
 
   property bool active: false
   property bool motionEnabled: true
-  property color accent: Color.accent
+  property color accent: OmaPilotPalette.accent
   property real radius: Style.cornerRadius
   property real phase: 0
   readonly property bool running: perimeterTravel.running

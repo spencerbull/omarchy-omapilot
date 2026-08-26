@@ -25,14 +25,13 @@ ShellRoot {
     required property string phase
     required property string title
     required property real level
-    property string visualizer: "kitt"
+    property string visualizer: "segments"
     readonly property real wavePhase: phase === "listening"
       ? listeningVisualizer.rendererPhase : wave.phase
     property alias wavePace: wave.motionPace
     property alias waveLevel: wave.level
     property alias wavePower: wave.speakingLevel
-    readonly property bool voiceBoxActive: lane.phase === "listening"
-      && listeningVisualizer.voiceBoxActive
+    readonly property string selectedVisualizer: listeningVisualizer.selectedVisualizer
     readonly property bool waveVisible: listeningVisualizer.visible || wave.visible
     property alias scannerProgress: scanner.progress
     property alias scannerRunning: scanner.running
@@ -76,7 +75,6 @@ ShellRoot {
       motionEnabled: true
       visible: lane.phase === "speaking"
       motionStyle: "speaking"
-      visualizer: "line"
     }
 
     OmaPilot.ThinkingScanner {
@@ -135,7 +133,7 @@ ShellRoot {
         height: 150
         phase: "listening"
         level: 0.72
-        title: "LISTENING  ·  measured KITT voice box"
+        title: "LISTENING  ·  measured segments"
       }
 
       MotionLane {
@@ -191,8 +189,8 @@ ShellRoot {
         Qt.quit()
         return
       }
-      if (!listeningLane.voiceBoxActive || speakingLane.voiceBoxActive) {
-        console.error("omapilot state motion preview failed: listening bricks and speaking line were not split")
+      if (listeningLane.selectedVisualizer !== "segments") {
+        console.error("omapilot state motion preview failed: listening did not load segments")
         Qt.quit()
         return
       }

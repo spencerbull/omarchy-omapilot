@@ -65,7 +65,8 @@ Scope {
   property real ttsLevel: 0
   property string ttsSpeakId: ""
   property bool voiceEnabled: false
-  property string voiceVisualizer: "kitt"
+  property string voiceVisualizer: "segments"
+  property string thinkingVisualizer: "bumper"
   property string ttsProvider: "elevenlabs"
   property string ttsModel: ""
   property string ttsVoice: ""
@@ -173,7 +174,9 @@ Scope {
     var desiredDesktopContext = String(source.desktopContext || "On") !== "Off"
     var desiredWebHandoffProvider = Protocol.normalizedWebHandoffProvider(source.webHandoffProvider) || "duckduckgo"
     var desiredVoiceEnabled = source.voiceEnabled === true
-    var desiredVoiceVisualizer = Protocol.normalizedVoiceVisualizer(source.voiceVisualizer) || "kitt"
+    var desiredVoiceVisualizer = Protocol.normalizedVoiceVisualizer(source.voiceVisualizer) || "segments"
+    var desiredThinkingVisualizer = Protocol.normalizedThinkingVisualizer(
+      source.thinkingVisualizer) || "bumper"
     var desiredTtsProvider = Protocol.normalizedTtsProvider(source.ttsProvider) || "elevenlabs"
     var desiredTtsModel = String(source.ttsModel || "")
     var desiredTtsVoice = String(source.ttsVoice || "")
@@ -187,6 +190,7 @@ Scope {
       || desiredWebHandoffProvider !== webHandoffProvider
       || desiredVoiceEnabled !== voiceEnabled
       || desiredVoiceVisualizer !== voiceVisualizer
+      || desiredThinkingVisualizer !== thinkingVisualizer
       || desiredTtsProvider !== ttsProvider
       || desiredTtsModel !== ttsModel
       || desiredTtsVoice !== ttsVoice
@@ -200,6 +204,7 @@ Scope {
     webHandoffProvider = desiredWebHandoffProvider
     voiceEnabled = desiredVoiceEnabled
     voiceVisualizer = desiredVoiceVisualizer
+    thinkingVisualizer = desiredThinkingVisualizer
     ttsProvider = desiredTtsProvider
     ttsModel = desiredTtsModel
     ttsVoice = desiredTtsVoice
@@ -1096,7 +1101,7 @@ Scope {
       if (dictationState === "recording") {
         dictationPhase = "recording"
         state = "dictating"
-        statusMessage = "Listening…"
+        statusMessage = ""
       } else if (dictationState === "transcribing") {
         dictationMetered = false
         dictationLevel = 0

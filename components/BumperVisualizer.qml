@@ -5,20 +5,18 @@ import qs.Commons
 Item {
   id: root
 
-  property color accent: Color.accent
+  property color accent: OmaPilotPalette.accent
   property real level: 0.5
-  property bool levelMetered: false
   property real intensity: 1
   property bool motionEnabled: true
   readonly property real boundedLevel: Math.max(0, Math.min(1, level))
-  readonly property real visualLevel: levelMetered && boundedLevel > 0.025
-    ? Math.min(1, Math.pow((boundedLevel - 0.025) / 0.975, 0.62) * 1.18)
-    : (levelMetered ? 0 : boundedLevel * 0.78)
+  readonly property real visualLevel: boundedLevel * 0.78
   readonly property real trackWidth: width * 0.84
   readonly property real barWidth: trackWidth * (0.18 + visualLevel * 0.12)
   readonly property real barHeight: Math.max(6, Math.min(22, 13 + visualLevel * 9))
   readonly property real trackX: (width - trackWidth) * 0.5
   readonly property real centerY: height * 0.5
+  readonly property bool running: sweepTimer.running
   property real phase: 0
 
   function alphaColor(color, alpha) {
@@ -32,6 +30,7 @@ Item {
   }
 
   Timer {
+    id: sweepTimer
     interval: 33
     repeat: true
     running: root.motionEnabled && root.visible
@@ -85,7 +84,7 @@ Item {
       gradient: Gradient {
         orientation: Gradient.Horizontal
         GradientStop { position: 0; color: "transparent" }
-        GradientStop { position: 0.5; color: Qt.lighter(root.accent, 1.35) }
+        GradientStop { position: 0.5; color: root.accent }
         GradientStop { position: 1; color: "transparent" }
       }
     }

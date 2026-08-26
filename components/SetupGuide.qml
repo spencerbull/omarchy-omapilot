@@ -7,9 +7,9 @@ BorderSurface {
   id: root
 
   required property string stage
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
 
   readonly property bool voiceStage: stage === "voice"
@@ -22,8 +22,8 @@ BorderSurface {
   signal actionRequested()
 
   implicitHeight: Style.space(34)
-  color: Style.normalFillFor(foreground, accent)
-  borderSpec: Border.controlSpec("normal", foreground, accent)
+  color: OmaPilotPalette.normalFill(foreground)
+  borderSpec: Border.flat(OmaPilotPalette.normalBorder(foreground), Style.normalBorderWidth)
   radius: Style.cornerRadius
   Accessible.role: Accessible.Grouping
   Accessible.name: titleText + ". " + detailText

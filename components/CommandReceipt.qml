@@ -7,16 +7,16 @@ BorderSurface {
   id: root
 
   property var receipt: null
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   readonly property bool valid: receipt !== null && typeof receipt.command === "string"
     && receipt.command !== "" && Number(receipt.exitCode) === 0
   visible: valid
   implicitHeight: Style.space(34)
-  color: Style.normalFillFor(foreground, accent)
-  borderSpec: Border.controlSpec("normal", foreground, accent)
+  color: OmaPilotPalette.normalFill(foreground)
+  borderSpec: Border.flat(OmaPilotPalette.normalBorder(foreground), Style.normalBorderWidth)
   radius: Style.cornerRadius
   Accessible.role: Accessible.StaticText
   Accessible.name: valid ? "Command receipt: " + receipt.command + ", exit 0" : ""
@@ -48,7 +48,7 @@ BorderSurface {
 
     Text {
       text: root.valid ? "exit 0" : ""
-      color: Qt.darker(root.foreground, 1.45)
+      color: OmaPilotPalette.darkForeground
       font.family: root.fontFamily
       font.pixelSize: Style.font.caption
     }

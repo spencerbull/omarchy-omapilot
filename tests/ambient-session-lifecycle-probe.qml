@@ -19,12 +19,22 @@ ShellRoot {
     interval: 80
     running: true
     onTriggered: {
-      OmaPilot.OmaPilotStore.configure({ voiceVisualizer: "DOTS" })
+      OmaPilot.OmaPilotStore.configure({
+        voiceVisualizer: "DOTS",
+        thinkingVisualizer: "BUMPER"
+      })
       if (OmaPilot.OmaPilotStore.voiceVisualizer !== "dots")
         root.fail("visualizer settings did not normalize a valid selection")
-      OmaPilot.OmaPilotStore.configure({ voiceVisualizer: "unknown" })
-      if (OmaPilot.OmaPilotStore.voiceVisualizer !== "kitt")
-        root.fail("invalid visualizer settings did not fall back to KITT")
+      if (OmaPilot.OmaPilotStore.thinkingVisualizer !== "bumper")
+        root.fail("thinking visualizer settings did not normalize a valid selection")
+      OmaPilot.OmaPilotStore.configure({
+        voiceVisualizer: "unknown",
+        thinkingVisualizer: "unknown"
+      })
+      if (OmaPilot.OmaPilotStore.voiceVisualizer !== "segments")
+        root.fail("invalid visualizer settings did not fall back to segments")
+      if (OmaPilot.OmaPilotStore.thinkingVisualizer !== "bumper")
+        root.fail("invalid thinking visualizer settings did not fall back to Bumper Sweep")
 
       OmaPilot.OmaPilotStore.initialized = true
       OmaPilot.OmaPilotStore.dictationPhase = ""

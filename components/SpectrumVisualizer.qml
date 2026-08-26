@@ -5,17 +5,18 @@ import qs.Commons
 Item {
   id: root
 
-  property color accent: Color.accent
+  property color accent: OmaPilotPalette.accent
   property real level: 0.5
   property bool levelMetered: false
   property real intensity: 1
+  property bool compact: false
   property bool motionEnabled: true
-  readonly property int columns: 72
+  readonly property int columns: compact ? 18 : 72
   readonly property real boundedLevel: Math.max(0, Math.min(1, level))
   readonly property real visualLevel: levelMetered && boundedLevel > 0.025
     ? Math.min(1, Math.pow((boundedLevel - 0.025) / 0.975, 0.62) * 1.18)
     : (levelMetered ? 0 : boundedLevel * 0.78)
-  readonly property real trackWidth: width * 0.84
+  readonly property real trackWidth: width * (compact ? 0.92 : 0.84)
   readonly property real columnStep: trackWidth / columns
   property real phase: 0
 
@@ -68,9 +69,9 @@ Item {
         height: extent
         gradient: Gradient {
           orientation: Gradient.Vertical
-          GradientStop { position: 0; color: root.alphaColor(Qt.lighter(root.accent, 1.32), 0.52) }
+          GradientStop { position: 0; color: root.alphaColor(root.accent, 0.52) }
           GradientStop { position: 0.5; color: root.alphaColor(root.accent, 0.95) }
-          GradientStop { position: 1; color: root.alphaColor(Qt.lighter(root.accent, 1.32), 0.52) }
+          GradientStop { position: 1; color: root.alphaColor(root.accent, 0.52) }
         }
       }
     }

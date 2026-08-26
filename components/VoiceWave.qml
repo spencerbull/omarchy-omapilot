@@ -5,9 +5,8 @@ import qs.Commons
 
 // The active voice visualizer along the bottom edge.
 //
-// This file owns the original animated line and the 1A KITT voice box. The
-// listening dispatcher reuses either one; AI speech always uses the measured
-// line. Missing telemetry falls back to an authored envelope.
+// This file owns the animated line used for listening and AI speech. Missing
+// telemetry falls back to an authored envelope.
 //
 // Two earlier shapes were rejected for concrete reasons:
 //
@@ -24,18 +23,16 @@ import qs.Commons
 Item {
   id: root
 
-  property color accent: Color.accent
+  property color accent: OmaPilotPalette.accent
   property real level: 0.5          // 0..1, swells the ribbon
-  property bool levelMetered: false
   property real intensity: 1        // overall opacity multiplier
+  property bool compact: false
   property bool motionEnabled: true
-  property string visualizer: "kitt"
   // listening | thinking | speaking. This changes character, not just speed.
   property string motionStyle: "listening"
   readonly property bool listening: motionStyle === "listening"
   readonly property bool thinking: motionStyle === "thinking"
   readonly property bool speaking: motionStyle === "speaking"
-  readonly property bool voiceBoxActive: listening && visualizer === "kitt"
   readonly property real boundedLevel: Math.max(0, Math.min(1, level))
   // Provider output is commonly mastered well below full scale, which made a
   // truthful raw envelope read as barely moving. Keep the first 2.5% as a
@@ -43,7 +40,6 @@ Item {
   // more of the available height while loud peaks remain bounded.
   readonly property real speakingLevel: boundedLevel <= 0.025 ? 0
     : Math.min(1, Math.pow((boundedLevel - 0.025) / 0.975, 0.62) * 1.18)
-  readonly property real voiceBoxLevel: levelMetered ? speakingLevel : boundedLevel * 0.78
   // A calm standing wave while listening; a much faster travelling signal
   // while thinking. The larger ratio is intentional: the previous 28% pace
   // difference was technically present but visually indistinguishable.
@@ -55,24 +51,7 @@ Item {
     { frequency: 2.1, drift: -0.62, weight: 0.74, thickness: 2.2, amplitude: 0.78 },
     { frequency: 3.4, drift:  0.41, weight: 0.52, thickness: 1.6, amplitude: 0.55 }
   ]
-  readonly property int samples: 44
-  readonly property int columns: 27
-  readonly property int rows: 5
-  readonly property real trackWidth: width * 0.76
-  readonly property real columnGap: Math.max(2, Style.spaceReal(3))
-  readonly property real rowGap: Math.max(2, Math.min(Style.spaceReal(4), height * 0.035))
-  readonly property real segmentHeight: Math.max(4, Math.min(Style.spaceReal(8), height * 0.075))
-  readonly property real segmentWidth: Math.max(4,
-    (trackWidth - columnGap * (columns - 1)) / columns)
-  readonly property real gridHeight: rows * segmentHeight + (rows - 1) * rowGap
-  readonly property real gridBottomMargin: Math.max(5, height * 0.12)
-  readonly property real scannerHeight: Math.max(3, Math.min(Style.spaceReal(6), height * 0.055))
-  readonly property real scannerTop: Math.max(4, height * 0.17)
-  readonly property real scannerHalfWidth: trackWidth * 0.15
-  readonly property real scannerWidth: scannerHalfWidth * 2
-  readonly property real scannerCenter: width * 0.5
-    + Math.sin(phase * 1.6) * (trackWidth - scannerWidth) * 0.5
-  readonly property real scannerX: scannerCenter - scannerHalfWidth
+  readonly property int samples: compact ? 24 : 44
 
   property real phase: 0
   property real livingPhase: 0
@@ -145,17 +124,6 @@ Item {
     return points
   }
 
-  function litSegments(column) {
-    var distance = Math.abs(column - (columns - 1) * 0.5) / ((columns - 1) * 0.5)
-    var wobble = 0.55 + 0.45 * Math.sin(phase * 6.2 + column * 0.8) * Math.sin(phase * 2.7 - column * 0.31)
-    var activity = (1 - distance * 0.62) * (0.2 + voiceBoxLevel * 1.15) * wobble
-    return Math.round(Math.max(0, Math.min(1, activity)) * rows)
-  }
-
-  function alphaColor(color, alpha) {
-    return Qt.rgba(color.r, color.g, color.b, alpha)
-  }
-
   Item {
     id: waves
     anchors.fill: parent
@@ -178,7 +146,7 @@ Item {
           joinStyle: ShapePath.RoundJoin
 
           PathPolyline {
-            path: !root.voiceBoxActive && root.phase >= 0 && root.width > 0 && root.height > 0
+            path: root.phase >= 0 && root.width > 0 && root.height > 0
               ? root.wavePoints(modelData) : []
           }
         }
@@ -191,7 +159,6 @@ Item {
   MultiEffect {
     anchors.fill: waves
     source: waves
-    visible: !root.voiceBoxActive
     autoPaddingEnabled: true
     blurEnabled: true
     blur: 1
@@ -210,125 +177,6 @@ Item {
     anchors.fill: waves
     sourceItem: waves
     hideSource: false
-    visible: !root.voiceBoxActive
     opacity: root.intensity * 0.7
-  }
-
-  Rectangle {
-    width: root.trackWidth
-    height: root.scannerHeight
-    x: (root.width - width) * 0.5
-    y: root.scannerTop
-    visible: root.voiceBoxActive
-    color: root.alphaColor(root.accent, 0.10)
-    opacity: root.intensity
-  }
-
-  Item {
-    id: scannerSource
-    x: root.scannerX
-    y: root.scannerTop
-    width: root.scannerWidth
-    height: root.scannerHeight
-    visible: false
-
-    Rectangle {
-      anchors.fill: parent
-      gradient: Gradient {
-        orientation: Gradient.Horizontal
-        GradientStop { position: 0; color: "transparent" }
-        GradientStop { position: 0.5; color: Qt.lighter(root.accent, 1.35) }
-        GradientStop { position: 1; color: "transparent" }
-      }
-    }
-  }
-
-  MultiEffect {
-    anchors.fill: scannerSource
-    source: scannerSource
-    visible: root.voiceBoxActive
-    autoPaddingEnabled: true
-    blurEnabled: true
-    blur: 1
-    blurMax: 24
-    blurMultiplier: 1
-    brightness: 0.65
-    opacity: root.intensity * 0.95
-  }
-
-  ShaderEffectSource {
-    anchors.fill: scannerSource
-    sourceItem: scannerSource
-    hideSource: false
-    visible: root.voiceBoxActive
-    opacity: root.intensity
-  }
-
-  Item {
-    id: segmentSource
-    anchors.horizontalCenter: parent.horizontalCenter
-    anchors.bottom: parent.bottom
-    anchors.bottomMargin: root.gridBottomMargin
-    width: root.trackWidth
-    height: root.gridHeight + 1
-    visible: false
-
-    Repeater {
-      model: root.columns
-
-      delegate: Item {
-        id: segmentColumn
-        required property int index
-        readonly property int activeRows: root.litSegments(index)
-        x: index * (root.segmentWidth + root.columnGap)
-        width: root.segmentWidth
-        height: root.gridHeight
-
-        Repeater {
-          model: root.rows
-
-          delegate: Rectangle {
-            required property int index
-            readonly property bool active: index < segmentColumn.activeRows
-            readonly property bool peak: index === segmentColumn.activeRows - 1
-            y: segmentColumn.height - (index + 1) * root.segmentHeight - index * root.rowGap
-            width: segmentColumn.width
-            height: root.segmentHeight
-            color: !active ? root.alphaColor(root.accent, 0.13)
-              : root.alphaColor(peak ? Qt.lighter(root.accent, 1.35) : root.accent,
-                peak ? 0.98 : Math.max(0.45, 0.78 - index * 0.06))
-          }
-        }
-      }
-    }
-
-    Rectangle {
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.bottom: parent.bottom
-      height: 1
-      color: root.alphaColor(root.accent, 0.35)
-    }
-  }
-
-  MultiEffect {
-    anchors.fill: segmentSource
-    source: segmentSource
-    visible: root.voiceBoxActive
-    autoPaddingEnabled: true
-    blurEnabled: true
-    blur: 1
-    blurMax: 16
-    blurMultiplier: 0.65
-    brightness: 0.38
-    opacity: root.intensity * 0.72
-  }
-
-  ShaderEffectSource {
-    anchors.fill: segmentSource
-    sourceItem: segmentSource
-    hideSource: false
-    visible: root.voiceBoxActive
-    opacity: root.intensity
   }
 }

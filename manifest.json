@@ -30,7 +30,8 @@
       "webHandoffProvider": "duckduckgo",
       "dangerousAutoApprove": false,
       "voiceEnabled": false,
-      "voiceVisualizer": "kitt",
+      "voiceVisualizer": "segments",
+      "thinkingVisualizer": "bumper",
       "ttsProvider": "elevenlabs",
       "ttsModel": "",
       "ttsVoice": "",
@@ -99,10 +100,18 @@
       {
         "key": "voiceVisualizer",
         "type": "enum",
-        "label": "Voice visualizer",
-        "options": ["kitt", "bumper", "segments", "spectrum", "dots", "line"],
-        "defaultValue": "kitt",
-        "description": "Choose the visualizer shown while you speak. AI speech keeps its measured animated line."
+        "label": "Listening visualizer",
+        "options": ["segments", "spectrum", "dots", "line"],
+        "defaultValue": "segments",
+        "description": "Choose the visualizer shown while you speak."
+      },
+      {
+        "key": "thinkingVisualizer",
+        "type": "enum",
+        "label": "Thinking visualizer",
+        "options": ["scanner", "bumper"],
+        "defaultValue": "bumper",
+        "description": "Choose the visualizer shown after dictation while OmaPilot prepares the answer."
       },
       {
         "key": "ttsProvider",

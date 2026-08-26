@@ -14,11 +14,14 @@ Item {
 
   // listening | thinking | answering | error
   property string phase: "listening"
-  property color accent: Color.accent
-  property color urgent: Color.urgent
+  property color accent: OmaPilotPalette.accent
+  property color thinkingColor: OmaPilotPalette.thinking
+  property color finishedColor: OmaPilotPalette.finished
+  property color urgent: OmaPilotPalette.urgent
   property bool motionEnabled: true
 
-  readonly property color lightColor: StateColor.forPhase(accent, urgent, phase)
+  readonly property color lightColor:
+    StateColor.forPhase(accent, thinkingColor, finishedColor, urgent, phase)
   property color displayedColor: lightColor
   property real tide: 0.32
   property real drift: 0

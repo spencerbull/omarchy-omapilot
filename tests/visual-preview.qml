@@ -20,7 +20,7 @@ ShellRoot {
   QtObject {
     id: backend
     property bool initialized: true
-    property bool busy: root.previewState === "dictating"
+    property bool busy: root.previewState === "dictating" || root.previewState === "transcribing"
     property bool canSubmit: true
     property bool providerReady: true
     property bool continuationBlocked: false
@@ -29,18 +29,21 @@ ShellRoot {
     property bool contextCaptureAvailable: true
     property bool desktopContextActive: false
     property string state: root.previewState === "dictating" ? "dictating"
-      : (root.previewState === "waiting" ? "preparing"
+      : (root.previewState === "waiting" || root.previewState === "transcribing" ? "preparing"
       : (root.previewState === "streaming" ? "streaming"
         : (root.previewState === "error" || root.previewState === "error-details"
           ? "error" : "composing")))
     property string provider: "builtin"
     property string model: "openai-codex::gpt-5.4"
     property string transcript: ""
+    property string dictationPhase: root.previewState === "dictating" ? "recording"
+      : (root.previewState === "transcribing" ? "transcribing" : "")
     property bool dictationMetered: root.previewState === "dictating"
     property real dictationLevel: root.previewState === "dictating" ? 0.78 : 0
     property string statusMessage: root.previewState === "waiting" ? "Preparing Codex…"
+      : (root.previewState === "transcribing" ? "Transcribing…"
       : (root.previewState === "error" || root.previewState === "error-details"
-        ? "The harness stopped before completing the response." : "")
+        ? "The harness stopped before completing the response." : ""))
     property string question: root.previewState === "waiting"
       || root.previewState === "streaming"
       || root.previewState === "error"
@@ -177,7 +180,7 @@ ShellRoot {
     width: 860
     height: root.previewState === "settings" || root.previewState === "skills-settings"
       || root.previewState === "voice-settings" || root.previewState === "desktop-settings"
-      || root.previewState === "dangerous-settings"
+      || root.previewState === "dangerous-settings" || root.previewState === "servers-settings"
       || root.previewState === "actions-settings" || root.previewState === "history" ? 760
       : (root.previewState === "error-details" ? 520
         : (root.previewState === "context" ? 430
@@ -198,6 +201,7 @@ ShellRoot {
       ColumnLayout {
         visible: root.previewState === "empty" || root.previewState === "dangerous"
           || root.previewState === "context" || root.previewState === "dictating"
+          || root.previewState === "transcribing"
           || root.previewState === "setup-voice"
           || root.previewState === "setup-hotkeys"
         anchors.fill: parent
@@ -254,6 +258,7 @@ ShellRoot {
         visible: root.previewState === "settings"
           || root.previewState === "skills-settings"
           || root.previewState === "voice-settings"
+          || root.previewState === "servers-settings"
           || root.previewState === "desktop-settings"
           || root.previewState === "dangerous-settings"
           || root.previewState === "actions-settings"
@@ -266,12 +271,15 @@ ShellRoot {
         selectedTab: root.previewState === "dangerous-settings" || root.previewState === "desktop-settings" ? "desktop"
           : (root.previewState === "skills-settings" ? "skills"
           : (root.previewState === "voice-settings" ? "voice"
-          : (root.previewState === "actions-settings" ? "actions" : "agent")
+          : (root.previewState === "servers-settings" ? "servers"
+          : (root.previewState === "actions-settings" ? "actions" : "agent"))
           ))
+        serverFormExpanded: root.previewState === "servers-settings"
         dangerousAutoApprove: root.previewState === "dangerous-settings"
         desktopContextEnabled: true
         voiceEnabled: false
-        voiceVisualizer: "kitt"
+        voiceVisualizer: "segments"
+        thinkingVisualizer: "bumper"
         ttsProvider: "elevenlabs"
         ttsModel: "eleven_multilingual_v2"
         ttsVoice: "wyWA56cQNU2KqUW4eCsI"
@@ -421,7 +429,8 @@ ShellRoot {
     repeat: false
     onTriggered: {
       var invalidMain = (root.previewState === "empty" || root.previewState === "dangerous"
-          || root.previewState === "context" || root.previewState === "dictating")
+          || root.previewState === "context" || root.previewState === "dictating"
+          || root.previewState === "transcribing")
         && (header.implicitHeight <= 0 || composer.implicitHeight <= 0
           || actions.implicitHeight <= 0)
       var invalidSettings = (root.previewState === "settings"

@@ -7,8 +7,8 @@ Item {
 
   property string current: "agent"
   property var tabs: Presentation.settingsTabs()
-  property color foreground: Color.popups.text
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   property bool motionEnabled: true
   readonly property int currentIndex: {
@@ -68,7 +68,7 @@ Item {
 
         text: String(modelData.label || "")
         color: tabLabel.currentTab || tabHover.hovered || (root.activeFocus && index === root.currentIndex)
-          ? root.accent : Qt.darker(root.foreground, 1.45)
+          ? root.accent : OmaPilotPalette.darkForeground
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         font.bold: false
@@ -98,7 +98,7 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      color: Style.normalBorderFor(root.foreground, root.accent)
+      color: OmaPilotPalette.normalBorder(root.foreground)
     }
 
     Rectangle {

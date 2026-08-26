@@ -8,9 +8,9 @@ ColumnLayout {
   id: root
 
   property var actions: []
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   property bool adding: false
   readonly property bool interactionActive: adding
@@ -83,7 +83,7 @@ ColumnLayout {
         Text {
           Layout.fillWidth: true
           text: "Action " + String(actionCard.index + 1)
-          color: Qt.darker(root.foreground, 1.45)
+          color: OmaPilotPalette.darkForeground
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
           font.bold: true
@@ -115,7 +115,7 @@ ColumnLayout {
           iconText: "󰆴"
           tooltipText: "Remove action"
           foreground: root.foreground
-          hoverColor: Color.urgent
+          hoverColor: OmaPilotPalette.urgent
           focusable: true
           Accessible.name: tooltipText
           onClicked: root.actionsEdited(
@@ -126,6 +126,7 @@ ColumnLayout {
       TextField {
         id: actionLabel
         Layout.fillWidth: true
+        verticalPadding: Style.spacing.controlPaddingY
         text: String(actionCard.modelData.label || "")
         placeholderText: "Button label"
         maximumLength: 48
@@ -138,6 +139,7 @@ ColumnLayout {
       TextField {
         id: actionPrompt
         Layout.fillWidth: true
+        verticalPadding: Style.spacing.controlPaddingY
         text: String(actionCard.modelData.prompt || "")
         placeholderText: "Prompt inserted into the composer"
         maximumLength: 1200
@@ -166,6 +168,7 @@ ColumnLayout {
     TextField {
       id: newLabel
       Layout.fillWidth: true
+      verticalPadding: Style.spacing.controlPaddingY
       placeholderText: "Button label"
       maximumLength: 48
       foreground: root.foreground
@@ -176,6 +179,7 @@ ColumnLayout {
     TextField {
       id: newPrompt
       Layout.fillWidth: true
+      verticalPadding: Style.spacing.controlPaddingY
       placeholderText: "Prompt inserted into the composer"
       maximumLength: 1200
       foreground: root.foreground
@@ -190,7 +194,7 @@ ColumnLayout {
 
       Item { Layout.fillWidth: true }
 
-      Button {
+      CompactSettingsButton {
         text: "Cancel"
         foreground: root.foreground
         background: root.background
@@ -199,7 +203,7 @@ ColumnLayout {
         onClicked: root.cancelAdding()
       }
 
-      Button {
+      CompactSettingsButton {
         text: "Add"
         foreground: root.foreground
         background: root.background
@@ -221,14 +225,14 @@ ColumnLayout {
       Layout.fillWidth: true
       text: String(root.actions.length) + " of "
         + String(ActionCatalog.maximumActions) + " actions"
-      color: Qt.darker(root.foreground, 1.45)
+      color: OmaPilotPalette.darkForeground
       font.family: root.fontFamily
       font.pixelSize: Style.font.caption
       Accessible.role: Accessible.StaticText
       Accessible.name: text
     }
 
-    Button {
+    CompactSettingsButton {
       id: addButton
       iconText: "󰐕"
       text: "Add action"

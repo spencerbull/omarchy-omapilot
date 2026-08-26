@@ -7,9 +7,9 @@ BorderSurface {
   id: root
 
   property string message: "OmaPilot could not complete that request."
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   signal detailsRequested()
 
@@ -20,10 +20,13 @@ BorderSurface {
 
   implicitHeight: content.implicitHeight + contentTopInset + contentBottomInset
     + Style.spacing.xl * 2
-  color: Style.controlFill(activeFocus, pointer.containsMouse, Color.urgent, Color.urgent)
-  borderSpec: Border.controlSpec(
-    activeFocus ? "focus" : (pointer.containsMouse ? "hover-cursor" : "normal"),
-    Color.urgent, Color.urgent)
+  color: OmaPilotPalette.controlFill(activeFocus, pointer.containsMouse, OmaPilotPalette.urgent)
+  borderSpec: Border.flat(
+    activeFocus ? OmaPilotPalette.focusBorder(OmaPilotPalette.urgent)
+      : (pointer.containsMouse ? OmaPilotPalette.hoverBorder(OmaPilotPalette.urgent)
+        : OmaPilotPalette.normalBorder(OmaPilotPalette.urgent)),
+    activeFocus ? Style.focusBorderWidth
+      : (pointer.containsMouse ? Style.hoverBorderWidth : Style.normalBorderWidth))
   radius: Style.cornerRadius
   Accessible.role: Accessible.Button
   Accessible.name: "View error details: " + message
@@ -42,7 +45,7 @@ BorderSurface {
 
     Text {
       text: "󰅚"
-      color: Color.urgent
+      color: OmaPilotPalette.urgent
       font.family: root.fontFamily
       font.pixelSize: Style.font.icon
       Layout.alignment: Qt.AlignTop
@@ -65,7 +68,7 @@ BorderSurface {
       Text {
         Layout.fillWidth: true
         text: "View error details"
-        color: Color.urgent
+        color: OmaPilotPalette.urgent
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
       }
@@ -73,7 +76,7 @@ BorderSurface {
 
     Text {
       text: "󰅂"
-      color: Color.urgent
+      color: OmaPilotPalette.urgent
       font.family: root.fontFamily
       font.pixelSize: Style.font.icon
       Layout.alignment: Qt.AlignVCenter

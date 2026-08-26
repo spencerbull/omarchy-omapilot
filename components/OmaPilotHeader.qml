@@ -11,9 +11,9 @@ Item {
   required property var backend
   property bool dangerousAutoApprove: false
   property bool motionEnabled: true
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
 
   signal settingsRequested()
@@ -54,7 +54,7 @@ Item {
         Text {
           Layout.fillWidth: true
           text: "Ready to help with this desktop"
-          color: Qt.darker(root.foreground, 1.45)
+          color: OmaPilotPalette.darkForeground
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
           elide: Text.ElideRight
@@ -83,7 +83,7 @@ Item {
           ? Protocol.providerLabel(root.backend.provider)
             + (root.backend.model ? " · " + root.backend.model : "")
           : ""
-        color: Qt.darker(root.foreground, 1.55)
+        color: OmaPilotPalette.darkForeground
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         elide: Text.ElideRight
@@ -94,7 +94,7 @@ Item {
       Text {
         text: "\uebc1  " + Presentation.permissionNotice(root.dangerousAutoApprove)
         color: root.dangerousAutoApprove
-          ? Color.urgent : Qt.darker(root.foreground, 1.45)
+          ? OmaPilotPalette.urgent : OmaPilotPalette.darkForeground
         font.family: root.fontFamily
         font.pixelSize: Style.font.caption
         elide: Text.ElideRight

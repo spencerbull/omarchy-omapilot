@@ -19,6 +19,7 @@ ShellRoot {
     id: node
     targetScreen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
     phase: "dormant"
+    thinkingVisualizer: "scanner"
     motionEnabled: false
   }
 
@@ -48,6 +49,7 @@ ShellRoot {
           root.fail("reduced motion did not hold the first thinking phrase")
         if (node.voiceWaveActive || !node.thinkingScannerActive
             || node.scannerRunning || node.scannerProgress !== 0.5
+            || node.thinkingBumperActive || node.bumperRunning
             || node.thinkingPhraseRunning)
           root.fail("reduced-motion thinking did not hold a centred scanner")
         node.motionEnabled = true
@@ -55,8 +57,8 @@ ShellRoot {
       } else if (root.stage === 3) {
         if (!node.voiceWaveActive || Math.abs(node.visualLevel - 0.68) > 0.001)
           root.fail("active listening did not expose the measured microphone level")
-        if (node.selectedVoiceVisualizer !== "kitt" || !node.listeningRendererLoaded)
-          root.fail("active listening did not load the default KITT visualizer")
+        if (node.selectedVoiceVisualizer !== "segments" || !node.listeningRendererLoaded)
+          root.fail("active listening did not load the default segment visualizer")
         node.voiceVisualizer = "dots"
       } else if (root.stage === 4) {
         if (node.selectedVoiceVisualizer !== "dots" || !node.listeningRendererLoaded
@@ -73,19 +75,26 @@ ShellRoot {
         if (node.captionMessage !== "Thinking it through…"
             || node.captionDetail !== node.status)
           root.fail("rotating thinking copy did not preserve actionable detail")
-        node.phase = "error"
+        node.thinkingVisualizer = "bumper"
       } else if (root.stage === 6) {
+        if (node.thinkingScannerActive || node.scannerRunning
+            || !node.thinkingBumperActive || !node.bumperRunning
+            || node.voiceWaveActive)
+          root.fail("bumper sweep did not replace the thinking scanner")
+        node.phase = "error"
+      } else if (root.stage === 7) {
         if (node.atmosphereActive || node.tide !== 0.4 || node.drift !== 0)
           root.fail("terminal phase left the atmosphere cycle active")
         node.phase = "answering"
         node.speaking = true
         node.playbackMetered = true
         node.playbackLevel = 0.76
-      } else if (root.stage === 7) {
+      } else if (root.stage === 8) {
         if (!node.atmosphereActive || !node.voiceWaveActive
             || !node.speakingLineActive || node.listeningVisualizerActive
             || node.selectedVoiceVisualizer !== "dots"
-            || node.thinkingScannerActive || node.scannerRunning)
+            || node.thinkingScannerActive || node.scannerRunning
+            || node.thinkingBumperActive || node.bumperRunning)
           root.fail("speaking did not activate the measured playback atmosphere")
         if (Math.abs(node.visualLevel - 0.76) > 0.001)
           root.fail("speaking did not expose the measured playback level")
@@ -93,11 +102,11 @@ ShellRoot {
           root.fail("speaking did not expose its playback caption")
         node.motionEnabled = false
         node.playbackLevel = 0.94
-      } else if (root.stage === 8) {
+      } else if (root.stage === 9) {
         if (node.visualLevel !== 0.5)
           root.fail("reduced motion did not freeze measured playback animation")
         node.speaking = false
-      } else if (root.stage === 9) {
+      } else if (root.stage === 10) {
         if (node.atmosphereActive || node.voiceWaveActive)
           root.fail("completed playback left its animation active")
         if (!root.failed) console.log("OMAPILOT_VOICE_NODE_LIFECYCLE_PROBE_OK")

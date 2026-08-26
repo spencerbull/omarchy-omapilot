@@ -1,6 +1,7 @@
 #!/bin/sh
 printf '%s\n' "$*" >> "$VOXTYPE_AUDIT"
 if [ "$1" = "status" ]; then
+  printf '%s\n' '{"alt":"idle"}'
   exit 0
 fi
 if [ "$1" = "record" ] && [ "$2" = "start" ]; then

@@ -39,6 +39,19 @@ describe("Voxtype contract", () => {
     expect(commands.findLastIndex((command) => command === "record cancel")).toBeLessThan(commands.length - 1);
   });
 
+  it("returns an empty transcript when Voxtype finishes without detecting speech", async () => {
+    const root = await mkdtemp(join(tmpdir(), "omapilot-dictation-empty-")); roots.push(root);
+    const env = {
+      ...process.env,
+      PATH: `${resolve("runtime/test/fixtures/dictation-bin")}:${process.env.PATH ?? ""}`,
+      VOXTYPE_AUDIT: join(root, "voxtype-audit.txt")
+    };
+    const service = new DictationService(omapilotPaths({ ...env, XDG_RUNTIME_DIR: join(root, "run") }), env);
+
+    await service.start();
+    await expect(service.stop(1_000)).resolves.toBe("");
+  });
+
   it("streams bounded microphone peaks and falls back when the bridge disconnects", async () => {
     const root = await mkdtemp(join(tmpdir(), "omapilot-dictation-meter-")); roots.push(root);
     const audit = join(root, "voxtype-audit.txt");

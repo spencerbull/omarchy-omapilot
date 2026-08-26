@@ -382,9 +382,12 @@ Item {
     listeningMetered: OmaPilot.OmaPilotStore.dictationMetered
     listeningLevel: OmaPilot.OmaPilotStore.dictationLevel
     voiceVisualizer: OmaPilot.OmaPilotStore.voiceVisualizer
+    thinkingVisualizer: OmaPilot.OmaPilotStore.thinkingVisualizer
     hint: root.captionHint
     targetScreen: root.activeScreen
     motionEnabled: root.motionEnabled
+    thinkingColor: OmaPilot.OmaPilotPalette.thinking
+    finishedColor: OmaPilot.OmaPilotPalette.finished
   }
 
   OmaPilot.AnswerCurtain {
@@ -399,6 +402,7 @@ Item {
          + (OmaPilot.OmaPilotStore.model !== "" ? " · " + OmaPilot.OmaPilotStore.model : ""))
     targetScreen: root.activeScreen
     motionEnabled: root.motionEnabled
+    finishedColor: OmaPilot.OmaPilotPalette.finished
     onLinkActivated: function(url) { OmaPilot.OmaPilotStore.activateLink(url) }
   }
 

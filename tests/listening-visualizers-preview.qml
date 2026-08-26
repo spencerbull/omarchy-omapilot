@@ -72,12 +72,10 @@ ShellRoot {
         anchors.topMargin: 42
         spacing: 8
 
-        VisualizerLane { id: kitt; width: parent.width; height: 100; visualizer: "kitt"; title: "1A  KITT VOICE BOX" }
-        VisualizerLane { id: bumper; width: parent.width; height: 100; visualizer: "bumper"; title: "1B  BUMPER SWEEP" }
-        VisualizerLane { id: segments; width: parent.width; height: 100; visualizer: "segments"; title: "1C  SEGMENTS ONLY" }
-        VisualizerLane { id: spectrum; width: parent.width; height: 100; visualizer: "spectrum"; title: "1D  MIRRORED SPECTRUM" }
-        VisualizerLane { id: dots; width: parent.width; height: 100; visualizer: "dots"; title: "1E  DOT FIELD" }
-        VisualizerLane { id: line; width: parent.width; height: 100; visualizer: "line"; title: "LINE  ANIMATED LINE" }
+        VisualizerLane { id: segments; width: parent.width; height: 100; visualizer: "segments"; title: "1A  SEGMENTS ONLY" }
+        VisualizerLane { id: spectrum; width: parent.width; height: 100; visualizer: "spectrum"; title: "1B  MIRRORED SPECTRUM" }
+        VisualizerLane { id: dots; width: parent.width; height: 100; visualizer: "dots"; title: "1C  DOT FIELD" }
+        VisualizerLane { id: line; width: parent.width; height: 100; visualizer: "line"; title: "1D  ANIMATED LINE" }
       }
     }
   }
@@ -87,7 +85,7 @@ ShellRoot {
     running: true
     repeat: false
     onTriggered: {
-      var lanes = [kitt, bumper, segments, spectrum, dots, line]
+      var lanes = [segments, spectrum, dots, line]
       for (var i = 0; i < lanes.length; i++) {
         if (!lanes[i].rendererLoaded || lanes[i].selectedVisualizer !== lanes[i].visualizer) {
           console.error("omapilot visualizer preview failed: " + lanes[i].visualizer + " did not load")

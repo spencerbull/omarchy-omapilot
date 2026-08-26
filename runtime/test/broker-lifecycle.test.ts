@@ -106,6 +106,26 @@ describe("dictation generation guard", () => {
     ]);
   });
 
+  it("returns to idle when no speech was detected", async () => {
+    const events: BrokerEvent[] = [];
+    const broker = new OmaPilotBroker(events.push.bind(events), {
+      dictation: {
+        start: () => Promise.resolve(),
+        stop: () => Promise.resolve(""),
+        cancel: () => Promise.resolve()
+      }
+    });
+
+    await broker.handle({ type: "dictation_start" });
+    await broker.handle({ type: "dictation_stop" });
+
+    expect(events).toEqual([
+      { type: "dictation", state: "recording" },
+      { type: "dictation", state: "transcribing" },
+      { type: "dictation", state: "idle", text: "" }
+    ]);
+  });
+
   it("discards a late stop result after cancellation", async () => {
     const events: BrokerEvent[] = [];
     let finishStop: (text: string) => void = () => undefined;

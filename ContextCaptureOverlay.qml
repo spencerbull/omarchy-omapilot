@@ -114,7 +114,7 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      color: Color.menu.scrim
+      color: OmaPilot.OmaPilotPalette.menu.scrim
     }
 
     Item {
@@ -158,7 +158,7 @@ Item {
         width: root.selectionWidth
         height: root.selectionHeight
         color: "transparent"
-        border.color: Color.accent
+        border.color: OmaPilot.OmaPilotPalette.accent
         border.width: Math.max(2, Style.space(2))
         radius: Style.cornerRadius
       }
@@ -169,8 +169,8 @@ Item {
         anchors.topMargin: Style.space(32)
         width: Math.min(parent.width - Style.space(48), hintLayout.implicitWidth + Style.spacing.xl * 2)
         height: hintLayout.implicitHeight + Style.spacing.md * 2
-        color: Color.popups.background
-        borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Style.normalBorderWidth)
+        color: OmaPilot.OmaPilotPalette.popups.background
+        borderSpec: Border.flat(OmaPilot.OmaPilotPalette.popups.border, Style.normalBorderWidth)
         radius: Style.cornerRadius
 
         ColumnLayout {
@@ -181,7 +181,7 @@ Item {
           Text {
             Layout.alignment: Qt.AlignHCenter
             text: "Click a window beneath the cursor, or drag an exact region"
-            color: Color.popups.text
+            color: OmaPilot.OmaPilotPalette.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.body
             font.bold: true
@@ -189,7 +189,7 @@ Item {
           Text {
             Layout.alignment: Qt.AlignHCenter
             text: "Browsers open the DOM picker • other apps offer OCR and screenshot • Escape cancels"
-            color: Qt.darker(Color.popups.text, 1.4)
+            color: OmaPilot.OmaPilotPalette.darkForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
           }

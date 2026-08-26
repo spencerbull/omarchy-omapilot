@@ -8,7 +8,7 @@ import qs.Commons
 Item {
   id: root
 
-  property color accent: Color.accent
+  property color accent: OmaPilotPalette.accent
   property bool active: false
   property bool motionEnabled: true
   property real intensity: 1

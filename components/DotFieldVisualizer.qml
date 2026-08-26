@@ -5,20 +5,22 @@ import qs.Commons
 Item {
   id: root
 
-  property color accent: Color.accent
+  property color accent: OmaPilotPalette.accent
   property real level: 0.5
   property bool levelMetered: false
   property real intensity: 1
+  property bool compact: false
   property bool motionEnabled: true
-  readonly property int columns: 46
-  readonly property int rows: 7
+  readonly property int columns: compact ? 12 : 46
+  readonly property int rows: compact ? 3 : 7
   readonly property real boundedLevel: Math.max(0, Math.min(1, level))
   readonly property real visualLevel: levelMetered && boundedLevel > 0.025
     ? Math.min(1, Math.pow((boundedLevel - 0.025) / 0.975, 0.62) * 1.18)
     : (levelMetered ? 0 : boundedLevel * 0.78)
-  readonly property real trackWidth: width * 0.84
+  readonly property real trackWidth: width * (compact ? 0.9 : 0.84)
   readonly property real columnStep: trackWidth / (columns - 1)
-  readonly property real rowStep: Math.min(13, height * 0.11)
+  readonly property real rowStep: compact ? Math.min(5, height * 0.2)
+    : Math.min(13, height * 0.11)
   readonly property real fieldHeight: rowStep * (rows - 1)
   readonly property real dotPadding: 5.2
   property real phase: 0
@@ -58,14 +60,14 @@ Item {
         readonly property int column: index % root.columns
         readonly property int row: Math.floor(index / root.columns)
         readonly property real strength: root.dotIntensity(column, row)
-        readonly property real diameter: strength > 0.55 ? 5.2 : 4
+        readonly property real diameter: root.compact ? (strength > 0.55 ? 3.2 : 2.4)
+          : (strength > 0.55 ? 5.2 : 4)
         x: root.dotPadding * 0.5 + column * root.columnStep - diameter * 0.5
         y: root.dotPadding * 0.5 + row * root.rowStep - diameter * 0.5
         width: diameter
         height: diameter
         radius: diameter * 0.5
-        color: root.alphaColor(strength > 0.55 ? Qt.lighter(root.accent, 1.3) : root.accent,
-          strength)
+        color: root.alphaColor(root.accent, strength)
       }
     }
   }

@@ -29,10 +29,10 @@ Panel {
   // Keep motion injectable and limit every local transition to a finite reveal.
   property bool motionEnabled: true
 
-  readonly property color foreground: bar ? bar.foreground : Color.popups.text
-  readonly property color surface: Color.popups.background
-  readonly property color accent: Color.accent
-  readonly property color mutedForeground: Qt.darker(foreground, 1.45)
+  readonly property color foreground: OmaPilot.OmaPilotPalette.popups.text
+  readonly property color surface: OmaPilot.OmaPilotPalette.popups.background
+  readonly property color accent: OmaPilot.OmaPilotPalette.accent
+  readonly property color mutedForeground: OmaPilot.OmaPilotPalette.darkForeground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property bool dangerousAutoApprove: settings
     && settings.dangerousAutoApprove === true
@@ -42,7 +42,10 @@ Panel {
   readonly property bool voiceEnabled: settings && settings.voiceEnabled === true
   readonly property string voiceVisualizer: settings
     && Protocol.normalizedVoiceVisualizer(settings.voiceVisualizer)
-    ? Protocol.normalizedVoiceVisualizer(settings.voiceVisualizer) : "kitt"
+    ? Protocol.normalizedVoiceVisualizer(settings.voiceVisualizer) : "segments"
+  readonly property string thinkingVisualizer: settings
+    && Protocol.normalizedThinkingVisualizer(settings.thinkingVisualizer)
+    ? Protocol.normalizedThinkingVisualizer(settings.thinkingVisualizer) : "bumper"
   readonly property string ttsProvider: settings && Protocol.normalizedTtsProvider(settings.ttsProvider)
     ? Protocol.normalizedTtsProvider(settings.ttsProvider) : "elevenlabs"
   readonly property string ttsModel: settings && typeof settings.ttsModel === "string" ? settings.ttsModel : ""
@@ -291,17 +294,6 @@ Panel {
       root.minimumContentHeight, root.comfortableCardHeight,
       popup.availableCardHeight, popup.verticalContentInset)
 
-    Behavior on contentHeight {
-      enabled: root.motionEnabled
-      // Streaming repeatedly retargets the natural height. SmoothedAnimation
-      // follows that moving target without restarting a fixed timeline for
-      // every wrapped line.
-      SmoothedAnimation {
-        velocity: Style.spaceReal(900)
-        maximumEasingTime: 120
-      }
-    }
-
     Item {
       id: panelFocus
       anchors.fill: parent
@@ -352,13 +344,6 @@ Panel {
           onEscapeRequested: root.close()
         }
 
-        Rectangle {
-          Layout.fillWidth: true
-          Layout.preferredHeight: Style.spacing.hairline
-          color: Style.normalBorderFor(root.foreground, root.accent)
-          Accessible.ignored: true
-        }
-
         OmaPilot.SetupGuide {
           id: setupGuide
           Layout.fillWidth: true
@@ -391,9 +376,11 @@ Panel {
             : 0
 
           PanelSeparator {
+            id: answerSeparator
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
+            visible: answerCard.contentVisible
             foreground: root.foreground
           }
 
@@ -674,7 +661,7 @@ Panel {
                       && OmaPilot.OmaPilotStore.state !== "unavailable"
                     width: parent.width
                     text: OmaPilot.OmaPilotStore.statusMessage
-                    color: Qt.darker(root.foreground, 1.35)
+                    color: OmaPilot.OmaPilotPalette.darkForeground
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.body
                     wrapMode: Text.Wrap
@@ -859,8 +846,9 @@ Panel {
                 BorderSurface {
                   width: footerKey.implicitWidth + Style.spacing.xl
                   height: footerKey.implicitHeight + Style.spacing.xxs
-                  color: Style.normalFillFor(root.foreground, root.accent)
-                  borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
+                  color: OmaPilot.OmaPilotPalette.normalFill(root.foreground)
+                  borderSpec: Border.flat(
+                    OmaPilot.OmaPilotPalette.normalBorder(root.foreground), Style.normalBorderWidth)
                   radius: Style.cornerRadius
 
                   Text {
@@ -898,6 +886,7 @@ Panel {
           && String(settings.desktopContext || "On") !== "Off"
         voiceEnabled: root.voiceEnabled
         voiceVisualizer: root.voiceVisualizer
+        thinkingVisualizer: root.thinkingVisualizer
         ttsProvider: root.ttsProvider
         ttsModel: root.ttsModel
         ttsVoice: root.ttsVoice
@@ -949,7 +938,12 @@ Panel {
         }
         onVoiceVisualizerRequested: function(visualizer) {
           root.persistSettings({
-            voiceVisualizer: Protocol.normalizedVoiceVisualizer(visualizer) || "kitt"
+            voiceVisualizer: Protocol.normalizedVoiceVisualizer(visualizer) || "segments"
+          })
+        }
+        onThinkingVisualizerRequested: function(visualizer) {
+          root.persistSettings({
+            thinkingVisualizer: Protocol.normalizedThinkingVisualizer(visualizer) || "bumper"
           })
         }
         onTtsProviderRequested: function(provider) {
@@ -1025,7 +1019,7 @@ Panel {
         anchors.fill: parent
         visible: root.previewSource !== ""
         z: 100
-        color: Color.menu.scrim
+        color: OmaPilot.OmaPilotPalette.menu.scrim
 
         TapHandler { onTapped: root.previewSource = "" }
 
@@ -1034,7 +1028,8 @@ Panel {
           width: Math.min(parent.width - Style.spacing.xxl * 2, Style.space(500))
           height: Math.min(parent.height - Style.spacing.xxl * 2, Style.space(500))
           color: root.surface
-          borderSpec: Border.surfaceSpec("popups", "border", Color.popups.border, Math.max(1, Style.normalBorderWidth))
+          borderSpec: Border.flat(
+            OmaPilot.OmaPilotPalette.popups.border, Math.max(1, Style.normalBorderWidth))
           radius: Style.cornerRadius
 
           TapHandler { onTapped: function(eventPoint) { eventPoint.accepted = true } }

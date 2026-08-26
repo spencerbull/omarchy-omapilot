@@ -7,56 +7,71 @@ Item {
 
   property string iconText: ""
   property string tooltipText: ""
-  property color foreground: Color.popups.text
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color accent: OmaPilotPalette.accent
   property bool listening: false
-  property bool levelMetered: false
-  property real level: 0
+  property bool transcribing: false
   property bool motionEnabled: true
   property bool focusable: true
-  property real fallbackLevel: 0.45
-
-  readonly property real visualLevel: !motionEnabled ? 0.5
-    : (levelMetered ? Math.max(0, Math.min(1, level)) : fallbackLevel)
+  property real controlSize: Math.max(Style.space(22), Style.font.icon + Style.spacing.sm * 2)
+  readonly property bool labeled: listening || transcribing
 
   signal clicked()
 
-  implicitWidth: action.size + (listening ? Style.space(44) : 0)
-  implicitHeight: action.size
+  implicitWidth: action.width
+  implicitHeight: action.height
 
-  SequentialAnimation {
-    running: root.listening && root.visible && root.motionEnabled && !root.levelMetered
+  ParallelAnimation {
+    running: root.listening && root.visible && root.motionEnabled
     loops: Animation.Infinite
-    NumberAnimation {
-      target: root
-      property: "fallbackLevel"
-      to: 1
-      duration: 640
-      easing.type: Easing.InOutSine
+    ScaleAnimator {
+      target: pulse
+      from: 1
+      to: 1.08
+      duration: 1600
+      easing.type: Easing.OutCubic
     }
-    NumberAnimation {
-      target: root
-      property: "fallbackLevel"
-      to: 0.35
-      duration: 760
-      easing.type: Easing.InOutSine
+    OpacityAnimator {
+      target: pulse
+      from: 0.5
+      to: 0
+      duration: 1600
+      easing.type: Easing.OutCubic
     }
   }
 
-  SplitIndicator {
-    anchors.fill: parent
-    gap: action.size + Style.spacing.sm * 2
-    accent: root.accent
-    level: root.visualLevel
-    visible: root.listening
+  Rectangle {
+    id: pulse
+    anchors.fill: action
+    anchors.margins: -Math.max(1, Style.spaceReal(1))
+    visible: root.listening && root.motionEnabled
+    color: "transparent"
+    border.width: Math.max(1, Style.spaceReal(1))
+    border.color: OmaPilotPalette.alpha(root.accent, 0.75)
+    opacity: 0
   }
 
-  PanelActionButton {
+  Button {
     id: action
     anchors.centerIn: parent
+    width: root.labeled ? implicitWidth : root.controlSize
+    height: root.labeled ? Math.max(root.controlSize, implicitHeight) : root.controlSize
+    text: root.listening ? "listening" : (root.transcribing ? "transcribing" : "")
     iconText: root.iconText
+    iconSpinning: root.transcribing && root.motionEnabled
     tooltipText: root.tooltipText
-    foreground: root.listening ? root.accent : root.foreground
+    foreground: root.listening || root.transcribing ? root.accent : root.foreground
+    background: root.listening || root.transcribing
+      ? OmaPilotPalette.selectedFill(root.accent) : "transparent"
+    accent: root.accent
+    bordered: true
+    fontSize: Style.font.caption
+    iconSize: Style.font.icon
+    horizontalPadding: Style.spacing.sm
+    verticalPadding: Style.spacing.xxs
+    tooltipBackground: OmaPilotPalette.tooltip.background
+    tooltipForeground: OmaPilotPalette.tooltip.text
+    tooltipBorder: OmaPilotPalette.tooltip.border
     focusable: root.focusable
     enabled: root.enabled
     Accessible.name: tooltipText

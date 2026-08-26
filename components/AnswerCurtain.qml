@@ -29,11 +29,13 @@ Item {
   property bool failed: false
   property var targetScreen: null
   property bool motionEnabled: true
+  property color finishedColor: OmaPilotPalette.finished
 
   // A delivered answer is its own state, so the curtain does not reuse the
   // listening colour.
   readonly property color lightColor:
-    StateColor.forPhase(Color.accent, Color.urgent, failed ? "error" : "answering")
+    StateColor.forPhase(OmaPilotPalette.accent, OmaPilotPalette.muted, finishedColor, OmaPilotPalette.urgent,
+                        failed ? "error" : "answering")
 
   signal linkActivated(string url)
 
@@ -83,9 +85,8 @@ Item {
       BorderSurface {
         anchors.fill: parent
         radius: Style.cornerRadius
-        color: Color.popups.background
-        borderSpec: Border.surfaceSpec(
-          "popups", "border", Color.popups.border, Math.max(1, Style.normalBorderWidth))
+        color: OmaPilotPalette.popups.background
+        borderSpec: Border.flat(OmaPilotPalette.popups.border, Math.max(1, Style.normalBorderWidth))
       }
 
       // An edge-lit seam along the top: brightest at the centre, gone by the
@@ -153,7 +154,7 @@ Item {
             anchors.rightMargin: Style.spacing.xxl
             elide: Text.ElideRight
             text: root.question
-            color: Qt.darker(Color.popups.text, 1.5)
+            color: OmaPilotPalette.darkForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
           }
@@ -161,7 +162,7 @@ Item {
             id: whoText
             anchors.right: parent.right
             text: root.provenance
-            color: root.failed ? Color.urgent : Qt.darker(Color.popups.text, 1.5)
+            color: root.failed ? OmaPilotPalette.urgent : OmaPilotPalette.darkForeground
             font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
           }
@@ -183,8 +184,8 @@ Item {
             width: answerScroll.width
             markdown: root.markdown
             images: root.images
-            foreground: Color.popups.text
-            background: Color.popups.background
+            foreground: OmaPilotPalette.popups.text
+            background: OmaPilotPalette.popups.background
             accent: root.lightColor
             fontFamily: Style.font.family
             onLinkActivated: function(url) { root.linkActivated(url) }

@@ -9,9 +9,9 @@ Item {
 
   property string markdown: ""
   property var images: []
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   readonly property var blocks: Protocol.markdownBlocks(markdown)
 
@@ -49,8 +49,11 @@ Item {
         readonly property bool displayReady: normalized.state === "ready" && !localImageFailed
         width: content.width
         height: displayReady ? Math.min(Style.space(320), Math.max(Style.space(140), responseImage.implicitHeight)) : Style.space(82)
-        color: Style.normalFillFor(root.foreground, root.accent)
-        borderSpec: Border.controlSpec(imageHover.hovered ? "hover-cursor" : "normal", root.foreground, root.accent)
+        color: OmaPilotPalette.normalFill(root.foreground)
+        borderSpec: Border.flat(
+          imageHover.hovered ? OmaPilotPalette.hoverBorder(root.foreground)
+            : OmaPilotPalette.normalBorder(root.foreground),
+          imageHover.hovered ? Style.hoverBorderWidth : Style.normalBorderWidth)
         radius: Style.cornerRadius
         clip: true
 
@@ -103,7 +106,7 @@ Item {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             text: imageCard.normalized.host || imageCard.normalized.alt
-            color: Qt.darker(root.foreground, 1.5)
+            color: OmaPilotPalette.darkForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             elide: Text.ElideMiddle
@@ -141,8 +144,9 @@ Item {
       property var block: ({ kind: "code", language: "", text: "" })
       width: content.width
       height: codeHeader.height + codeFlick.height + contentTopInset + contentBottomInset
-      color: Style.normalFillFor(root.foreground, root.accent)
-      borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
+      color: OmaPilotPalette.normalFill(root.foreground)
+      borderSpec: Border.flat(
+        OmaPilotPalette.normalBorder(root.foreground), Style.normalBorderWidth)
       radius: Style.cornerRadius
 
       Row {
@@ -159,7 +163,7 @@ Item {
           width: parent.width - copyCode.width
           anchors.verticalCenter: parent.verticalCenter
           text: block.language || "code"
-          color: Qt.darker(root.foreground, 1.45)
+          color: OmaPilotPalette.darkForeground
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
           font.bold: true
@@ -198,7 +202,7 @@ Item {
           selectByMouse: true
           text: block.text
           color: root.foreground
-          selectionColor: Style.selectionFillFor(root.foreground, root.accent)
+          selectionColor: OmaPilotPalette.selectionFill(root.foreground)
           selectedTextColor: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall

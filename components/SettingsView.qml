@@ -15,9 +15,9 @@ Item {
   property var quickActions: []
   property string selectedTab: "agent"
   property bool motionEnabled: true
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   readonly property var modeProviders: Protocol.harnessOptions()
   readonly property var browserCompanion: backend && backend.browserCompanionStatus
@@ -31,7 +31,8 @@ Item {
   readonly property var voiceStatus: backend && backend.voiceStatus
     ? backend.voiceStatus : Protocol.emptyVoiceStatus()
   property bool voiceEnabled: false
-  property string voiceVisualizer: "kitt"
+  property string voiceVisualizer: "segments"
+  property string thinkingVisualizer: "bumper"
   property string ttsProvider: "elevenlabs"
   property string ttsModel: ""
   property string ttsVoice: ""
@@ -95,14 +96,14 @@ Item {
     || authMethodPicker.popupOpen || authPromptPicker.popupOpen
     || webHandoffProviderPicker.popupOpen || ttsProviderPicker.popupOpen
     || ttsModelPicker.popupOpen || ttsVoicePicker.popupOpen
-    || voiceVisualizerPicker.popupOpen
+    || voiceVisualizerPicker.popupOpen || thinkingVisualizerPicker.popupOpen
   readonly property bool modalInteractionActive: popupOpen
     || browserCompanionBusy
     || (selectedTab === "desktop" && browserRemoveConfirmation)
     || (selectedTab === "actions" && quickActionEditor.interactionActive)
     || (selectedTab === "servers" && serverRemoveConfirmId !== "")
   implicitHeight: Style.space(560)
-  readonly property color mutedForeground: Qt.darker(foreground, 1.45)
+  readonly property color mutedForeground: OmaPilotPalette.darkForeground
   Accessible.name: "OmaPilot settings"
 
   signal dangerousAutoApproveRequested(bool enabled)
@@ -127,6 +128,7 @@ Item {
   signal voxtypeOsdRequested(bool enabled)
   signal voiceEnabledRequested(bool enabled)
   signal voiceVisualizerRequested(string visualizer)
+  signal thinkingVisualizerRequested(string visualizer)
   signal ttsProviderRequested(string provider)
   signal ttsModelRequested(string model)
   signal ttsVoiceRequested(string voice)
@@ -312,6 +314,7 @@ Item {
     ttsModelPicker.close()
     ttsVoicePicker.close()
     voiceVisualizerPicker.close()
+    thinkingVisualizerPicker.close()
     if (restoreFocus !== false)
       Qt.callLater(function() { tabBar.forceActiveFocus() })
   }
@@ -368,7 +371,7 @@ Item {
     Rectangle {
       Layout.fillWidth: true
       Layout.preferredHeight: Style.spacing.hairline
-      color: Style.normalBorderFor(root.foreground, root.accent)
+      color: OmaPilotPalette.normalBorder(root.foreground)
       Accessible.ignored: true
     }
 
@@ -514,7 +517,7 @@ Item {
               visible: root.backend && String(root.backend.builtinAuth.message || "") !== ""
               text: root.backend ? String(root.backend.builtinAuth.message || "") : ""
               color: root.backend && String(root.backend.builtinAuth.phase || "") === "error"
-                ? Color.urgent : root.mutedForeground
+                ? OmaPilotPalette.urgent : root.mutedForeground
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               wrapMode: Text.Wrap
@@ -526,7 +529,7 @@ Item {
                 || String(root.backend.builtinAuth.verificationUri || "") !== "")
               spacing: Style.spacing.md
 
-              Button {
+              CompactSettingsButton {
                 text: "Open sign-in page"
                 iconText: "󰖟"
                 foreground: root.foreground
@@ -539,7 +542,7 @@ Item {
                   || root.backend.builtinAuth.verificationUri || ""))
               }
 
-              Button {
+              CompactSettingsButton {
                 visible: root.backend && String(root.backend.builtinAuth.userCode || "") !== ""
                 text: "Copy " + (root.backend ? String(root.backend.builtinAuth.userCode || "") : "")
                 foreground: root.foreground
@@ -579,6 +582,7 @@ Item {
             TextField {
               id: authPromptInput
               Layout.fillWidth: true
+              verticalPadding: Style.spacing.controlPaddingY
               visible: root.backend && root.backend.builtinAuth.prompt
                 && root.backend.builtinAuth.prompt.kind !== "select"
               password: visible && root.backend.builtinAuth.prompt.kind === "secret"
@@ -596,7 +600,7 @@ Item {
               Layout.fillWidth: true
               spacing: Style.spacing.md
 
-              Button {
+              CompactSettingsButton {
                 visible: root.backend && !root.backend.builtinAuthBusy
                 text: String(root.backend && root.backend.builtinAuth.phase || "") === "error" ? "Try again"
                   : (root.authenticationRequired ? "Continue" : "Sign in")
@@ -611,7 +615,7 @@ Item {
                 onClicked: root.backend.authenticateBuiltIn(authMethodPicker.value)
               }
 
-              Button {
+              CompactSettingsButton {
                 visible: root.backend && root.backend.builtinAuth.prompt
                 text: "Continue"
                 foreground: root.foreground
@@ -627,7 +631,7 @@ Item {
                   ? authPromptPicker.value : authPromptInput.text)
               }
 
-              Button {
+              CompactSettingsButton {
                 visible: root.backend && root.backend.builtinAuthBusy
                 text: "Cancel"
                 foreground: root.foreground
@@ -671,7 +675,7 @@ Item {
             Layout.fillWidth: true
             visible: !root.backend || root.backend.brokerCapabilityPacksSupported !== true
             text: "Capability packs require an updated OmaPilot runtime."
-            color: Color.urgent
+            color: OmaPilotPalette.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
@@ -694,7 +698,7 @@ Item {
                   Layout.preferredHeight: Style.space(36)
                   radius: Style.space(1)
                   color: modelData.state === "ready" ? root.accent
-                    : (modelData.state === "degraded" ? Color.urgent : Qt.darker(root.foreground, 1.8))
+                    : (modelData.state === "degraded" ? OmaPilotPalette.urgent : OmaPilotPalette.muted)
                 }
 
                 ColumnLayout {
@@ -714,23 +718,21 @@ Item {
                   Text {
                     Layout.fillWidth: true
                     text: modelData.status
-                    color: modelData.state === "ready" ? Qt.darker(root.foreground, 1.45)
-                      : (modelData.state === "degraded" ? Color.urgent : root.accent)
+                    color: modelData.state === "ready" ? OmaPilotPalette.darkForeground
+                      : (modelData.state === "degraded" ? OmaPilotPalette.urgent : root.accent)
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                     wrapMode: Text.Wrap
                   }
                 }
 
-                Toggle {
-                  label: modelData.enabled ? "On" : "Off"
-                  description: ""
+                CompactSettingsToggle {
+                  Layout.alignment: Qt.AlignVCenter
                   checked: modelData.enabled
                   enabled: root.backend && root.backend.brokerCapabilityPacksSupported === true
                   foreground: root.foreground
                   accent: root.accent
-                  fontFamily: root.fontFamily
-                  Accessible.name: modelData.label + " capability"
+                  accessibleName: modelData.label + " capability"
                   onClicked: root.capabilityEnabledRequested(modelData.id, !modelData.enabled)
                 }
               }
@@ -747,7 +749,7 @@ Item {
               Text {
                 Layout.fillWidth: true
                 text: Protocol.capabilityOperationsLabel(modelData)
-                color: Qt.darker(root.foreground, 1.55)
+                color: OmaPilotPalette.darkForeground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.caption
                 wrapMode: Text.Wrap
@@ -790,6 +792,7 @@ Item {
             TextField {
               id: filesRootField
               Layout.fillWidth: true
+              verticalPadding: Style.spacing.controlPaddingY
               placeholderText: "/home/you/Dropbox"
               maximumLength: 4096
               text: root.filesRootDraft
@@ -801,7 +804,7 @@ Item {
               onAccepted: root.capabilityFilesRootRequested(root.filesRootDraft)
             }
 
-            Button {
+            CompactSettingsButton {
               text: "Save"
               foreground: root.foreground
               background: root.background
@@ -818,13 +821,13 @@ Item {
             Layout.fillWidth: true
             visible: root.capabilityError !== ""
             text: root.capabilityError
-            color: Color.urgent
+            color: OmaPilotPalette.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
           }
 
-          Button {
+          CompactSettingsButton {
             text: "Refresh connector status"
             foreground: root.foreground
             background: root.background
@@ -860,7 +863,7 @@ Item {
             font.pixelSize: Style.font.caption
           }
 
-          Toggle {
+          CompactSettingsToggle {
             Layout.fillWidth: true
             label: "Enable voice"
             description: root.voiceEnabled
@@ -874,7 +877,6 @@ Item {
             foreground: root.foreground
             accent: root.accent
             fontFamily: root.fontFamily
-            Accessible.name: label
             onClicked: root.voiceEnabledRequested(!root.voiceEnabled)
           }
 
@@ -926,7 +928,7 @@ Item {
             Layout.fillWidth: true
             showLabel: false
             options: Protocol.voiceVisualizerOptions()
-            value: Protocol.normalizedVoiceVisualizer(root.voiceVisualizer) || "kitt"
+            value: Protocol.normalizedVoiceVisualizer(root.voiceVisualizer) || "segments"
             foreground: root.foreground
             background: root.background
             Accessible.name: "Listening visualizer"
@@ -942,7 +944,37 @@ Item {
             font.pixelSize: Style.font.caption
           }
 
-          Toggle {
+          Text {
+            Layout.fillWidth: true
+            text: "Thinking visualizer"
+            color: root.mutedForeground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            font.bold: true
+          }
+
+          Dropdown {
+            id: thinkingVisualizerPicker
+            Layout.fillWidth: true
+            showLabel: false
+            options: Protocol.thinkingVisualizerOptions()
+            value: Protocol.normalizedThinkingVisualizer(root.thinkingVisualizer) || "bumper"
+            foreground: root.foreground
+            background: root.background
+            Accessible.name: "Thinking visualizer"
+            onChanged: function(value) { root.thinkingVisualizerRequested(value) }
+          }
+
+          Text {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: "Shown after dictation while OmaPilot prepares the answer."
+            color: root.mutedForeground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          CompactSettingsToggle {
             Layout.fillWidth: true
             visible: root.voxtypeOsd.available
             label: "Voxtype on-screen display"
@@ -951,7 +983,6 @@ Item {
             foreground: root.foreground
             accent: root.accent
             fontFamily: root.fontFamily
-            Accessible.name: label
             onClicked: root.voxtypeOsdRequested(!root.voxtypeOsd.enabled)
           }
 
@@ -970,7 +1001,7 @@ Item {
             wrapMode: Text.Wrap
             visible: String(root.voxtypeOsd.message || "") !== ""
             text: String(root.voxtypeOsd.message || "")
-            color: Color.urgent
+            color: OmaPilotPalette.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
           }
@@ -1015,7 +1046,7 @@ Item {
             wrapMode: Text.Wrap
             visible: String(root.ttsCatalog.message || "") !== ""
             text: String(root.ttsCatalog.message || "")
-            color: root.ttsReady ? root.mutedForeground : Color.urgent
+            color: root.ttsReady ? root.mutedForeground : OmaPilotPalette.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
           }
@@ -1023,6 +1054,7 @@ Item {
           TextField {
             id: ttsKeyInput
             Layout.fillWidth: true
+            verticalPadding: Style.spacing.controlPaddingY
             visible: root.ttsCloud
             password: true
             placeholderText: root.ttsCatalog.configured
@@ -1044,7 +1076,7 @@ Item {
             visible: root.ttsCloud
             spacing: Style.spacing.md
 
-            Button {
+            CompactSettingsButton {
               text: "Test key"
               foreground: root.foreground
               background: root.background
@@ -1059,7 +1091,7 @@ Item {
               }
             }
 
-            Button {
+            CompactSettingsButton {
               text: root.ttsCatalog.configured ? "Replace key" : "Save key"
               foreground: root.foreground
               background: root.background
@@ -1076,7 +1108,7 @@ Item {
               }
             }
 
-            Button {
+            CompactSettingsButton {
               visible: root.ttsCatalog.configured
               text: "Remove key"
               foreground: root.foreground
@@ -1100,7 +1132,7 @@ Item {
             wrapMode: Text.Wrap
             visible: root.ttsFormError !== ""
             text: root.ttsFormError
-            color: Color.urgent
+            color: OmaPilotPalette.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
           }
@@ -1189,7 +1221,7 @@ Item {
             Layout.fillWidth: true
             visible: root.savedServers.length === 0 && !root.serverFormExpanded
             text: "No servers added yet."
-            color: Qt.darker(root.foreground, 1.55)
+            color: OmaPilotPalette.darkForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
           }
@@ -1212,7 +1244,7 @@ Item {
                   Layout.preferredWidth: Style.spacing.xxs
                   Layout.preferredHeight: Style.space(28)
                   radius: Style.space(1)
-                  color: liveModels > 0 ? root.accent : Qt.darker(root.foreground, 1.8)
+                  color: liveModels > 0 ? root.accent : OmaPilotPalette.muted
                 }
 
                 ColumnLayout {
@@ -1230,7 +1262,7 @@ Item {
                     Layout.fillWidth: true
                     text: modelData.baseUrl + "  \u00b7  " + modelData.models.length
                       + (modelData.models.length === 1 ? " model" : " models")
-                    color: Qt.darker(root.foreground, 1.5)
+                    color: OmaPilotPalette.darkForeground
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                     elide: Text.ElideMiddle
@@ -1242,25 +1274,26 @@ Item {
                       : (modelData.requiresAuth
                         ? "Not signed in \u2014 edit this server and enter its API key"
                         : "No API key required \u00b7 refreshing models")
-                    color: liveModels > 0 ? Qt.darker(root.foreground, 1.5) : root.accent
+                    color: liveModels > 0 ? OmaPilotPalette.darkForeground : root.accent
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
                     elide: Text.ElideRight
                   }
                 }
 
-                Button {
+                CompactSettingsButton {
                   text: "Edit"
-                  foreground: Qt.darker(root.foreground, 1.3)
+                  foreground: OmaPilotPalette.darkForeground
                   background: root.background
                   bordered: true
                   focusable: true
                   onClicked: root.editServer(modelData)
                 }
 
-                Button {
+                CompactSettingsButton {
                   text: root.serverRemoveConfirmId === modelData.id ? "Confirm removal" : "Remove"
-                  foreground: root.serverRemoveConfirmId === modelData.id ? Color.urgent : Qt.darker(root.foreground, 1.3)
+                  foreground: root.serverRemoveConfirmId === modelData.id
+                    ? OmaPilotPalette.urgent : OmaPilotPalette.darkForeground
                   background: root.background
                   bordered: true
                   focusable: true
@@ -1280,7 +1313,7 @@ Item {
             wrapMode: Text.Wrap
             visible: root.brokerServerError !== "" && !root.serverFormExpanded
             text: root.brokerServerError
-            color: Color.urgent
+            color: OmaPilotPalette.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
           }
@@ -1289,12 +1322,12 @@ Item {
             Layout.fillWidth: true
             visible: root.serverFormNotice !== "" && root.brokerServerError === "" && !root.serverFormExpanded
             text: root.serverFormNotice
-            color: Qt.darker(root.foreground, 1.35)
+            color: OmaPilotPalette.darkForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
           }
 
-          Button {
+          CompactSettingsButton {
             text: root.serverSavePending ? "Saving…" : (root.serverFormExpanded ? "Cancel" : "Add a server")
             enabled: !root.serverSavePending
             foreground: root.foreground
@@ -1314,6 +1347,7 @@ Item {
 
             TextField {
               Layout.fillWidth: true
+              verticalPadding: Style.spacing.controlPaddingY
               placeholderText: "Short id, e.g. my-server  (required)"
               maximumLength: 64
               enabled: root.serverEditingId === "" && !root.serverSavePending
@@ -1325,6 +1359,7 @@ Item {
 
             TextField {
               Layout.fillWidth: true
+              verticalPadding: Style.spacing.controlPaddingY
               placeholderText: "Display name (optional)"
               maximumLength: 64
               text: root.serverDraftName
@@ -1336,6 +1371,7 @@ Item {
 
             TextField {
               Layout.fillWidth: true
+              verticalPadding: Style.spacing.controlPaddingY
               placeholderText: "https://host/v1  (http also supported for localhost or .ts.net)"
               maximumLength: 512
               text: root.serverDraftUrl
@@ -1350,6 +1386,7 @@ Item {
 
             TextField {
               Layout.fillWidth: true
+              verticalPadding: Style.spacing.controlPaddingY
               placeholderText: root.serverEditingId === ""
                 ? "API key (optional; blank means no key is required)"
                 : (root.serverDraftUrl.trim() === root.serverOriginalUrl
@@ -1367,7 +1404,7 @@ Item {
               }
             }
 
-            Button {
+            CompactSettingsButton {
               text: root.serverTestPending ? "Testing /models…" : "Test server"
               enabled: !root.serverSavePending && !root.serverTestPending
               foreground: root.foreground
@@ -1395,13 +1432,14 @@ Item {
               text: "Found " + root.serverTestModels.length
                 + (root.serverTestModels.length === 1 ? " model: " : " models: ")
                 + root.serverTestModels.map(function(model) { return String(model.id || "") }).join(", ")
-              color: Qt.darker(root.foreground, 1.35)
+              color: OmaPilotPalette.darkForeground
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               wrapMode: Text.Wrap
             }
 
-            Toggle {
+            CompactSettingsToggle {
+              Layout.fillWidth: true
               enabled: !root.serverSavePending
               checked: root.serverDraftResponses
               label: "Use the /responses API"
@@ -1409,7 +1447,6 @@ Item {
               foreground: root.foreground
               accent: root.accent
               fontFamily: root.fontFamily
-              Accessible.name: label
               onClicked: root.serverDraftResponses = !root.serverDraftResponses
             }
 
@@ -1418,12 +1455,12 @@ Item {
               wrapMode: Text.Wrap
               visible: root.serverFormError !== "" || root.brokerServerError !== ""
               text: root.serverFormError !== "" ? root.serverFormError : root.brokerServerError
-              color: Color.urgent
+              color: OmaPilotPalette.urgent
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
             }
 
-            Button {
+            CompactSettingsButton {
               text: root.serverSavePending ? "Saving server…"
                 : (root.serverEditingId === "" ? "Save server" : "Update server")
               enabled: !root.serverSavePending
@@ -1474,16 +1511,15 @@ Item {
           width: desktopScroll.width
           spacing: Style.spacing.xxl
 
-          Toggle {
+          CompactSettingsToggle {
             Layout.fillWidth: true
             label: "Dangerous auto-approve"
             description: "Approve each exact device action automatically instead of prompting."
             checked: root.dangerousAutoApprove
             enabled: root.backend && !root.backend.busy
             foreground: root.foreground
-            accent: checked ? Color.urgent : root.accent
+            accent: checked ? OmaPilotPalette.urgent : root.accent
             fontFamily: root.fontFamily
-            Accessible.name: label
             onClicked: root.dangerousAutoApproveRequested(!root.dangerousAutoApprove)
           }
 
@@ -1491,7 +1527,7 @@ Item {
             Layout.fillWidth: true
             visible: root.dangerousAutoApprove
             text: "Approval prompts are skipped. Commands may read, change, or delete device data and use the network."
-            color: Color.urgent
+            color: OmaPilotPalette.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
@@ -1499,7 +1535,7 @@ Item {
             Accessible.name: text
           }
 
-          Toggle {
+          CompactSettingsToggle {
             Layout.fillWidth: true
             label: "Desktop context"
             description: "Attach the active window, open apps, workspaces, and playing media on send."
@@ -1507,7 +1543,6 @@ Item {
             foreground: root.foreground
             accent: root.accent
             fontFamily: root.fontFamily
-            Accessible.name: label
             onClicked: root.desktopContextRequested(!root.desktopContextEnabled)
           }
 
@@ -1535,7 +1570,7 @@ Item {
             Layout.fillWidth: true
             spacing: Style.spacing.md
 
-            Button {
+            CompactSettingsButton {
               Layout.fillWidth: true
               text: root.hotkeyBusy ? "Updating hotkeys…" : "Install global hotkeys"
               tooltipText: "Add OmaPilot shortcuts without replacing existing shortcut chords"
@@ -1550,7 +1585,7 @@ Item {
               onClicked: root.hotkeyInstallRequested()
             }
 
-            Button {
+            CompactSettingsButton {
               text: "Remove"
               tooltipText: "Remove only the hotkey block managed by OmaPilot"
               foreground: root.foreground
@@ -1569,7 +1604,7 @@ Item {
             text: root.hotkeyMessage
             color: root.hotkeyMessage.toLowerCase().indexOf("fail") >= 0
               || root.hotkeyMessage.toLowerCase().indexOf("refus") >= 0
-              ? Color.urgent : root.mutedForeground
+              ? OmaPilotPalette.urgent : root.mutedForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
@@ -1628,7 +1663,7 @@ Item {
               Layout.preferredHeight: Style.space(8)
               radius: width / 2
               color: root.browserCompanionConnected ? root.accent
-                : (root.browserCompanion.phase === "failed" ? Color.urgent : root.mutedForeground)
+                : (root.browserCompanion.phase === "failed" ? OmaPilotPalette.urgent : root.mutedForeground)
             }
 
             ColumnLayout {
@@ -1671,7 +1706,7 @@ Item {
             Layout.fillWidth: true
             visible: root.browserCompanion.phase === "failed"
             text: root.browserCompanion.message || "Browser companion setup failed."
-            color: Color.urgent
+            color: OmaPilotPalette.urgent
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             wrapMode: Text.Wrap
@@ -1681,7 +1716,7 @@ Item {
             Layout.fillWidth: true
             spacing: Style.spacing.md
 
-            Button {
+            CompactSettingsButton {
               Layout.fillWidth: true
               visible: !root.browserCompanionConnected
               iconText: "󰖟"
@@ -1702,7 +1737,7 @@ Item {
               }
             }
 
-            Button {
+            CompactSettingsButton {
               iconText: "󰑓"
               text: "Refresh"
               tooltipText: "Refresh browser companion status"
@@ -1716,7 +1751,7 @@ Item {
             }
           }
 
-          Button {
+          CompactSettingsButton {
             Layout.fillWidth: true
             visible: root.browserCompanion.relayInstalled === true
             text: root.browserSetupExpanded ? "Hide setup details" : (root.browserCompanionConnected ? "Browser setup details" : "Finish browser setup")
@@ -1757,7 +1792,7 @@ Item {
               Layout.fillWidth: true
               spacing: Style.spacing.md
 
-              Button {
+              CompactSettingsButton {
                 Layout.fillWidth: true
                 text: "Open Chromium extensions"
                 foreground: root.foreground
@@ -1768,7 +1803,7 @@ Item {
                 onClicked: root.browserCompanionOpenSettingsRequested("chromium")
               }
 
-              Button {
+              CompactSettingsButton {
                 text: "Copy folder"
                 foreground: root.foreground
                 background: root.background
@@ -1802,7 +1837,7 @@ Item {
               Layout.fillWidth: true
               spacing: Style.spacing.md
 
-              Button {
+              CompactSettingsButton {
                 Layout.fillWidth: true
                 text: "Open Firefox debugging"
                 foreground: root.foreground
@@ -1813,7 +1848,7 @@ Item {
                 onClicked: root.browserCompanionOpenSettingsRequested("firefox")
               }
 
-              Button {
+              CompactSettingsButton {
                 text: "Copy folder"
                 foreground: root.foreground
                 background: root.background
@@ -1831,7 +1866,7 @@ Item {
             visible: root.browserCompanion.relayInstalled === true || root.browserRemoveConfirmation
             spacing: Style.spacing.md
 
-            Button {
+            CompactSettingsButton {
               Layout.fillWidth: true
               iconText: "󰆴"
               text: root.browserRemoveConfirmation ? "Confirm removal" : "Remove browser context"
@@ -1840,7 +1875,7 @@ Item {
                 : "Remove the native relay, browser registrations, and extension flags"
               foreground: root.foreground
               background: root.background
-              accent: Color.urgent
+              accent: OmaPilotPalette.urgent
               active: root.browserRemoveConfirmation
               bordered: true
               focusable: true
@@ -1857,7 +1892,7 @@ Item {
               }
             }
 
-            Button {
+            CompactSettingsButton {
               visible: root.browserRemoveConfirmation
               text: "Cancel"
               tooltipText: "Keep browser context enabled"
@@ -1928,7 +1963,7 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         height: Style.spacing.hairline
-        color: Style.normalBorderFor(root.foreground, root.accent)
+        color: OmaPilotPalette.normalBorder(root.foreground)
         Accessible.ignored: true
       }
 
@@ -1951,8 +1986,9 @@ Item {
         BorderSurface {
           Layout.preferredWidth: settingsFooterKey.implicitWidth + Style.spacing.xl
           Layout.preferredHeight: settingsFooterKey.implicitHeight + Style.spacing.xxs
-          color: Style.normalFillFor(root.foreground, root.accent)
-          borderSpec: Border.controlSpec("normal", root.foreground, root.accent)
+          color: OmaPilotPalette.normalFill(root.foreground)
+          borderSpec: Border.flat(
+            OmaPilotPalette.normalBorder(root.foreground), Style.normalBorderWidth)
           radius: Style.cornerRadius
 
           Text {

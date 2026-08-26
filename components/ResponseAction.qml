@@ -9,10 +9,10 @@ Button {
   property bool quiet: false
 
   foreground: root.enabled
-    ? (root.primary ? Color.accent : Color.popups.text)
-    : Qt.darker(Color.popups.text, 1.55)
+    ? (root.primary ? OmaPilotPalette.accent : OmaPilotPalette.popups.text)
+    : OmaPilotPalette.darkForeground
   background: "transparent"
-  accent: Color.accent
+  accent: OmaPilotPalette.accent
   fontFamily: Style.font.family
   fontSize: Style.font.caption
   iconSize: Style.font.body

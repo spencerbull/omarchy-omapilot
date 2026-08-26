@@ -1,5 +1,6 @@
 singleton OmaPilotStore 1.0 OmaPilotStore.qml
 singleton DesktopContext 1.0 DesktopContext.qml
+singleton OmaPilotPalette 1.0 OmaPilotPalette.qml
 Composer 1.0 Composer.qml
 ContextAttachmentPreview 1.0 ContextAttachmentPreview.qml
 ErrorDetailsView 1.0 ErrorDetailsView.qml
@@ -8,11 +9,13 @@ HistoryView 1.0 HistoryView.qml
 MarkdownView 1.0 MarkdownView.qml
 OmaPilotHeader 1.0 OmaPilotHeader.qml
 OmaPilotMark 1.0 OmaPilotMark.qml
-SplitIndicator 1.0 SplitIndicator.qml
+ThinRingIndicator 1.0 ThinRingIndicator.qml
 VoiceAction 1.0 VoiceAction.qml
 QuickActions 1.0 QuickActions.qml
 QuickActionEditor 1.0 QuickActionEditor.qml
 CommandReceipt 1.0 CommandReceipt.qml
+CompactSettingsButton 1.0 CompactSettingsButton.qml
+CompactSettingsToggle 1.0 CompactSettingsToggle.qml
 ResponseBadge 1.0 ResponseBadge.qml
 ResponseAction 1.0 ResponseAction.qml
 ResponseActivityBorder 1.0 ResponseActivityBorder.qml

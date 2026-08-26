@@ -11,9 +11,9 @@ Item {
   required property var backend
   property bool inlineMode: false
   property string draftText: ""
-  property color foreground: Color.popups.text
-  property color background: Color.popups.background
-  property color accent: Color.accent
+  property color foreground: OmaPilotPalette.popups.text
+  property color background: OmaPilotPalette.popups.background
+  property color accent: OmaPilotPalette.accent
   property string fontFamily: Style.font.family
   property string monoFontFamily: Style.font.family
   property bool motionEnabled: true
@@ -30,6 +30,8 @@ Item {
   signal historyRequested()
 
   readonly property bool inputActive: inlineMode ? inlineInput.activeFocus : promptInput.activeFocus
+  readonly property bool dictationTranscribing: backend && "dictationPhase" in backend
+    && String(backend.dictationPhase || "") === "transcribing"
   readonly property bool showingQuestion: !inlineMode && draftText === "" && backend
     && String(backend.question || "") !== ""
     && (String(backend.answerMarkdown || "") !== "" || backend.pendingPermission !== null
@@ -82,8 +84,7 @@ Item {
 
   function acceptTranscript() {
     if (!backend || !backend.transcript) return
-    draftText = String(backend.transcript)
-    Qt.callLater(forceInputFocus)
+    setDraft(backend.transcript)
   }
 
   Connections {
@@ -143,21 +144,21 @@ Item {
 
     VoiceAction {
       Layout.alignment: Qt.AlignVCenter
-      iconText: root.backend && root.backend.state === "dictating" ? "󰓛" : "󰍬"
+      iconText: root.dictationTranscribing ? "󰑓" : "󰍬"
       tooltipText: root.backend && root.backend.state === "dictating" ? "Stop dictation"
-        : (root.backend && root.backend.voiceEnabled === false ? "Enable voice in Settings" : "Dictate")
+        : (root.dictationTranscribing ? "Cancel transcription"
+          : (root.backend && root.backend.voiceEnabled === false ? "Enable voice in Settings" : "Dictate"))
       foreground: root.foreground
       accent: root.accent
       listening: root.backend && root.backend.state === "dictating"
-      levelMetered: root.backend && "dictationMetered" in root.backend
-        && root.backend.dictationMetered === true
-      level: root.backend && "dictationLevel" in root.backend
-        ? Number(root.backend.dictationLevel || 0) : 0
+      transcribing: root.dictationTranscribing
       motionEnabled: root.motionEnabled
       enabled: root.backend && root.backend.providerReady && !root.backend.continuationBlocked
-        && root.backend.state !== "streaming" && root.backend.state !== "preparing"
+        && root.backend.state !== "streaming"
+        && (root.backend.state !== "preparing" || root.dictationTranscribing)
       onClicked: {
-        if (root.backend.state === "dictating") root.backend.stopDictation()
+        if (root.dictationTranscribing) root.backend.cancel()
+        else if (root.backend.state === "dictating") root.backend.stopDictation()
         else root.backend.startDictation()
       }
     }
@@ -168,6 +169,7 @@ Item {
       tooltipText: root.backend && root.backend.busy ? "Stop response" : "Send question"
       foreground: root.foreground
       focusable: true
+      bordered: true
       enabled: root.backend && (root.backend.busy || (root.backend.canSubmit && root.draftText.trim() !== ""))
       Accessible.name: tooltipText
       onClicked: {
@@ -232,18 +234,29 @@ Item {
             ? "Ask, or name a workspace, app, or setting"
             : "Starting OmaPilot\u2026")
         placeholderTextColor: root.showingQuestion
-          ? root.foreground : Qt.darker(root.foreground, 1.45)
+          ? root.foreground : OmaPilotPalette.darkForeground
         color: root.foreground
-        selectionColor: Style.selectionFillFor(root.foreground, root.accent)
+        selectionColor: OmaPilotPalette.selectionFill(root.foreground)
         selectedTextColor: root.foreground
         font.family: root.monoFontFamily
         font.pixelSize: Style.font.heading
         wrapMode: TextEdit.NoWrap
         background: null
         cursorDelegate: Rectangle {
-          width: root.showingQuestion || root.draftText.length === 0 ? 0 : Style.space(8)
+          id: blockCursor
+          property bool blinkOn: true
+          width: root.showingQuestion ? 0 : Style.space(8)
           height: Style.space(20)
           color: root.accent
+          opacity: blinkOn ? 1 : 0
+
+          Timer {
+            interval: 500
+            repeat: true
+            running: promptInput.activeFocus && !root.showingQuestion && root.motionEnabled
+            onTriggered: blockCursor.blinkOn = !blockCursor.blinkOn
+            onRunningChanged: if (!running) blockCursor.blinkOn = true
+          }
         }
         leftPadding: 0
         topPadding: Style.space(15)
@@ -271,12 +284,14 @@ Item {
         id: promptTools
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.space(7)
+        spacing: Style.spacing.sm
 
         PanelActionButton {
           iconText: "󰹑"
           tooltipText: "Clip context from the desktop"
           foreground: root.foreground
+          size: Style.space(30)
+          bordered: true
           focusable: true
           enabled: root.backend && root.backend.contextCaptureAvailable
           Accessible.name: tooltipText
@@ -284,17 +299,16 @@ Item {
         }
 
         VoiceAction {
-          iconText: root.backend && (root.backend.busy || root.backend.state === "dictating")
-            ? "󰓛" : "󰍬"
+          iconText: root.dictationTranscribing ? "󰑓" : (root.backend && root.backend.busy
+            && root.backend.state !== "dictating" ? "󰓛" : "󰍬")
           tooltipText: root.backend && root.backend.state === "dictating" ? "Stop dictation"
-            : (root.backend && root.backend.busy ? "Stop response" : "Dictate with Voxtype")
+            : (root.dictationTranscribing ? "Cancel transcription"
+              : (root.backend && root.backend.busy ? "Stop response" : "Dictate with Voxtype"))
           foreground: root.foreground
           accent: root.accent
+          controlSize: Style.space(30)
           listening: root.backend && root.backend.state === "dictating"
-          levelMetered: root.backend && "dictationMetered" in root.backend
-            && root.backend.dictationMetered === true
-          level: root.backend && "dictationLevel" in root.backend
-            ? Number(root.backend.dictationLevel || 0) : 0
+          transcribing: root.dictationTranscribing
           motionEnabled: root.motionEnabled
           enabled: root.backend && root.backend.providerReady && !root.backend.continuationBlocked
           onClicked: {
@@ -303,7 +317,27 @@ Item {
             else root.backend.startDictation()
           }
         }
+
       }
+    }
+
+    ListeningVisualizer {
+      id: panelListeningVisualizer
+      Layout.fillWidth: true
+      Layout.preferredHeight: Style.space(76)
+      Layout.leftMargin: Style.spacing.lg
+      Layout.rightMargin: Style.spacing.lg
+      visible: root.backend && (root.backend.state === "dictating" || root.dictationTranscribing)
+      visualizer: root.backend && "voiceVisualizer" in root.backend
+        ? String(root.backend.voiceVisualizer || "segments") : "segments"
+      accent: root.accent
+      levelMetered: root.backend && "dictationMetered" in root.backend
+        && root.backend.dictationMetered === true
+      level: root.dictationTranscribing ? 0.58
+        : (root.backend && "dictationLevel" in root.backend
+          ? Number(root.backend.dictationLevel || 0) : 0)
+      intensity: 0.9
+      motionEnabled: root.motionEnabled
     }
 
     Button {

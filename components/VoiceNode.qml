@@ -3,6 +3,7 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import "Protocol.js" as Protocol
 import "StateColor.js" as StateColor
 import "StatePhrases.js" as StatePhrases
 
@@ -30,21 +31,22 @@ Item {
   property real playbackLevel: 0
   property bool listeningMetered: false
   property real listeningLevel: 0
-  property string voiceVisualizer: "kitt"
+  property string voiceVisualizer: "segments"
+  property string thinkingVisualizer: "bumper"
   // How to finish. Rendered under the caption while listening.
   property string hint: ""
   property var targetScreen: null
   property bool motionEnabled: true
+  property color thinkingColor: OmaPilotPalette.thinking
+  property color finishedColor: OmaPilotPalette.finished
 
   readonly property bool lit: phase !== "dormant"
-  // Each state gets its own hue, derived from the theme accent so it still
-  // belongs to the palette. See StateColor.js for why the states rotate rather
-  // than using absolute "success green" style colours.
-  readonly property color lightColor: StateColor.forPhase(Color.accent, Color.urgent, phase)
+  readonly property color lightColor: StateColor.forPhase(
+    OmaPilotPalette.accent, thinkingColor, finishedColor, OmaPilotPalette.urgent, phase)
 
   // Fallback driver for voice states without telemetry. Real microphone peaks
   // feed the selected listening visualizer, measured playback feeds the TTS
-  // line, and thinking uses its own scanner.
+  // line, and thinking uses its selected processing visualizer.
   property real level: 0
   property real presence: lit ? 1 : 0
   // A second, much slower cycle keeps the active listening/thinking surface
@@ -69,9 +71,16 @@ Item {
   readonly property bool voiceWaveActive: listeningVisualizerActive || speakingLineActive
   readonly property string selectedVoiceVisualizer: listeningVisualizer.selectedVisualizer
   readonly property bool listeningRendererLoaded: listeningVisualizer.rendererLoaded
-  readonly property bool thinkingScannerActive: phase === "thinking"
+  readonly property string selectedThinkingVisualizer:
+    Protocol.normalizedThinkingVisualizer(thinkingVisualizer) || "bumper"
+  readonly property bool thinkingVisualizerActive: phase === "thinking"
+  readonly property bool thinkingScannerActive: thinkingVisualizerActive
+    && selectedThinkingVisualizer === "scanner"
+  readonly property bool thinkingBumperActive: thinkingVisualizerActive
+    && selectedThinkingVisualizer === "bumper"
   readonly property bool scannerRunning: thinkingScanner.running
   readonly property real scannerProgress: thinkingScanner.progress
+  readonly property bool bumperRunning: thinkingBumper.running
   readonly property bool thinkingPhraseRunning: thinkingPhraseTimer.running
   readonly property real listeningVisualLevel: !motionEnabled ? 0.5
     : (listeningMetered ? Math.max(0, Math.min(1, listeningLevel)) : level)
@@ -219,9 +228,9 @@ Item {
       height: Style.space(190)
       opacity: root.presence
       gradient: Gradient {
-        GradientStop { position: 0.0; color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.0) }
-        GradientStop { position: 0.55; color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.30) }
-        GradientStop { position: 1.0; color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.62) }
+        GradientStop { position: 0.0; color: Qt.rgba(OmaPilotPalette.background.r, OmaPilotPalette.background.g, OmaPilotPalette.background.b, 0.0) }
+        GradientStop { position: 0.55; color: Qt.rgba(OmaPilotPalette.background.r, OmaPilotPalette.background.g, OmaPilotPalette.background.b, 0.30) }
+        GradientStop { position: 1.0; color: Qt.rgba(OmaPilotPalette.background.r, OmaPilotPalette.background.g, OmaPilotPalette.background.b, 0.62) }
       }
     }
 
@@ -321,7 +330,7 @@ Item {
       brightness: 0.5
       colorization: 0.9
       colorizationColor: root.lightColor
-      opacity: root.presence * (root.thinkingScannerActive ? 0.18 : 1)
+      opacity: root.presence * (root.thinkingVisualizerActive ? 0.18 : 1)
     }
 
     // The filament itself, unblurred, on top: one hairline of real light. It
@@ -339,7 +348,7 @@ Item {
         GradientStop { position: 0.7; color: root.lightColor }
         GradientStop { position: 1.0; color: "transparent" }
       }
-      opacity: root.presence * (root.thinkingScannerActive ? 0
+      opacity: root.presence * (root.thinkingVisualizerActive ? 0
         : 0.55 + root.visualLevel * 0.3)
     }
 
@@ -355,6 +364,19 @@ Item {
       active: root.thinkingScannerActive
       motionEnabled: root.motionEnabled
       intensity: root.presence
+    }
+
+    BumperVisualizer {
+      id: thinkingBumper
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.bottom: parent.bottom
+      width: Math.min(parent.width * 0.52, Style.space(720))
+      height: Style.space(64)
+      accent: root.lightColor
+      level: root.level
+      intensity: root.presence
+      motionEnabled: root.motionEnabled
+      visible: root.thinkingBumperActive
     }
 
     ListeningVisualizer {
@@ -380,10 +402,8 @@ Item {
       anchors.bottomMargin: Style.space(10)
       width: Math.min(parent.width * 0.72, Style.space(820))
       height: Style.space(66)
-      visualizer: "line"
       accent: root.lightColor
       level: root.speakingVisualLevel
-      levelMetered: root.playbackMetered
       motionEnabled: root.motionEnabled
       visible: root.speakingLineActive
       intensity: root.presence * (0.68 + root.speakingVisualLevel * 0.25)
@@ -424,7 +444,7 @@ Item {
         Rectangle {
           anchors.fill: parent
           radius: height / 2
-          color: Color.background
+          color: OmaPilotPalette.background
         }
       }
       MultiEffect {
@@ -469,7 +489,7 @@ Item {
           maximumLineCount: 2
           wrapMode: Text.WordWrap
           text: root.captionMessage
-          color: Color.foreground
+          color: OmaPilotPalette.foreground
           font.family: Style.font.family
           font.pixelSize: Style.font.body
         }
@@ -480,7 +500,7 @@ Item {
           horizontalAlignment: Text.AlignHCenter
           elide: Text.ElideRight
           text: root.captionDetail
-          color: Qt.darker(Color.foreground, 1.45)
+          color: OmaPilotPalette.darkForeground
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
         }
@@ -497,7 +517,7 @@ Item {
         shadowScale: 1
         shadowHorizontalOffset: 0
         shadowVerticalOffset: 0
-        shadowColor: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 1)
+        shadowColor: Qt.rgba(OmaPilotPalette.background.r, OmaPilotPalette.background.g, OmaPilotPalette.background.b, 1)
         shadowOpacity: 0.72
       }
     }

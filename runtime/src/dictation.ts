@@ -106,9 +106,29 @@ export class DictationService {
       } catch {
         // The transcript is written only after transcription completes.
       }
+      if (await this.#transcriptionFinished()) {
+        await rm(this.#transcript, { force: true });
+        return "";
+      }
       await new Promise((resolveDelay) => setTimeout(resolveDelay, 150));
     }
     throw new Error("Voxtype transcription timed out");
+  }
+
+  async #transcriptionFinished(): Promise<boolean> {
+    if (this.#voxtype === undefined) return false;
+    const result = await runCommand(this.#voxtype, ["status", "--format", "json"], {
+      env: this.#env,
+      timeoutMs: 3_000,
+      maxOutput: 16_384
+    });
+    if (result.code !== 0) return false;
+    try {
+      const status = JSON.parse(result.stdout) as { alt?: unknown };
+      return status !== null && typeof status === "object" && status.alt === "idle";
+    } catch {
+      return false;
+    }
   }
 
   cancel(): Promise<void> {
