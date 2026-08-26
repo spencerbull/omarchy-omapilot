@@ -26,11 +26,12 @@ import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
 import type { AcpPrompt } from "./context.js";
 import type { AcpResult, AcpRun, PermissionHandler } from "./acp.js";
 import { automaticInstructions, type PiDiscoveredProvider } from "./providers.js";
-import type { BrokerEvent, BuiltinAuthMethod, ModelOption, ProviderPolicyInfo, WebHandoffProvider } from "./types.js";
+import type { BrokerEvent, BuiltinAuthMethod, CommandReceipt, ModelOption, ProviderPolicyInfo, WebHandoffProvider } from "./types.js";
 import { omapilotPaths } from "./paths.js";
 import { pluginRoot } from "./runtime-root.js";
 import {
   createPersonalAssistantTools,
+  displayCommand,
   desktopToolTitle,
   reviewDesktopToolInput
 } from "./tools/desktop.js";
@@ -351,7 +352,8 @@ export function runPiQuestion(
   requestPermission?: PermissionHandler,
   cancelPermissions?: () => void,
   resumeSessionId?: string,
-  webHandoffProvider: WebHandoffProvider = "duckduckgo"
+  webHandoffProvider: WebHandoffProvider = "duckduckgo",
+  observeAction?: (receipt: CommandReceipt) => void
 ): AcpRun {
   const controller = new AbortController();
   let activeSession: { abort: () => Promise<void>; dispose: () => void } | undefined;
@@ -405,9 +407,9 @@ export function runPiQuestion(
       tools: [...PI_TOOLS, ...capabilities.tools.map((tool) => tool.name)],
       customTools: [
         agentTool,
-        ...createDesktopTools(),
-        createWebHandoffTool(webHandoffProvider),
-        ...createPersonalAssistantTools(),
+        ...createDesktopTools(undefined, observeAction),
+        createWebHandoffTool(webHandoffProvider, undefined, undefined, observeAction),
+        ...createPersonalAssistantTools(undefined, undefined, undefined, observeAction),
         ...capabilities.tools
       ]
     });
@@ -559,7 +561,10 @@ function commandToolError(action: string, error: unknown): { content: Array<{ ty
   return { content: [{ type: "text", text: message }], details: undefined, isError: true };
 }
 
-export function createDesktopTools(run: DesktopCommandRunner = runDesktopCommand): [
+export function createDesktopTools(
+  run: DesktopCommandRunner = runDesktopCommand,
+  observeAction?: (receipt: CommandReceipt) => void
+): [
   ToolDefinition<typeof openUrlParameters>, ToolDefinition<typeof mediaControlParameters>
 ] {
   const openUrl: ToolDefinition<typeof openUrlParameters> = {
@@ -571,7 +576,13 @@ export function createDesktopTools(run: DesktopCommandRunner = runDesktopCommand
     async execute(_toolCallId, input, signal) {
       try {
         const url = normalizeOpenUrl(input.url);
+        const startedAt = Date.now();
         await run("omarchy", ["launch", "browser", url], signal);
+        observeAction?.({
+          command: displayCommand("omarchy", ["launch", "browser", url]),
+          exitCode: 0,
+          durationMs: Math.max(0, Date.now() - startedAt)
+        });
         return { content: [{ type: "text", text: "The requested page opened in the default browser." }], details: { url } };
       } catch (error) { return commandToolError("Opening the URL", error); }
     }
@@ -585,6 +596,7 @@ export function createDesktopTools(run: DesktopCommandRunner = runDesktopCommand
     async execute(_toolCallId, input, signal) {
       try {
         const method = omarchyMediaMethod(input.action);
+        const startedAt = Date.now();
         const result = await run("omarchy-shell", ["media", method], signal);
         const output = `${result.stdout}\n${result.stderr}`.trim();
         if (output === "unhandled") return {
@@ -595,6 +607,11 @@ export function createDesktopTools(run: DesktopCommandRunner = runDesktopCommand
           content: [{ type: "text", text: "The Omarchy media service returned an unexpected result." }],
           details: { action: input.action }, isError: true
         };
+        observeAction?.({
+          command: displayCommand("omarchy-shell", ["media", method]),
+          exitCode: 0,
+          durationMs: Math.max(0, Date.now() - startedAt)
+        });
         return {
           content: [{ type: "text", text: `Media action ${input.action} completed.` }],
           details: { action: input.action }

@@ -25,11 +25,15 @@ ShellRoot {
     required property string phase
     required property string title
     required property real level
-    property alias wavePhase: wave.phase
+    property string visualizer: "kitt"
+    readonly property real wavePhase: phase === "listening"
+      ? listeningVisualizer.rendererPhase : wave.phase
     property alias wavePace: wave.motionPace
     property alias waveLevel: wave.level
     property alias wavePower: wave.speakingLevel
-    property alias waveVisible: wave.visible
+    readonly property bool voiceBoxActive: lane.phase === "listening"
+      && listeningVisualizer.voiceBoxActive
+    readonly property bool waveVisible: listeningVisualizer.visible || wave.visible
     property alias scannerProgress: scanner.progress
     property alias scannerRunning: scanner.running
 
@@ -43,6 +47,22 @@ ShellRoot {
       font.weight: Font.DemiBold
     }
 
+    OmaPilot.ListeningVisualizer {
+      id: listeningVisualizer
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: parent.top
+      anchors.topMargin: 34
+      height: 92
+      accent: "#8caaee"
+      level: lane.level
+      levelMetered: true
+      intensity: 0.92
+      motionEnabled: true
+      visible: lane.phase === "listening"
+      visualizer: lane.visualizer
+    }
+
     OmaPilot.VoiceWave {
       id: wave
       anchors.left: parent.left
@@ -52,10 +72,11 @@ ShellRoot {
       height: 92
       accent: "#8caaee"
       level: lane.level
-      intensity: lane.phase === "thinking" ? 0.72 : 0.92
+      intensity: 0.92
       motionEnabled: true
-      visible: lane.phase !== "thinking"
-      motionStyle: lane.phase
+      visible: lane.phase === "speaking"
+      motionStyle: "speaking"
+      visualizer: "line"
     }
 
     OmaPilot.ThinkingScanner {
@@ -114,7 +135,7 @@ ShellRoot {
         height: 150
         phase: "listening"
         level: 0.72
-        title: "LISTENING  ·  centred breath"
+        title: "LISTENING  ·  measured KITT voice box"
       }
 
       MotionLane {
@@ -142,7 +163,7 @@ ShellRoot {
         height: 150
         phase: "speaking"
         level: root.speakingLevel
-        title: "SPEAKING  ·  measured TTS output"
+        title: "SPEAKING  ·  measured animated line"
       }
     }
   }
@@ -170,15 +191,18 @@ ShellRoot {
         Qt.quit()
         return
       }
+      if (!listeningLane.voiceBoxActive || speakingLane.voiceBoxActive) {
+        console.error("omapilot state motion preview failed: listening bricks and speaking line were not split")
+        Qt.quit()
+        return
+      }
       if (root.lastScannerProgress >= 0) {
         var scannerStep = thinkingLane.scannerProgress - root.lastScannerProgress
         if (scannerStep > 0.01) root.sawScannerForward = true
         if (scannerStep < -0.01) root.sawScannerReverse = true
       }
       root.lastScannerProgress = thinkingLane.scannerProgress
-      if (speakingLane.wavePace <= listeningLane.wavePace
-          || speakingLane.wavePace >= thinkingLane.wavePace
-          || Math.abs(speakingLane.waveLevel - root.speakingLevel) > 0.001) {
+      if (Math.abs(speakingLane.waveLevel - root.speakingLevel) > 0.001) {
         console.error("omapilot state motion preview failed: speaking did not follow its measured lane")
         Qt.quit()
         return

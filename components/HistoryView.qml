@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
-import "Protocol.js" as Protocol
 import "internal" as OmaPilotInternal
 
 Item {
@@ -16,6 +15,7 @@ Item {
   property bool motionEnabled: true
   property bool confirmingClear: false
   readonly property bool modalInteractionActive: confirmingClear
+  implicitHeight: Math.min(Style.space(360), 94 + history.length * 30)
 
   signal chatSelected(var chat)
   signal deleteRequested(string chatId)
@@ -29,11 +29,14 @@ Item {
 
   ColumnLayout {
     anchors.fill: parent
-    spacing: Style.spacing.md
+    spacing: 0
 
     RowLayout {
       Layout.fillWidth: true
-      spacing: Style.spacing.md
+      Layout.preferredHeight: 56
+      Layout.leftMargin: 17
+      Layout.rightMargin: 17
+      spacing: 9
 
       PanelActionButton {
         id: closeHistory
@@ -48,9 +51,9 @@ Item {
       Text {
         text: "History"
         color: root.foreground
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        font.bold: true
+        font.family: "JetBrains Mono"
+        font.pixelSize: 17
+        font.bold: false
         Accessible.role: Accessible.StaticText
         Accessible.name: "Recent chats"
       }
@@ -70,11 +73,6 @@ Item {
         activeFocusOnTab: visible
         Accessible.role: Accessible.Button
         Accessible.name: root.confirmingClear ? "Confirm clear all chats" : "Clear all chats"
-
-        Behavior on color {
-          enabled: root.motionEnabled
-          ColorAnimation { duration: 120 }
-        }
 
         HoverHandler {
           id: clearHover
@@ -97,6 +95,7 @@ Item {
 
     ActivityFilament {
       Layout.fillWidth: true
+      Layout.preferredHeight: 1
       foreground: root.foreground
       accent: root.accent
       focused: list.activeFocus || closeHistory.activeFocus
@@ -152,7 +151,7 @@ Item {
           required property var modelData
           required property int index
           width: list.width
-          height: rowContent.implicitHeight + Style.spacing.lg * 2
+          height: 30
           Accessible.role: Accessible.ListItem
           Accessible.name: String(modelData.title || "Chat")
 
@@ -163,24 +162,6 @@ Item {
             anchors.fill: parent
             color: Style.hoverFillFor(root.foreground, root.accent)
             opacity: row.hot ? 1 : 0
-            Behavior on opacity {
-              enabled: root.motionEnabled
-              NumberAnimation { duration: 120 }
-            }
-          }
-
-          Rectangle {
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: 2
-            height: Math.max(Style.space(18), parent.height * 0.42)
-            radius: 1
-            color: root.accent
-            opacity: row.current ? 0.95 : 0
-            Behavior on opacity {
-              enabled: root.motionEnabled
-              NumberAnimation { duration: 140 }
-            }
           }
 
           HoverHandler {
@@ -194,33 +175,31 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: Style.spacing.lg
-            anchors.rightMargin: Style.spacing.xs
-            spacing: Style.spacing.md
+            anchors.leftMargin: 17
+            anchors.rightMargin: 10
+            spacing: 9
 
-            ColumnLayout {
+            Text {
+              Layout.preferredWidth: 48
+              text: String(modelData.timestamp || "")
+              color: "#6f7077"
+              font.family: "JetBrains Mono"
+              font.pixelSize: 10
+              elide: Text.ElideRight
+            }
+
+            Text {
               Layout.fillWidth: true
-              spacing: Style.spacing.xxs
+              text: modelData.title
+              color: "#d5d5da"
+              font.family: "JetBrains Mono"
+              font.pixelSize: 11
+              elide: Text.ElideRight
+            }
 
-              Text {
-                Layout.fillWidth: true
-                text: modelData.title
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.body
-                elide: Text.ElideRight
-              }
-
-              Text {
-                Layout.fillWidth: true
-                text: Protocol.providerLabel(modelData.provider)
-                  + (modelData.model ? " · " + modelData.model : "")
-                  + (modelData.timestamp ? " · " + modelData.timestamp : "")
-                color: Qt.darker(root.foreground, 1.5)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.caption
-                elide: Text.ElideRight
-              }
+            ResponseBadge {
+              Layout.alignment: Qt.AlignVCenter
+              responseClass: modelData.response ? String(modelData.response.class || "ANSWER") : "ANSWER"
             }
 
             PanelActionButton {
@@ -238,12 +217,47 @@ Item {
               opacity: enabled ? 1 : 0
               Accessible.name: tooltipText
               onClicked: root.deleteRequested(String(modelData.id))
-              Behavior on opacity {
-                enabled: root.motionEnabled
-                NumberAnimation { duration: 120 }
-              }
             }
           }
+        }
+      }
+    }
+
+    Item {
+      Layout.fillWidth: true
+      Layout.preferredHeight: 37
+
+      Rectangle {
+        anchors.fill: parent
+        color: "#0c0c0f"
+      }
+
+      Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 1
+        color: "#1d1e22"
+      }
+
+      RowLayout {
+        anchors.fill: parent
+        anchors.leftMargin: 17
+        anchors.rightMargin: 17
+
+        Text {
+          Layout.fillWidth: true
+          text: root.history.length + " entries · local only"
+          color: "#6f7077"
+          font.family: "JetBrains Mono"
+          font.pixelSize: 10
+        }
+
+        Text {
+          text: "esc close"
+          color: "#74757c"
+          font.family: "JetBrains Mono"
+          font.pixelSize: 10
         }
       }
     }

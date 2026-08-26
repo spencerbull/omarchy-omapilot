@@ -36,12 +36,13 @@ jq -e '
     "webHandoffProvider":"duckduckgo",
     "dangerousAutoApprove":false,
     "voiceEnabled":false,
+    "voiceVisualizer":"kitt",
     "ttsProvider":"elevenlabs",
     "ttsModel":"",
     "ttsVoice":"",
     "onboardingComplete":false
   }
-  and ([.barWidget.schema[].key] | sort) == (["builtinModel", "codexModel", "dangerousAutoApprove", "desktopContext", "opencodeModel", "provider", "ttsModel", "ttsProvider", "ttsVoice", "voiceEnabled", "webHandoffProvider"] | sort)
+  and ([.barWidget.schema[].key] | sort) == (["builtinModel", "codexModel", "dangerousAutoApprove", "desktopContext", "opencodeModel", "provider", "ttsModel", "ttsProvider", "ttsVoice", "voiceEnabled", "voiceVisualizer", "webHandoffProvider"] | sort)
   and (.barWidget.schema[] | select(.key == "webHandoffProvider")) == {
     "key":"webHandoffProvider",
     "type":"enum",
@@ -63,6 +64,14 @@ jq -e '
     "label":"Enable voice",
     "defaultValue":false,
     "description":"Allow talking to OmaPilot and speaking answers after a TTS provider is ready."
+  }
+  and (.barWidget.schema[] | select(.key == "voiceVisualizer")) == {
+    "key":"voiceVisualizer",
+    "type":"enum",
+    "label":"Voice visualizer",
+    "options":["kitt", "bumper", "segments", "spectrum", "dots", "line"],
+    "defaultValue":"kitt",
+    "description":"Choose the visualizer shown while you speak. AI speech keeps its measured animated line."
   }
   and (.barWidget.schema[] | select(.key == "ttsProvider")) == {
     "key":"ttsProvider",

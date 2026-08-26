@@ -30,6 +30,8 @@ ShellRoot {
     onTriggered: {
       if (root.stage === 0) {
         node.phase = "listening"
+        node.listeningMetered = true
+        node.listeningLevel = 0.68
         root.frozenLevel = node.level
         root.frozenTide = node.tide
         root.frozenDrift = node.drift
@@ -49,8 +51,20 @@ ShellRoot {
             || node.thinkingPhraseRunning)
           root.fail("reduced-motion thinking did not hold a centred scanner")
         node.motionEnabled = true
-        node.phase = "thinking"
+        node.phase = "listening"
       } else if (root.stage === 3) {
+        if (!node.voiceWaveActive || Math.abs(node.visualLevel - 0.68) > 0.001)
+          root.fail("active listening did not expose the measured microphone level")
+        if (node.selectedVoiceVisualizer !== "kitt" || !node.listeningRendererLoaded)
+          root.fail("active listening did not load the default KITT visualizer")
+        node.voiceVisualizer = "dots"
+      } else if (root.stage === 4) {
+        if (node.selectedVoiceVisualizer !== "dots" || !node.listeningRendererLoaded
+            || Math.abs(node.visualLevel - 0.68) > 0.001)
+          root.fail("switching the listening visualizer lost the microphone level")
+        node.listeningMetered = false
+        node.phase = "thinking"
+      } else if (root.stage === 5) {
         if (!node.atmosphereActive || node.tide === 0.4
             || !node.scannerRunning || node.voiceWaveActive
             || !node.thinkingPhraseRunning)
@@ -60,15 +74,17 @@ ShellRoot {
             || node.captionDetail !== node.status)
           root.fail("rotating thinking copy did not preserve actionable detail")
         node.phase = "error"
-      } else if (root.stage === 4) {
+      } else if (root.stage === 6) {
         if (node.atmosphereActive || node.tide !== 0.4 || node.drift !== 0)
           root.fail("terminal phase left the atmosphere cycle active")
         node.phase = "answering"
         node.speaking = true
         node.playbackMetered = true
         node.playbackLevel = 0.76
-      } else if (root.stage === 5) {
+      } else if (root.stage === 7) {
         if (!node.atmosphereActive || !node.voiceWaveActive
+            || !node.speakingLineActive || node.listeningVisualizerActive
+            || node.selectedVoiceVisualizer !== "dots"
             || node.thinkingScannerActive || node.scannerRunning)
           root.fail("speaking did not activate the measured playback atmosphere")
         if (Math.abs(node.visualLevel - 0.76) > 0.001)
@@ -77,11 +93,11 @@ ShellRoot {
           root.fail("speaking did not expose its playback caption")
         node.motionEnabled = false
         node.playbackLevel = 0.94
-      } else if (root.stage === 6) {
+      } else if (root.stage === 8) {
         if (node.visualLevel !== 0.5)
           root.fail("reduced motion did not freeze measured playback animation")
         node.speaking = false
-      } else if (root.stage === 7) {
+      } else if (root.stage === 9) {
         if (node.atmosphereActive || node.voiceWaveActive)
           root.fail("completed playback left its animation active")
         if (!root.failed) console.log("OMAPILOT_VOICE_NODE_LIFECYCLE_PROBE_OK")

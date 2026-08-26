@@ -1,7 +1,7 @@
 import { mkdir, open, readdir, readFile, rename, rm, unlink, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { ChatRecord, ChatView, StoredImage } from "./types.js";
+import type { ChatRecord, ChatView, ResponseClass, StoredImage } from "./types.js";
 import { pruneImageCache } from "./images.js";
 import { omapilotPaths, type OmaPilotPaths } from "./paths.js";
 
@@ -127,6 +127,7 @@ export function presentChat(chat: ChatRecord, paths: OmaPilotPaths = omapilotPat
     ...(chat.model === undefined ? {} : { model: chat.model }),
     question: chat.question,
     answer: chat.answer,
+    ...(chat.response === undefined ? {} : { response: chat.response }),
     images: chat.images.map((image) => presentImage(image, paths)),
     session: chat.session
   };
@@ -144,5 +145,19 @@ function isChatRecord(value: unknown): value is ChatRecord {
     "provider" in value && ["builtin", "codex", "openai", "claude", "grok", "xai", "openai-compatible", "opencode"].includes(String(value.provider)) &&
     "question" in value && typeof value.question === "string" &&
     "answer" in value && typeof value.answer === "string" &&
+    (!("response" in value) || isResponseOutcome(value.response)) &&
     "images" in value && Array.isArray(value.images);
+}
+
+function isResponseOutcome(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || !("class" in value)) return false;
+  const response = value as { class?: unknown; receipt?: unknown };
+  const classes: ResponseClass[] = ["ACTION", "ANSWER", "CONFIRM", "PLAN", "UNSURE"];
+  if (!classes.includes(response.class as ResponseClass)) return false;
+  if (response.receipt === undefined) return true;
+  if (typeof response.receipt !== "object" || response.receipt === null) return false;
+  const receipt = response.receipt as { command?: unknown; exitCode?: unknown; durationMs?: unknown };
+  return typeof receipt.command === "string" && receipt.command.length > 0 && receipt.command.length <= 32_000
+    && receipt.exitCode === 0 && typeof receipt.durationMs === "number"
+    && Number.isInteger(receipt.durationMs) && receipt.durationMs >= 0 && receipt.durationMs <= 180_000;
 }

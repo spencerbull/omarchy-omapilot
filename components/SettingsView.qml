@@ -31,6 +31,7 @@ Item {
   readonly property var voiceStatus: backend && backend.voiceStatus
     ? backend.voiceStatus : Protocol.emptyVoiceStatus()
   property bool voiceEnabled: false
+  property string voiceVisualizer: "kitt"
   property string ttsProvider: "elevenlabs"
   property string ttsModel: ""
   property string ttsVoice: ""
@@ -94,13 +95,14 @@ Item {
     || authMethodPicker.popupOpen || authPromptPicker.popupOpen
     || webHandoffProviderPicker.popupOpen || ttsProviderPicker.popupOpen
     || ttsModelPicker.popupOpen || ttsVoicePicker.popupOpen
+    || voiceVisualizerPicker.popupOpen
   readonly property bool modalInteractionActive: popupOpen
     || browserCompanionBusy
     || (selectedTab === "desktop" && browserRemoveConfirmation)
     || (selectedTab === "actions" && quickActionEditor.interactionActive)
     || (selectedTab === "servers" && serverRemoveConfirmId !== "")
   implicitHeight: Style.space(560)
-  readonly property color mutedForeground: Qt.darker(foreground, 1.45)
+  readonly property color mutedForeground: "#8d8e95"
   Accessible.name: "OmaPilot settings"
 
   signal dangerousAutoApproveRequested(bool enabled)
@@ -124,6 +126,7 @@ Item {
   signal customProviderRemoveRequested(string id)
   signal voxtypeOsdRequested(bool enabled)
   signal voiceEnabledRequested(bool enabled)
+  signal voiceVisualizerRequested(string visualizer)
   signal ttsProviderRequested(string provider)
   signal ttsModelRequested(string model)
   signal ttsVoiceRequested(string voice)
@@ -308,6 +311,7 @@ Item {
     ttsProviderPicker.close()
     ttsModelPicker.close()
     ttsVoicePicker.close()
+    voiceVisualizerPicker.close()
     if (restoreFocus !== false)
       Qt.callLater(function() { tabBar.forceActiveFocus() })
   }
@@ -317,17 +321,26 @@ Item {
     tabBar.forceActiveFocus()
   }
 
+  Rectangle {
+    anchors.fill: parent
+    color: root.background
+    Accessible.ignored: true
+  }
+
   ColumnLayout {
     anchors.fill: parent
-    spacing: Style.spacing.md
+    spacing: 0
 
     RowLayout {
       Layout.fillWidth: true
-      spacing: Style.spacing.md
+      Layout.preferredHeight: 56
+      Layout.leftMargin: 17
+      Layout.rightMargin: 17
+      spacing: 9
 
       PanelActionButton {
         id: backButton
-        Layout.alignment: Qt.AlignTop
+        Layout.alignment: Qt.AlignVCenter
         iconText: "󰁍"
         tooltipText: "Back to conversation"
         foreground: root.foreground
@@ -336,10 +349,19 @@ Item {
         onClicked: root.dismissed()
       }
 
+      Text {
+        text: "Settings"
+        color: root.foreground
+        font.family: "JetBrains Mono"
+        font.pixelSize: 17
+        Accessible.role: Accessible.Heading
+        Accessible.name: text
+      }
+
       SettingsTabs {
         id: tabBar
         Layout.fillWidth: true
-        Layout.alignment: Qt.AlignTop
+        Layout.alignment: Qt.AlignVCenter
         current: root.selectedTab
         foreground: root.foreground
         accent: root.accent
@@ -349,9 +371,20 @@ Item {
       }
     }
 
+    Rectangle {
+      Layout.fillWidth: true
+      Layout.preferredHeight: 1
+      color: "#1d1e22"
+      Accessible.ignored: true
+    }
+
     Item {
       Layout.fillWidth: true
       Layout.fillHeight: true
+      Layout.leftMargin: 17
+      Layout.rightMargin: 17
+      Layout.topMargin: 14
+      Layout.bottomMargin: 15
 
       Flickable {
         id: agentScroll
@@ -366,7 +399,7 @@ Item {
         ColumnLayout {
           id: agentContent
           width: agentScroll.width
-          spacing: Style.spacing.lg
+          spacing: 12
 
           Text {
             Layout.fillWidth: true
@@ -629,7 +662,7 @@ Item {
         ColumnLayout {
           id: skillsContent
           width: skillsScroll.width
-          spacing: Style.spacing.lg
+          spacing: 12
 
           Text {
             Layout.fillWidth: true
@@ -822,7 +855,7 @@ Item {
         ColumnLayout {
           id: voiceContent
           width: voiceScroll.width
-          spacing: Style.spacing.lg
+          spacing: 12
 
           Text {
             Layout.fillWidth: true
@@ -880,6 +913,36 @@ Item {
             text: root.dictationReady
               ? "Voxtype is ready. It is the speech-to-text provider for OmaPilot."
               : String(root.voiceStatus.dictation.message || "Voxtype is not installed. Install it, then reopen settings.")
+            color: root.mutedForeground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+
+          Text {
+            Layout.fillWidth: true
+            text: "Listening visualizer"
+            color: root.mutedForeground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            font.bold: true
+          }
+
+          Dropdown {
+            id: voiceVisualizerPicker
+            Layout.fillWidth: true
+            showLabel: false
+            options: Protocol.voiceVisualizerOptions()
+            value: Protocol.normalizedVoiceVisualizer(root.voiceVisualizer) || "kitt"
+            foreground: root.foreground
+            background: root.background
+            Accessible.name: "Listening visualizer"
+            onChanged: function(value) { root.voiceVisualizerRequested(value) }
+          }
+
+          Text {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            text: "This changes the live microphone display. AI speech keeps the animated line."
             color: root.mutedForeground
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -1117,7 +1180,7 @@ Item {
         ColumnLayout {
           id: serversContent
           width: serversScroll.width
-          spacing: Style.spacing.lg
+          spacing: 12
 
           Text {
             Layout.fillWidth: true
@@ -1415,7 +1478,7 @@ Item {
         ColumnLayout {
           id: desktopContent
           width: desktopScroll.width
-          spacing: Style.spacing.lg
+          spacing: 12
 
           Toggle {
             Layout.fillWidth: true
@@ -1829,7 +1892,7 @@ Item {
         ColumnLayout {
           id: actionsContent
           width: actionsScroll.width
-          spacing: Style.spacing.lg
+          spacing: 12
 
           Text {
             Layout.fillWidth: true
@@ -1852,6 +1915,68 @@ Item {
             fontFamily: root.fontFamily
             onActionsEdited: function(actions) { root.quickActionsEdited(actions) }
           }
+        }
+      }
+    }
+
+    Item {
+      Layout.fillWidth: true
+      Layout.preferredHeight: 37
+
+      Rectangle {
+        anchors.fill: parent
+        color: "#0c0c0f"
+        Accessible.ignored: true
+      }
+
+      Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: 1
+        color: "#1d1e22"
+        Accessible.ignored: true
+      }
+
+      RowLayout {
+        anchors.fill: parent
+        anchors.leftMargin: 17
+        anchors.rightMargin: 17
+        spacing: 5
+
+        Text {
+          Layout.fillWidth: true
+          text: "OmaPilot / settings / " + root.selectedTab
+          color: "#6f7077"
+          font.family: "JetBrains Mono"
+          font.pixelSize: 10
+          Accessible.role: Accessible.StaticText
+          Accessible.name: text
+        }
+
+        Rectangle {
+          width: settingsFooterKey.implicitWidth + 10
+          height: settingsFooterKey.implicitHeight + 2
+          color: "#1b1c20"
+          border.width: 1
+          border.color: "#2b2c31"
+          radius: 0
+
+          Text {
+            id: settingsFooterKey
+            anchors.centerIn: parent
+            text: "esc"
+            color: "#a0a1a8"
+            font.family: "JetBrains Mono"
+            font.pixelSize: 10
+          }
+        }
+
+        Text {
+          text: "back"
+          color: "#74757c"
+          font.family: "JetBrains Mono"
+          font.pixelSize: 10
         }
       }
     }

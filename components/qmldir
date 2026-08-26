@@ -10,6 +10,9 @@ OmaPilotHeader 1.0 OmaPilotHeader.qml
 OmaPilotMark 1.0 OmaPilotMark.qml
 QuickActions 1.0 QuickActions.qml
 QuickActionEditor 1.0 QuickActionEditor.qml
+CommandReceipt 1.0 CommandReceipt.qml
+ResponseBadge 1.0 ResponseBadge.qml
+ResponseAction 1.0 ResponseAction.qml
 ResponseActivityBorder 1.0 ResponseActivityBorder.qml
 SettingsView 1.0 SettingsView.qml
 SettingsTabs 1.0 SettingsTabs.qml
@@ -19,3 +22,8 @@ ActivityFilament 1.0 ActivityFilament.qml
 StateLightBar 1.0 StateLightBar.qml
 ThinkingScanner 1.0 ThinkingScanner.qml
 VoiceWave 1.0 VoiceWave.qml
+BumperVisualizer 1.0 BumperVisualizer.qml
+SegmentVisualizer 1.0 SegmentVisualizer.qml
+SpectrumVisualizer 1.0 SpectrumVisualizer.qml
+DotFieldVisualizer 1.0 DotFieldVisualizer.qml
+ListeningVisualizer 1.0 ListeningVisualizer.qml

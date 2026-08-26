@@ -28,6 +28,9 @@ Item {
   property bool speaking: false
   property bool playbackMetered: false
   property real playbackLevel: 0
+  property bool listeningMetered: false
+  property real listeningLevel: 0
+  property string voiceVisualizer: "kitt"
   // How to finish. Rendered under the caption while listening.
   property string hint: ""
   property var targetScreen: null
@@ -39,9 +42,9 @@ Item {
   // than using absolute "success green" style colours.
   readonly property color lightColor: StateColor.forPhase(Color.accent, Color.urgent, phase)
 
-  // One decorative driver for non-playback states. Listening is an honest
-  // breath on a fixed rhythm, not a microphone level; thinking uses the
-  // scanner below, and speaking switches to the measured TTS envelope.
+  // Fallback driver for voice states without telemetry. Real microphone peaks
+  // feed the selected listening visualizer, measured playback feeds the TTS
+  // line, and thinking uses its own scanner.
   property real level: 0
   property real presence: lit ? 1 : 0
   // A second, much slower cycle keeps the active listening/thinking surface
@@ -61,16 +64,21 @@ Item {
     + (atmosphereActive ? 0.24 * Math.sin(livingPhase * 0.447 + 0.4) : 0)
   readonly property bool atmosphereActive: motionEnabled
     && (phase === "listening" || phase === "thinking" || speaking)
-  readonly property bool voiceWaveActive: phase === "listening" || speaking
+  readonly property bool listeningVisualizerActive: phase === "listening" && !speaking
+  readonly property bool speakingLineActive: speaking
+  readonly property bool voiceWaveActive: listeningVisualizerActive || speakingLineActive
+  readonly property string selectedVoiceVisualizer: listeningVisualizer.selectedVisualizer
+  readonly property bool listeningRendererLoaded: listeningVisualizer.rendererLoaded
   readonly property bool thinkingScannerActive: phase === "thinking"
   readonly property bool scannerRunning: thinkingScanner.running
   readonly property real scannerProgress: thinkingScanner.progress
   readonly property bool thinkingPhraseRunning: thinkingPhraseTimer.running
-  readonly property real visualLevel: !motionEnabled ? 0.5
-    : (speaking
-      ? (playbackMetered ? Math.max(0, Math.min(1, playbackLevel))
-        : 0.42 + organicLift * 0.16)
-      : level)
+  readonly property real listeningVisualLevel: !motionEnabled ? 0.5
+    : (listeningMetered ? Math.max(0, Math.min(1, listeningLevel)) : level)
+  readonly property real speakingVisualLevel: !motionEnabled ? 0.5
+    : (playbackMetered ? Math.max(0, Math.min(1, playbackLevel))
+      : 0.42 + organicLift * 0.16)
+  readonly property real visualLevel: speaking ? speakingVisualLevel : listeningVisualLevel
   readonly property bool genericThinkingStatus: phase === "thinking"
     && StatePhrases.isGenericStatus(status)
   readonly property string captionDetail: phase === "thinking"
@@ -349,21 +357,37 @@ Item {
       intensity: root.presence
     }
 
-    // ---- the ribbon. Listening uses an authored breath; speaking follows the
-    // decoded TTS envelope. See VoiceWave for the telemetry boundary.
-    VoiceWave {
+    ListeningVisualizer {
+      id: listeningVisualizer
       anchors.horizontalCenter: parent.horizontalCenter
       anchors.bottom: parent.bottom
       anchors.bottomMargin: Style.space(10)
-      width: parent.width * 0.72
-      height: Style.space(66)
+      width: Math.min(parent.width * 0.72, Style.space(820))
+      height: Style.space(104)
+      visualizer: root.voiceVisualizer
       accent: root.lightColor
-      level: root.visualLevel
+      level: root.listeningVisualLevel
+      levelMetered: root.listeningMetered
       motionEnabled: root.motionEnabled
-      visible: root.voiceWaveActive
-      intensity: root.presence * (root.speaking
-        ? 0.68 + root.visualLevel * 0.25 : 1)
-      motionStyle: root.speaking ? "speaking" : root.phase
+      visible: root.listeningVisualizerActive
+      intensity: root.presence
+    }
+
+    VoiceWave {
+      id: speakingWave
+      anchors.horizontalCenter: parent.horizontalCenter
+      anchors.bottom: parent.bottom
+      anchors.bottomMargin: Style.space(10)
+      width: Math.min(parent.width * 0.72, Style.space(820))
+      height: Style.space(66)
+      visualizer: "line"
+      accent: root.lightColor
+      level: root.speakingVisualLevel
+      levelMetered: root.playbackMetered
+      motionEnabled: root.motionEnabled
+      visible: root.speakingLineActive
+      intensity: root.presence * (0.68 + root.speakingVisualLevel * 0.25)
+      motionStyle: "speaking"
     }
 
     // ---- caption. Voice mode's only text.
@@ -382,7 +406,7 @@ Item {
       id: caption
       anchors.horizontalCenter: parent.horizontalCenter
       anchors.bottom: parent.bottom
-      anchors.bottomMargin: Style.space(68)
+      anchors.bottomMargin: root.phase === "listening" ? Style.space(116) : Style.space(68)
       width: Math.min(parent.width * 0.52, Style.space(660))
       height: captionColumn.implicitHeight + Style.space(26)
       opacity: captionText.text === "" && hintText.text === "" ? 0 : root.presence

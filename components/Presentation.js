@@ -64,6 +64,23 @@ function responsePhase(state, hasAnswer) {
   return { label: "", tone: "muted", waiting: false }
 }
 
+function responseSummary(response) {
+  var responseClass = String(response && response.class || "ANSWER")
+  if (responseClass === "ACTION") return "system changed"
+  if (responseClass === "CONFIRM") return "approval required"
+  if (responseClass === "PLAN") return "work in progress"
+  if (responseClass === "UNSURE") return "needs clarification"
+  return "nothing was changed"
+}
+
+function footerKeyHints(contentKeys, primaryKey, primaryLabel, closeLabel) {
+  var printed = Array.isArray(contentKeys) ? contentKeys : []
+  var hints = []
+  if (primaryKey && printed.indexOf(primaryKey) < 0) hints.push(primaryKey + " " + primaryLabel)
+  if (printed.indexOf("esc") < 0) hints.push("esc " + closeLabel)
+  return hints
+}
+
 function escapeAction(viewMode, composerPopupOpen, settingsPopupOpen,
                       previewOpen, busy) {
   if (composerPopupOpen) return "close-composer-popup"

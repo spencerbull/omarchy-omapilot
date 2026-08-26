@@ -21,24 +21,26 @@ Item {
     id: actionFlow
     anchors.left: parent.left
     anchors.right: parent.right
-    spacing: Style.spacing.md
+    spacing: 4
 
     Repeater {
       model: root.actions
 
       delegate: Button {
         required property var modelData
-        width: Math.min(implicitWidth, actionFlow.width)
+        width: root.actions.length > 1
+          ? Math.floor((actionFlow.width - actionFlow.spacing) / 2)
+          : actionFlow.width
         iconText: String(modelData.icon || "")
         text: String(modelData.label || "")
         tooltipText: text + (String(modelData.id || "") === "work-in-app"
           && root.workInAppShortcutText !== ""
           ? " (" + root.workInAppShortcutText + ")" : "")
-        foreground: root.foreground
-        background: root.background
-        accent: root.accent
-        fontFamily: root.fontFamily
-        bordered: true
+        foreground: "#b9bac1"
+        background: "#101114"
+        accent: "#58d1dc"
+        fontFamily: "JetBrains Mono"
+        bordered: false
         focusable: true
         leftAlign: true
         Accessible.name: tooltipText

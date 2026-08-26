@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import type { AcpRun, PermissionDecision } from "./acp.js";
 import { BrokerAcpError, deleteAcpSession, probeAcpModels, runAcpQuestion } from "./acp.js";
-import { DictationService } from "./dictation.js";
+import { DictationService, type DictationLevelObserver } from "./dictation.js";
 import { isCloudTtsProviderId, isTtsProviderId, VoiceError, VoiceService } from "./tts.js";
 import { addCustomProvider, CustomProviderError, listCustomProviders, normalizeBaseUrl, probeCustomProvider, removeCustomProvider } from "./custom-providers.js";
 import { setVoxtypeOsdEnabled, voxtypeOsdStatus } from "./voxtype-osd.js";
@@ -14,7 +14,7 @@ import { ImagePolicyError, ImageStore, isAllowedExternalLink } from "./images.js
 import { normalizeToolPermission, type PendingToolPermission } from "./permissions.js";
 import { discoverProviders, fallbackModels, isPiProvider, type DiscoveredProvider } from "./providers.js";
 import { launchDetached, resolveExecutable } from "./process.js";
-import type { BrokerCommand, BrokerEvent, ChatRecord, CustomProviderView, ProviderId, ProviderInfo } from "./types.js";
+import type { BrokerCommand, BrokerEvent, ChatRecord, CommandReceipt, CustomProviderView, ProviderId, ProviderInfo } from "./types.js";
 import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
 import type { AuthEvent, AuthPrompt } from "../../node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/auth/types.js";
 import type { PiProviderCredentialSnapshot } from "./pi-harness.js";
@@ -33,7 +33,11 @@ import {
   setFilesRoot
 } from "./capabilities/index.js";
 
-type DictationClient = Pick<DictationService, "start" | "stop" | "cancel">;
+type DictationClient = {
+  start: (observer?: DictationLevelObserver) => Promise<void>;
+  stop: () => Promise<string>;
+  cancel: () => Promise<void>;
+};
 type SessionCleaner = (provider: DiscoveredProvider, sessionId: string) => Promise<boolean>;
 type HerdrContinue = typeof continueInHerdr;
 type HerdrResult = Awaited<ReturnType<HerdrContinue>>;
@@ -73,6 +77,8 @@ export class OmaPilotBroker {
   #authFlow: AuthFlow | undefined;
   #submissions = new Set<string>();
   #dictationGeneration = 0;
+  #dictationEngaged = false;
+  #dictationRecording = false;
   #browserCompanionSetupBusy = false;
   #browserCompanionSetupPhase: "installing" | "removing" | undefined;
   #browserCompanionStatusRevision = 0;
@@ -160,6 +166,12 @@ export class OmaPilotBroker {
       case "shutdown": {
         this.#ttsStop();
         this.#cancelAuth(this.#authFlow?.id);
+        if (this.#dictationEngaged) {
+          this.#dictationGeneration += 1;
+          this.#dictationEngaged = false;
+          this.#dictationRecording = false;
+          await this.#dictation.cancel().catch(() => undefined);
+        }
         await Promise.all([...this.#runs.values()].map((run) => run.cancel()));
         await this.#browserCompanion.close();
         return false;
@@ -346,10 +358,12 @@ export class OmaPilotBroker {
     const permission = (request: RequestPermissionRequest) => this.#requestToolPermission(
       command.id, provider.id, request, dangerousAutoApprove);
     const prompt = promptWithContextAttachments(command.question, command.desktopContext, attachmentBlocks);
+    let actionReceipt: CommandReceipt | undefined;
     const run = isPiProvider(provider)
       ? (await import("./pi-harness.js")).runPiQuestion(
         provider, command.id, prompt, command.model, this.#emit, 180_000, permission,
-        () => this.#cancelPermissions(command.id), resumeSessionId, command.webHandoffProvider ?? "duckduckgo")
+        () => this.#cancelPermissions(command.id), resumeSessionId, command.webHandoffProvider ?? "duckduckgo",
+        (receipt) => { actionReceipt = receipt; })
       : runAcpQuestion(provider, command.id, prompt, command.model,
         this.#emit, 180_000, this.#images, permission,
         () => this.#cancelPermissions(command.id));
@@ -372,6 +386,10 @@ export class OmaPilotBroker {
         ...(selectedModel === undefined ? {} : { model: selectedModel }),
         question: command.question,
         answer: result.answer,
+        response: actionReceipt === undefined ? { class: "ANSWER" } : {
+          class: "ACTION",
+          receipt: actionReceipt
+        },
         images: result.images,
         session: {
           acpId: result.sessionId,
@@ -872,28 +890,51 @@ export class OmaPilotBroker {
 
   async #dictationStart(): Promise<void> {
     const generation = ++this.#dictationGeneration;
+    this.#dictationEngaged = true;
+    this.#dictationRecording = false;
     try {
-      await this.#dictation.start();
-      if (generation === this.#dictationGeneration) this.#emit({ type: "dictation", state: "recording" });
+      await this.#dictation.start({
+        level: (level) => {
+          if (generation !== this.#dictationGeneration || !this.#dictationRecording) return;
+          this.#emit({
+            type: "dictation_level",
+            level: level ?? 0,
+            metered: level !== null
+          });
+        }
+      });
+      if (generation !== this.#dictationGeneration) return;
+      this.#dictationRecording = true;
+      this.#emit({ type: "dictation", state: "recording" });
     } catch {
-      if (generation === this.#dictationGeneration) this.#emit({ type: "dictation", state: "unavailable", message: "Voxtype is unavailable or not ready" });
+      if (generation !== this.#dictationGeneration) return;
+      this.#dictationEngaged = false;
+      this.#dictationRecording = false;
+      this.#emit({ type: "dictation", state: "unavailable", message: "Voxtype is unavailable or not ready" });
     }
   }
 
   async #dictationStop(): Promise<void> {
-    const generation = this.#dictationGeneration;
+    const generation = ++this.#dictationGeneration;
+    this.#dictationRecording = false;
     this.#emit({ type: "dictation", state: "transcribing" });
     try {
       const text = await this.#dictation.stop();
-      if (generation === this.#dictationGeneration) this.#emit({ type: "dictation", state: "idle", text });
+      if (generation !== this.#dictationGeneration) return;
+      this.#dictationEngaged = false;
+      this.#emit({ type: "dictation", state: "idle", text });
     } catch {
-      if (generation === this.#dictationGeneration) this.#emit({ type: "dictation", state: "unavailable", message: "Voxtype could not finish transcription" });
+      if (generation !== this.#dictationGeneration) return;
+      this.#dictationEngaged = false;
+      this.#emit({ type: "dictation", state: "unavailable", message: "Voxtype could not finish transcription" });
     }
   }
 
   async #dictationCancel(): Promise<void> {
     this.#dictationGeneration += 1;
-    await this.#dictation.cancel();
+    this.#dictationEngaged = false;
+    this.#dictationRecording = false;
+    await this.#dictation.cancel().catch(() => undefined);
     this.#emit({ type: "dictation", state: "idle" });
   }
 

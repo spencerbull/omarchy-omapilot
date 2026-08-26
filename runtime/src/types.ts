@@ -326,6 +326,19 @@ export type ToolPermission = {
   }>;
 };
 
+export type ResponseClass = "ACTION" | "ANSWER" | "CONFIRM" | "PLAN" | "UNSURE";
+
+export type CommandReceipt = {
+  command: string;
+  exitCode: number;
+  durationMs: number;
+};
+
+export type ResponseOutcome = {
+  class: ResponseClass;
+  receipt?: CommandReceipt;
+};
+
 export type ChatRecord = {
   schemaVersion: 1;
   id: string;
@@ -335,6 +348,8 @@ export type ChatRecord = {
   model?: string;
   question: string;
   answer: string;
+  // Optional so completed chats written before response classes remain readable.
+  response?: ResponseOutcome;
   images: StoredImage[];
   session: {
     acpId?: string;
@@ -362,6 +377,7 @@ export type BrokerEvent =
   | { type: "tts_level"; id: string; level: number }
   | { type: "tts_spoken"; id: string }
   | { type: "tts_speak_failed"; id: string; message: string }
+  | { type: "dictation_level"; level: number; metered: boolean }
   | { type: "auth_methods"; methods: BuiltinAuthMethod[] }
   | { type: "auth"; phase: "starting"; flowId: string; methodId: string; message: string }
   | { type: "auth"; phase: "prompt"; flowId: string; methodId: string; prompt: BuiltinAuthPrompt }

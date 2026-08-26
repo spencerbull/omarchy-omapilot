@@ -19,6 +19,13 @@ ShellRoot {
     interval: 80
     running: true
     onTriggered: {
+      OmaPilot.OmaPilotStore.configure({ voiceVisualizer: "DOTS" })
+      if (OmaPilot.OmaPilotStore.voiceVisualizer !== "dots")
+        root.fail("visualizer settings did not normalize a valid selection")
+      OmaPilot.OmaPilotStore.configure({ voiceVisualizer: "unknown" })
+      if (OmaPilot.OmaPilotStore.voiceVisualizer !== "kitt")
+        root.fail("invalid visualizer settings did not fall back to KITT")
+
       OmaPilot.OmaPilotStore.initialized = true
       OmaPilot.OmaPilotStore.dictationPhase = ""
       OmaPilot.OmaPilotStore.currentId = ""

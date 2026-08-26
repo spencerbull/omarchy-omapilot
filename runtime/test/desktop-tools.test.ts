@@ -269,7 +269,9 @@ describe("structured desktop tools", () => {
       workspaceMonitor: "eDP-1"
     };
     const calls: Array<{ file: string; args: string[] }> = [];
-    const tools = createPersonalAssistantTools(desktopRunner(state, calls), {});
+    const receipts: Array<{ command: string; exitCode: number; durationMs: number }> = [];
+    const tools = createPersonalAssistantTools(desktopRunner(state, calls), {}, undefined,
+      (receipt) => { receipts.push(receipt); });
     const windowTool = tools[3];
     const tiledResize = await windowTool.execute("resize-tiled", {
       action: "resize", address: "0xaaa", pid: 42, width: 1200, height: 800
@@ -285,6 +287,10 @@ describe("structured desktop tools", () => {
       action: "resize", address: "0xaaa", pid: 42, width: 1200, height: 800
     }, undefined, undefined, {} as never);
     expect(resized).toMatchObject({ details: { action: "resize", changed: true, verified: true, after: { size: [1200, 800] } } });
+    expect(receipts).toContainEqual(expect.objectContaining({
+      command: 'hyprctl dispatch "hl.dsp.window.resize({ window = \\"address:0xaaa\\", x = 1200, y = 800 })"',
+      exitCode: 0
+    }));
     const moved = await windowTool.execute("move", {
       action: "move_to_workspace", address: "0xaaa", pid: 42, workspace: 2, follow: false
     }, undefined, undefined, {} as never);

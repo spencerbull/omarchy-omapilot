@@ -379,6 +379,9 @@ Item {
     speaking: OmaPilot.OmaPilotStore.ttsPlaybackActive
     playbackMetered: OmaPilot.OmaPilotStore.ttsPlaybackMetered
     playbackLevel: OmaPilot.OmaPilotStore.ttsLevel
+    listeningMetered: OmaPilot.OmaPilotStore.dictationMetered
+    listeningLevel: OmaPilot.OmaPilotStore.dictationLevel
+    voiceVisualizer: OmaPilot.OmaPilotStore.voiceVisualizer
     hint: root.captionHint
     targetScreen: root.activeScreen
     motionEnabled: root.motionEnabled

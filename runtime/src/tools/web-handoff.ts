@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { Type } from "typebox";
 import type { ToolDefinition } from "../../../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/types.js";
-import type { WebHandoffProvider } from "../types.js";
+import type { CommandReceipt, WebHandoffProvider } from "../types.js";
 import { runDesktopCommand, type DesktopCommandRunner } from "./desktop.js";
 
 const MAX_HANDOFF_QUERY = 1_000;
@@ -114,7 +114,8 @@ export const writeClipboard: ClipboardWriter = (text, signal) => new Promise<boo
 export function createWebHandoffTool(
   provider: WebHandoffProvider = "duckduckgo",
   run: DesktopCommandRunner = runDesktopCommand,
-  copy: ClipboardWriter = writeClipboard
+  copy: ClipboardWriter = writeClipboard,
+  observeAction?: (receipt: CommandReceipt) => void
 ): ToolDefinition<typeof webHandoffParameters> {
   return {
     name: "web_handoff",
@@ -125,7 +126,13 @@ export function createWebHandoffTool(
     async execute(_toolCallId, input, signal) {
       try {
         const target = webHandoffTarget(provider, input.query);
+        const startedAt = Date.now();
         await run("omarchy", ["launch", "browser", target.url], signal);
+        observeAction?.({
+          command: `omarchy launch browser ${target.url}`,
+          exitCode: 0,
+          durationMs: Math.max(0, Date.now() - startedAt)
+        });
         const clipboardCopied = target.clipboardFallback ? await copy(target.prompt, signal) : false;
         const fallback = target.clipboardFallback
           ? (clipboardCopied

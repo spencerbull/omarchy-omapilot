@@ -1,12 +1,7 @@
 import QtQuick
-import QtQuick.Effects
 import qs.Commons
 import "Presentation.js" as Presentation
 
-// Quiet text tabs with the same filament language as the composer.
-// A faint full-width rail, plus a short accent glow that sits under the
-// current label. The group is one Tab stop; h / l / Left / Right move
-// between tabs without walking every label.
 Item {
   id: root
 
@@ -24,7 +19,7 @@ Item {
 
   signal selected(string id)
 
-  implicitHeight: tabRow.implicitHeight + Style.spacing.sm + rail.height
+  implicitHeight: 24
   implicitWidth: tabRow.implicitWidth
   activeFocusOnTab: true
   Accessible.role: Accessible.PageTabList
@@ -57,7 +52,8 @@ Item {
 
   Row {
     id: tabRow
-    spacing: Style.spacing.xl
+    anchors.verticalCenter: parent.verticalCenter
+    spacing: 16
 
     Repeater {
       id: tabRepeater
@@ -72,20 +68,14 @@ Item {
 
         text: String(modelData.label || "")
         color: tabLabel.currentTab || tabHover.hovered || (root.activeFocus && index === root.currentIndex)
-          ? root.foreground : Qt.darker(root.foreground, 1.45)
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        font.bold: tabLabel.currentTab
-        opacity: tabLabel.currentTab ? 1 : 0.86
+          ? root.accent : "#74757c"
+        font.family: "JetBrains Mono"
+        font.pixelSize: 10
+        font.bold: false
         Accessible.role: Accessible.PageTab
         Accessible.name: text
         Accessible.checkable: true
         Accessible.checked: tabLabel.currentTab
-
-        Behavior on color {
-          enabled: root.motionEnabled
-          ColorAnimation { duration: 140 }
-        }
 
         HoverHandler {
           id: tabHover
@@ -108,71 +98,24 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      color: root.activeFocus ? root.accent : Qt.darker(root.foreground, 1.9)
-      opacity: root.activeFocus ? 0.55 : 0.28
-      Behavior on opacity {
-        enabled: root.motionEnabled
-        NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
-      }
-      Behavior on color {
-        enabled: root.motionEnabled
-        ColorAnimation { duration: 160 }
-      }
-    }
-
-    Item {
-      id: glowSource
-      anchors.fill: parent
-      visible: false
-
-      Rectangle {
-        id: glowSegment
-        height: parent.height
-        width: Math.max(Style.space(24), activeTabWidth)
-        x: activeTabX
-        color: root.accent
-
-        readonly property real activeTabX: {
-          var _w = tabRow.width + tabRepeater.count
-          var item = tabRepeater.itemAt(root.currentIndex)
-          return item ? item.x : _w * 0
-        }
-        readonly property real activeTabWidth: {
-          var _w = tabRow.width + tabRepeater.count
-          var item = tabRepeater.itemAt(root.currentIndex)
-          return item ? item.width : Math.max(Style.space(24), _w * 0 + Style.space(36))
-        }
-
-        Behavior on x {
-          enabled: root.motionEnabled
-          NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
-        }
-        Behavior on width {
-          enabled: root.motionEnabled
-          NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
-        }
-      }
-    }
-
-    MultiEffect {
-      anchors.fill: glowSource
-      source: glowSource
-      autoPaddingEnabled: true
-      blurEnabled: true
-      blur: 1
-      blurMax: 16
-      blurMultiplier: 0.8
-      brightness: 0.45
-      colorization: 1
-      colorizationColor: root.accent
+      color: "#1d1e22"
     }
 
     Rectangle {
+      id: activeSegment
       height: parent.height
-      width: glowSegment.width
-      x: glowSegment.x
+      width: Math.max(24, activeTabWidth)
+      x: activeTabX
       color: root.accent
-      opacity: 0.9
+
+      readonly property real activeTabX: {
+        var item = tabRepeater.itemAt(root.currentIndex)
+        return item ? item.x : 0
+      }
+      readonly property real activeTabWidth: {
+        var item = tabRepeater.itemAt(root.currentIndex)
+        return item ? item.width : 24
+      }
     }
   }
 }

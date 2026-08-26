@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -37,5 +37,41 @@ describe("Voxtype contract", () => {
     expect(commands.at(-1)).toMatch(/^record start /u);
     expect(commands).toContain("record cancel");
     expect(commands.findLastIndex((command) => command === "record cancel")).toBeLessThan(commands.length - 1);
+  });
+
+  it("streams bounded microphone peaks and falls back when the bridge disconnects", async () => {
+    const root = await mkdtemp(join(tmpdir(), "omapilot-dictation-meter-")); roots.push(root);
+    const audit = join(root, "voxtype-audit.txt");
+    const bridge = join(root, "voxtype-audio-bridge");
+    await writeFile(bridge, [
+      "#!/bin/sh",
+      "printf '%s\\n' '{\"status\":\"connected\"}'",
+      "printf '%s\\n' 'not-json'",
+      "printf '%s\\n' '{\"peak\":-2,\"rms\":0,\"vad\":0,\"ts_ms\":1}'",
+      "sleep 0.04",
+      "printf '%s\\n' '{\"peak\":0.8,\"rms\":0.4,\"vad\":1,\"ts_ms\":2}'",
+      "sleep 0.04",
+      "printf '%s\\n' '{\"status\":\"disconnected\"}'",
+      "sleep 5"
+    ].join("\n"), { mode: 0o700 });
+    await chmod(bridge, 0o700);
+    const env = {
+      ...process.env,
+      PATH: `${resolve("runtime/test/fixtures/dictation-bin")}:${process.env.PATH ?? ""}`,
+      VOXTYPE_AUDIT: audit
+    };
+    const levels: Array<number | null> = [];
+    const service = new DictationService(
+      omapilotPaths({ ...env, XDG_RUNTIME_DIR: join(root, "run") }),
+      env,
+      { resolveAudioBridge: () => Promise.resolve(bridge) }
+    );
+
+    await service.start({ level: (level) => levels.push(level) });
+    expect(levels.filter((level): level is number => level !== null)
+      .every((level) => level >= 0 && level <= 1)).toBe(true);
+    expect(levels.some((level) => level !== null && level > 0.5)).toBe(true);
+    expect(levels).toContain(null);
+    await service.cancel();
   });
 });

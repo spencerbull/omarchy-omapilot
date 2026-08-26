@@ -40,6 +40,7 @@ Scope {
   property string submittedResumeChatId: ""
   property string question: ""
   property string answerMarkdown: ""
+  property var response: Protocol.normalizedResponseOutcome(null)
   property var errorDetails: null
   property var images: []
   property var providers: []
@@ -64,6 +65,7 @@ Scope {
   property real ttsLevel: 0
   property string ttsSpeakId: ""
   property bool voiceEnabled: false
+  property string voiceVisualizer: "kitt"
   property string ttsProvider: "elevenlabs"
   property string ttsModel: ""
   property string ttsVoice: ""
@@ -79,6 +81,8 @@ Scope {
   property var permissionQueue: []
   property string transcript: ""
   property string dictationPhase: ""
+  property bool dictationMetered: false
+  property real dictationLevel: 0
   property bool initialized: false
   property bool processStarted: false
   property var queuedCommands: []
@@ -169,6 +173,7 @@ Scope {
     var desiredDesktopContext = String(source.desktopContext || "On") !== "Off"
     var desiredWebHandoffProvider = Protocol.normalizedWebHandoffProvider(source.webHandoffProvider) || "duckduckgo"
     var desiredVoiceEnabled = source.voiceEnabled === true
+    var desiredVoiceVisualizer = Protocol.normalizedVoiceVisualizer(source.voiceVisualizer) || "kitt"
     var desiredTtsProvider = Protocol.normalizedTtsProvider(source.ttsProvider) || "elevenlabs"
     var desiredTtsModel = String(source.ttsModel || "")
     var desiredTtsVoice = String(source.ttsVoice || "")
@@ -181,6 +186,7 @@ Scope {
       || desiredDesktopContext !== desktopContextEnabled
       || desiredWebHandoffProvider !== webHandoffProvider
       || desiredVoiceEnabled !== voiceEnabled
+      || desiredVoiceVisualizer !== voiceVisualizer
       || desiredTtsProvider !== ttsProvider
       || desiredTtsModel !== ttsModel
       || desiredTtsVoice !== ttsVoice
@@ -193,6 +199,7 @@ Scope {
     desktopContextEnabled = desiredDesktopContext
     webHandoffProvider = desiredWebHandoffProvider
     voiceEnabled = desiredVoiceEnabled
+    voiceVisualizer = desiredVoiceVisualizer
     ttsProvider = desiredTtsProvider
     ttsModel = desiredTtsModel
     ttsVoice = desiredTtsVoice
@@ -288,6 +295,7 @@ Scope {
     currentChatId = ""
     question = prompt
     answerMarkdown = ""
+    response = Protocol.normalizedResponseOutcome(null)
     errorDetails = null
     images = []
     pendingPermission = null
@@ -487,6 +495,7 @@ Scope {
     submittedResumeChatId = ""
     question = ""
     answerMarkdown = ""
+    response = Protocol.normalizedResponseOutcome(null)
     errorDetails = null
     images = []
     pendingPermission = null
@@ -532,6 +541,8 @@ Scope {
     }
     if (!providerReady || continuationBlocked || busy) return false
     transcript = ""
+    dictationMetered = false
+    dictationLevel = 0
     sendCommand(Protocol.command("dictation_start"))
     return true
   }
@@ -683,6 +694,7 @@ Scope {
     currentId = ""
     question = String(chat.question || "")
     answerMarkdown = String(chat.answer || chat.markdown || "")
+    response = Protocol.normalizedResponseOutcome(chat.response)
     errorDetails = null
     images = Array.isArray(chat.images) ? chat.images : []
     var historicalProvider = Protocol.normalizedProvider(chat.provider) || provider
@@ -840,6 +852,14 @@ Scope {
       toastRequested(String(event.message || "Could not speak that answer"))
       return
     }
+    if (type === "dictation_level") {
+      if (dictationPhase !== "recording") return
+      var microphoneLevel = Protocol.normalizedDictationLevel(event)
+      if (microphoneLevel === null) return
+      dictationMetered = microphoneLevel.metered
+      dictationLevel = microphoneLevel.level
+      return
+    }
     if (type === "custom_providers") {
       customProviders = Protocol.normalizedCustomProviders(event.providers || [])
       return
@@ -991,8 +1011,12 @@ Scope {
         question = String(event.chat.question || question)
         answerMarkdown = String(event.chat.answer || event.chat.markdown || answerMarkdown)
         if (Array.isArray(event.chat.images)) images = event.chat.images
+        response = Protocol.normalizedResponseOutcome(event.chat.response)
         prependHistory(event.chat)
-      } else if (event.chatId) currentChatId = String(event.chatId)
+      } else {
+        response = Protocol.normalizedResponseOutcome(event.response)
+        if (event.chatId) currentChatId = String(event.chatId)
+      }
       restoreSubmittedContinuation()
       if (event.history) history = Protocol.normalizedHistory(event.history)
       state = "complete"
@@ -1074,15 +1098,21 @@ Scope {
         state = "dictating"
         statusMessage = "Listening…"
       } else if (dictationState === "transcribing") {
+        dictationMetered = false
+        dictationLevel = 0
         dictationPhase = "transcribing"
         state = "preparing"
         statusMessage = "Transcribing…"
       } else if (dictationState === "idle" || dictationState === "complete" || dictationState === "canceled") {
         dictationPhase = ""
+        dictationMetered = false
+        dictationLevel = 0
         state = "composing"
         statusMessage = ""
       } else if (dictationState === "unavailable" || dictationState === "error") {
         dictationPhase = ""
+        dictationMetered = false
+        dictationLevel = 0
         state = "error"
         statusMessage = String(event.message || "Dictation is unavailable.")
         errorDetails = Protocol.normalizedError({
@@ -1188,6 +1218,14 @@ Scope {
       root.stderrTail = ""
       root.pendingPermission = null
       root.permissionQueue = []
+      root.dictationPhase = ""
+      root.dictationMetered = false
+      root.dictationLevel = 0
+      root.ttsSpeaking = false
+      root.ttsPlaybackActive = false
+      root.ttsPlaybackMetered = false
+      root.ttsLevel = 0
+      root.ttsSpeakId = ""
       root.initialize()
       root.flushQueue()
     }
@@ -1197,6 +1235,14 @@ Scope {
       root.initialized = false
       root.pendingPermission = null
       root.permissionQueue = []
+      root.dictationPhase = ""
+      root.dictationMetered = false
+      root.dictationLevel = 0
+      root.ttsSpeaking = false
+      root.ttsPlaybackActive = false
+      root.ttsPlaybackMetered = false
+      root.ttsLevel = 0
+      root.ttsSpeakId = ""
       if (root.harnessRestartPending) {
         root.harnessRestartPending = false
         Qt.callLater(function() { broker.running = true })

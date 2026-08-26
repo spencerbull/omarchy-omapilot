@@ -267,6 +267,7 @@ ShellRoot {
         dangerousAutoApprove: root.previewState === "dangerous-settings"
         desktopContextEnabled: true
         voiceEnabled: false
+        voiceVisualizer: "kitt"
         ttsProvider: "elevenlabs"
         ttsModel: "eleven_multilingual_v2"
         ttsVoice: "wyWA56cQNU2KqUW4eCsI"

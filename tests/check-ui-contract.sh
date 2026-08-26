@@ -17,10 +17,13 @@ qml_files=(
   "$repo_dir/ContextCaptureOverlay.qml"
   "$repo_dir/Panel.qml"
   "$repo_dir/components/Composer.qml"
+  "$repo_dir/components/BumperVisualizer.qml"
+  "$repo_dir/components/CommandReceipt.qml"
   "$repo_dir/components/ContextAttachmentPreview.qml"
   "$repo_dir/components/ErrorDetailsView.qml"
   "$repo_dir/components/ErrorNotice.qml"
   "$repo_dir/components/HistoryView.qml"
+  "$repo_dir/components/ListeningVisualizer.qml"
   "$repo_dir/components/MarkdownView.qml"
   "$repo_dir/components/OmaPilotHeader.qml"
   "$repo_dir/components/OmaPilotMark.qml"
@@ -28,14 +31,19 @@ qml_files=(
   "$repo_dir/components/QuickActionEditor.qml"
   "$repo_dir/components/SettingsView.qml"
   "$repo_dir/components/SettingsTabs.qml"
+  "$repo_dir/components/SegmentVisualizer.qml"
   "$repo_dir/components/SetupGuide.qml"
+  "$repo_dir/components/SpectrumVisualizer.qml"
   "$repo_dir/components/StateLightBar.qml"
   "$repo_dir/components/ThinkingScanner.qml"
   "$repo_dir/components/VoiceNode.qml"
   "$repo_dir/components/VoiceWave.qml"
+  "$repo_dir/components/DotFieldVisualizer.qml"
   "$repo_dir/components/ActivityFilament.qml"
   "$repo_dir/components/AnswerCurtain.qml"
   "$repo_dir/components/ResponseActivityBorder.qml"
+  "$repo_dir/components/ResponseAction.qml"
+  "$repo_dir/components/ResponseBadge.qml"
   "$repo_dir/components/internal/PermissionFocusGuard.qml"
   "$repo_dir/components/internal/PanelKeyboardNavigation.qml"
   "$repo_dir/components/internal/HistoryListKeyboardHandler.qml"
@@ -47,6 +55,7 @@ qml_files=(
   "$repo_dir/tests/answer-curtain-preview.qml"
   "$repo_dir/tests/motion-preview.qml"
   "$repo_dir/tests/state-motion-preview.qml"
+  "$repo_dir/tests/listening-visualizers-preview.qml"
   "$repo_dir/tests/voice-node-preview.qml"
 )
 
@@ -161,7 +170,7 @@ if grep -Eq 'sandboxed|Device commands stay blocked|sandbox limits stay active' 
   printf 'QML permission copy must not retain unreachable legacy policy branches\n' >&2
   exit 1
 fi
-grep -Fq 'Review the exact request and choose how long this agent may retain the approval.' \
+grep -Fq 'Review the exact request before it runs.' \
   "$repo_dir/Panel.qml"
 grep -Fq 'readonly property bool popupOpen:' "$repo_dir/components/Composer.qml"
 grep -Fq 'var action = Presentation.escapeAction(root.viewMode, composer.popupOpen,' "$repo_dir/Panel.qml"
@@ -169,10 +178,8 @@ grep -Fq 'if (action === "close-composer-popup") composer.closePopups()' "$repo_
 grep -Fq 'OmaPilot.SettingsView {' "$repo_dir/Panel.qml"
 grep -Fq 'visible: root.viewMode === "settings"' "$repo_dir/Panel.qml"
 grep -Fq 'settingsView.popupOpen' "$repo_dir/Panel.qml"
-# The ambient redesign removed the panel header (logo, tagline, gear). The
-# chrome assertions below pin the replacement instead: a borderless hero prompt,
-# one answer seam, and a hint row carrying provider identity, permission posture,
-# the desktop-global settings binding, and focused-panel history navigation.
+# The panel keeps a single frame: the composer, one answer seam, a response class
+# badge/receipt, and a compact keyboard footer.
 if grep -Fq 'OmaPilot.OmaPilotHeader {' "$repo_dir/Panel.qml"; then
   printf 'Panel must not reintroduce the OmaPilot header chrome\n' >&2
   exit 1
@@ -181,8 +188,8 @@ if grep -Fq 'ActivityFilament {' "$repo_dir/components/Composer.qml"; then
   printf 'The composer must not draw a second rule above the answer seam\n' >&2
   exit 1
 fi
-grep -Fq 'OmaPilot.StateLightBar {' "$repo_dir/Panel.qml"
-grep -Fq 'Layout.minimumHeight: contentVisible ? Style.space(120) : stateLightBar.implicitHeight' \
+grep -Fq 'id: answerCard' "$repo_dir/Panel.qml"
+grep -Fq 'Layout.minimumHeight: 0' \
   "$repo_dir/Panel.qml"
 grep -Fq 'visible: answerCard.contentVisible' "$repo_dir/Panel.qml"
 grep -Fq 'readonly property bool atmosphereActive: motionEnabled' \
@@ -202,10 +209,19 @@ if grep -Fq 'Active window, open apps, workspaces, and playing media' \
   printf 'Desktop context disclosure must be the hostname, not a capability list\n' >&2
   exit 1
 fi
-grep -Fq 'Protocol.providerShortLabel(OmaPilot.OmaPilotStore.provider)' "$repo_dir/Panel.qml"
-grep -Fq 'font.pixelSize: Style.font.heading' "$repo_dir/components/Composer.qml"
+grep -Fq 'font.pixelSize: 17' "$repo_dir/components/Composer.qml"
+grep -Fq 'cursorDelegate: Rectangle {' "$repo_dir/components/Composer.qml"
 grep -Fq 'sequences: ["Ctrl+H"]' "$repo_dir/Panel.qml"
-grep -Fq '{ label: "Super+Alt+P settings", lane: "settings" }' "$repo_dir/Panel.qml"
+grep -Fq 'OmaPilot.ResponseBadge {' "$repo_dir/Panel.qml"
+grep -Fq 'OmaPilot.CommandReceipt {' "$repo_dir/Panel.qml"
+grep -Fq 'ResponseAction 1.0 ResponseAction.qml' "$repo_dir/components/qmldir"
+grep -Fq 'id: responseHeader' "$repo_dir/Panel.qml"
+grep -Fq 'id: copyAnswerAction' "$repo_dir/Panel.qml"
+grep -Fq 'id: sessionActions' "$repo_dir/Panel.qml"
+grep -Fq 'text: "COPY"' "$repo_dir/Panel.qml"
+grep -Fq 'text: "NEW CHAT"' "$repo_dir/Panel.qml"
+grep -Fq 'text: "CONTINUE IN HERDR"' "$repo_dir/Panel.qml"
+grep -Fq 'Presentation.footerKeyHints' "$repo_dir/Panel.qml"
 if grep -Fq 'Ctrl+,' "$repo_dir/Panel.qml" "$repo_dir/components/Composer.qml"; then
   printf 'Settings must use only the desktop-global Super+Alt+P binding\n' >&2
   exit 1
@@ -214,7 +230,7 @@ if grep -Fq 'id: caret' "$repo_dir/components/Composer.qml"; then
   printf 'Prompt text must share the content left edge without a decorative caret\n' >&2
   exit 1
 fi
-grep -Fq 'Presentation.permissionNotice(root.dangerousAutoApprove)' "$repo_dir/Panel.qml"
+grep -Fq 'dangerousAutoApprove: root.dangerousAutoApprove' "$repo_dir/Panel.qml"
 grep -Fq 'text: "OmaPilot"' "$repo_dir/components/OmaPilotHeader.qml"
 grep -Fq 'source: Qt.resolvedUrl("../assets/omapilot-mark.png")' \
   "$repo_dir/components/OmaPilotMark.qml"
@@ -331,6 +347,22 @@ grep -Fq 'https://api.elevenlabs.io/v1/text-to-speech/' "$repo_dir/runtime/src/t
 grep -Fq 'https://api.openai.com/v1/audio/speech' "$repo_dir/runtime/src/tts.ts"
 grep -Fq 'export function pcm16Envelope(' "$repo_dir/runtime/src/tts.ts"
 grep -Fq 'type: "tts_level"' "$repo_dir/runtime/src/types.ts"
+grep -Fq 'type: "dictation_level"' "$repo_dir/runtime/src/types.ts"
+grep -Fq 'resolveExecutable("voxtype-audio-bridge"' \
+  "$repo_dir/runtime/src/dictation.ts"
+grep -Fq 'if (type === "dictation_level")' \
+  "$repo_dir/components/OmaPilotStore.qml"
+grep -Fq 'listeningLevel: OmaPilot.OmaPilotStore.dictationLevel' "$repo_dir/Ambient.qml"
+grep -Fq 'function normalizedDictationLevel(event)' "$repo_dir/components/Protocol.js"
+grep -Fq 'function normalizedVoiceVisualizer(value)' "$repo_dir/components/Protocol.js"
+grep -Fq 'function voiceVisualizerOptions()' "$repo_dir/components/Protocol.js"
+grep -Fq 'property string voiceVisualizer: "kitt"' "$repo_dir/components/OmaPilotStore.qml"
+grep -Fq 'voiceVisualizer: OmaPilot.OmaPilotStore.voiceVisualizer' "$repo_dir/Ambient.qml"
+grep -Fq 'id: voiceVisualizerPicker' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'Accessible.name: "Listening visualizer"' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'voiceVisualizerPicker.popupOpen' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'voiceVisualizerPicker.close()' "$repo_dir/components/SettingsView.qml"
+grep -Fq 'onVoiceVisualizerRequested:' "$repo_dir/Panel.qml"
 grep -Fq 'https://api.openai.com/v1/models' "$repo_dir/runtime/src/tts.ts"
 grep -Fq 'text: "Browser context"' "$repo_dir/components/SettingsView.qml"
 grep -Fq 'onDesktopContextRequested:' "$repo_dir/Panel.qml"
@@ -364,7 +396,7 @@ if grep -Fq 'tooltipText: "Close OmaPilot"' "$repo_dir/Panel.qml" "$repo_dir/com
   exit 1
 fi
 grep -Fq 'Presentation.boundedPanelHeight(root.activeNaturalHeight' "$repo_dir/Panel.qml"
-grep -Fq 'popup.availableCardHeight * 0.82' "$repo_dir/Panel.qml"
+grep -Fq 'popup.availableCardHeight * 0.78' "$repo_dir/Panel.qml"
 grep -Fq 'id: responseViewport' "$repo_dir/Panel.qml"
 grep -Fq 'property bool followLatest: true' "$repo_dir/Panel.qml"
 grep -Fq 'onMovementEnded: followLatest = Presentation.isNearBottom(' "$repo_dir/Panel.qml"
@@ -386,7 +418,7 @@ grep -Fq 'property real drift: 0' "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'readonly property bool atmosphereActive: motionEnabled' "$repo_dir/components/VoiceNode.qml"
 grep -Fq '&& (phase === "listening" || phase === "thinking" || speaking)' \
   "$repo_dir/components/VoiceNode.qml"
-grep -Fq 'readonly property bool voiceWaveActive: phase === "listening" || speaking' \
+grep -Fq 'readonly property bool voiceWaveActive: listeningVisualizerActive || speakingLineActive' \
   "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'readonly property bool thinkingScannerActive: phase === "thinking"' \
   "$repo_dir/components/VoiceNode.qml"
@@ -394,18 +426,42 @@ grep -Fq 'id: thinkingScanner' "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'active: root.thinkingScannerActive' "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'playbackMetered ? Math.max(0, Math.min(1, playbackLevel))' \
   "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'listeningMetered ? Math.max(0, Math.min(1, listeningLevel))' \
+  "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'running: root.atmosphereActive' "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'running: root.motionEnabled && root.lit && root.phase !== "listening"' "$repo_dir/components/VoiceNode.qml"
 grep -Fq '0.50 + root.organicDrift * 0.075' "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'Math.sin(livingPhase * 1.618 + 1.1)' "$repo_dir/components/VoiceNode.qml"
-grep -Fq 'motionStyle: root.speaking ? "speaking" : root.phase' "$repo_dir/components/VoiceNode.qml"
-grep -Fq 'readonly property real motionPace: thinking ? 0.084 : (speaking ? 0.056 : 0.022)' \
+grep -Fq 'id: listeningVisualizer' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'visualizer: root.voiceVisualizer' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'id: speakingWave' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'visualizer: "line"' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'motionStyle: "speaking"' "$repo_dir/components/VoiceNode.qml"
+grep -Fq 'readonly property real motionPace: thinking ? 0.084 : (speaking ? 0.033 : 0.022)' \
   "$repo_dir/components/VoiceWave.qml"
 grep -Fq 'var travel = (root.phase * 0.095) % 1' "$repo_dir/components/VoiceWave.qml"
 grep -Fq 'readonly property real speakingLevel: boundedLevel <= 0.025 ? 0' \
   "$repo_dir/components/VoiceWave.qml"
+grep -Fq 'readonly property real voiceBoxLevel: levelMetered ? speakingLevel' \
+  "$repo_dir/components/VoiceWave.qml"
+grep -Fq 'readonly property bool voiceBoxActive: listening && visualizer === "kitt"' \
+  "$repo_dir/components/VoiceWave.qml"
+grep -Fq '} else if (root.speaking) {' "$repo_dir/components/VoiceWave.qml"
 grep -Fq 'Math.pow((boundedLevel - 0.025) / 0.975, 0.62) * 1.18' \
   "$repo_dir/components/VoiceWave.qml"
+grep -Fq 'readonly property int columns: 27' "$repo_dir/components/VoiceWave.qml"
+grep -Fq 'readonly property int rows: 5' "$repo_dir/components/VoiceWave.qml"
+grep -Fq 'Math.sin(phase * 1.6)' "$repo_dir/components/VoiceWave.qml"
+grep -Fq 'var wobble = 0.55 + 0.45 * Math.sin(phase * 6.2 + column * 0.8)' \
+  "$repo_dir/components/VoiceWave.qml"
+grep -Fq 'readonly property int columns: 72' "$repo_dir/components/SpectrumVisualizer.qml"
+grep -Fq 'readonly property int columns: 46' "$repo_dir/components/DotFieldVisualizer.qml"
+grep -Fq 'readonly property int rows: 7' "$repo_dir/components/SegmentVisualizer.qml"
+grep -Fq 'function sweepX(offset)' "$repo_dir/components/BumperVisualizer.qml"
+grep -Fq 'Protocol.normalizedVoiceVisualizer(visualizer) || "kitt"' \
+  "$repo_dir/components/ListeningVisualizer.qml"
+grep -Fq 'width: Math.min(parent.width * 0.72, Style.space(820))' \
+  "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'interval: 2800' "$repo_dir/components/VoiceNode.qml"
 grep -Fq 'running: root.phase === "thinking" && root.motionEnabled' \
   "$repo_dir/components/VoiceNode.qml"
@@ -436,8 +492,6 @@ grep -Fq 'interactive: contentHeight > height' \
 grep -Fq 'item: card' \
   "$repo_dir/components/AnswerCurtain.qml"
 grep -Fq 'colorizationColor: root.accent' "$repo_dir/components/ActivityFilament.qml"
-grep -Fq 'id: responseStatusSlot' "$repo_dir/Panel.qml"
-grep -Fq 'Layout.minimumWidth: Style.space(140)' "$repo_dir/Panel.qml"
 grep -Fq 'import QtQuick.Effects' "$repo_dir/components/ResponseActivityBorder.qml"
 grep -Fq 'import QtQuick.Shapes' "$repo_dir/components/ResponseActivityBorder.qml"
 grep -Fq 'id: perimeterTravel' "$repo_dir/components/ResponseActivityBorder.qml"
@@ -467,10 +521,19 @@ if grep -Eq 'responseActivityCore|id: runnerCore|coreSpan' \
   printf 'OmaPilot perimeter motion must render as one blur without a crisp core\n' >&2
   exit 1
 fi
-# The persistent state light is panel-gated, so its atmosphere stops as soon as
+# The compact activity copy is panel-gated, so its phrase cycle stops as soon as
 # the panel closes instead of animating off screen.
-grep -Fq 'motionEnabled: root.motionEnabled && root.opened' "$repo_dir/Panel.qml"
+grep -Fq 'running: root.rotatingActivityStatus' "$repo_dir/Panel.qml"
 grep -Fq 'id: activityStatus' "$repo_dir/Panel.qml"
+if grep -Eq 'Behavior on (color|x|width|opacity)' \
+    "$repo_dir/components/SettingsTabs.qml" "$repo_dir/components/HistoryView.qml"; then
+  printf 'Settings and history interactions must update without decorative easing\n' >&2
+  exit 1
+fi
+if grep -Eq 'id: (thinkingPhraseSwap|firstTokenReveal)' "$repo_dir/Panel.qml"; then
+  printf 'Panel copy must not use decorative fade transitions\n' >&2
+  exit 1
+fi
 if grep -Eq 'WaitingIndicator|signalClock|FrameAnimation' \
     "$repo_dir/Panel.qml" "$repo_dir/components/ResponseActivityBorder.qml" \
     || grep -Eq 'onTriggered:' "$repo_dir/components/ResponseActivityBorder.qml"; then
@@ -742,6 +805,22 @@ if grep -Eq "omapilot state motion preview failed|Failed to load|Type .* unavail
     || ! grep -Fq 'OMAPILOT_STATE_MOTION_PREVIEW_OK' "$smoke_root/state-motion-preview.log" \
     || [[ $(find "$state_frame_root" -maxdepth 1 -type f -name 'state-*.png' | wc -l) -ne 8 ]]; then
   cat "$smoke_root/state-motion-preview.log"
+  exit 1
+fi
+
+visualizer_frame="$smoke_root/listening-visualizers.png"
+cp "$repo_dir/tests/listening-visualizers-preview.qml" "$smoke_root/shell.qml"
+if ! OMAPILOT_VISUALIZER_FRAME="$visualizer_frame" QT_QPA_PLATFORM=offscreen \
+    timeout 5s quickshell --no-duplicate --path "$smoke_root" --no-color \
+    >"$smoke_root/listening-visualizers.log" 2>&1; then
+  cat "$smoke_root/listening-visualizers.log"
+  exit 1
+fi
+if grep -Eq "omapilot visualizer preview failed|Failed to load|Type .* unavailable|Cannot assign|TypeError" \
+    "$smoke_root/listening-visualizers.log" \
+    || ! grep -Fq 'OMAPILOT_VISUALIZER_PREVIEW_OK' "$smoke_root/listening-visualizers.log" \
+    || [[ ! -s $visualizer_frame ]]; then
+  cat "$smoke_root/listening-visualizers.log"
   exit 1
 fi
 

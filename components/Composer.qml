@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Protocol.js" as Protocol
@@ -16,6 +15,7 @@ Item {
   property color background: Color.popups.background
   property color accent: Color.accent
   property string fontFamily: Style.font.family
+  property string monoFontFamily: "JetBrains Mono"
 
   signal providerChanged(string provider)
   signal modelChanged(string provider, string model)
@@ -29,16 +29,14 @@ Item {
   signal historyRequested()
 
   readonly property bool inputActive: inlineMode ? inlineInput.activeFocus : promptInput.activeFocus
+  readonly property bool showingQuestion: !inlineMode && draftText === "" && backend
+    && String(backend.question || "") !== ""
+    && (String(backend.answerMarkdown || "") !== "" || backend.pendingPermission !== null
+      || backend.state === "complete" || backend.state === "error"
+      || backend.state === "unavailable" || backend.state === "preparing"
+      || backend.state === "streaming")
   property bool attachmentPopupOpen: false
-  property string hostName: ""
   readonly property bool popupOpen: inlineProvider.popupOpen || attachmentPopupOpen
-
-  FileView {
-    path: "/etc/hostname"
-    watchChanges: false
-    printErrors: false
-    onLoaded: root.hostName = String(text() || "").trim().split(/\s+/)[0]
-  }
 
   implicitWidth: inlineMode ? Style.space(360) : Style.space(520)
   implicitHeight: inlineMode ? Style.bar.sizeHorizontal : panelComposer.implicitHeight
@@ -178,7 +176,7 @@ Item {
     anchors.left: parent.left
     anchors.right: parent.right
     visible: !root.inlineMode
-    spacing: Style.spacing.md
+    spacing: 0
 
     Repeater {
       id: attachmentRepeater
@@ -200,25 +198,10 @@ Item {
       }
     }
 
-    Text {
-      Layout.fillWidth: true
-      visible: root.backend && root.backend.desktopContextActive && root.hostName !== ""
-      text: "󰍹  " + root.hostName
-      color: Qt.darker(root.foreground, 1.45)
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.caption
-      elide: Text.ElideRight
-      Accessible.role: Accessible.StaticText
-      Accessible.name: "Desktop context attached from " + root.hostName
-    }
-
-    // The hero: one borderless prompt line, not a boxed text area with a
-    // toolbar. Keep its text on the same left edge as context and responses;
-    // a decorative prompt glyph only indented the user's words.
     Item {
       id: promptRow
       Layout.fillWidth: true
-      Layout.preferredHeight: Math.max(Style.space(34), promptInput.implicitHeight + Style.spacing.md)
+      Layout.preferredHeight: 56
       visible: !root.backend || root.backend.pendingPermission === null
 
       TextArea {
@@ -230,22 +213,26 @@ Item {
         enabled: root.backend && !root.backend.continuationBlocked
           && root.backend.state !== "streaming" && root.backend.state !== "preparing"
         text: root.draftText
-        placeholderText: root.backend && root.backend.initialized
-          ? "Ask, or describe what to do"
-          : "Starting OmaPilot\u2026"
-        placeholderTextColor: Qt.darker(root.foreground, 1.7)
-        color: root.foreground
+        placeholderText: root.showingQuestion ? String(root.backend.question)
+          : (root.backend && root.backend.initialized
+            ? "Ask, or name a workspace, app, or setting"
+            : "Starting OmaPilot\u2026")
+        placeholderTextColor: root.showingQuestion ? "#f0f0f2" : "#74757c"
+        color: "#f0f0f2"
         selectionColor: Style.selectionFillFor(root.foreground, root.accent)
-        selectedTextColor: root.foreground
-        font.family: root.fontFamily
-        // Deliberately larger than body: the request is the most important
-        // text in the panel, and the old body-size input buried it.
-        font.pixelSize: Style.font.heading
-        wrapMode: TextEdit.Wrap
+        selectedTextColor: "#eeeef1"
+        font.family: root.monoFontFamily
+        font.pixelSize: 17
+        wrapMode: TextEdit.NoWrap
         background: null
+        cursorDelegate: Rectangle {
+          width: root.showingQuestion || root.draftText.length === 0 ? 0 : 8
+          height: 20
+          color: "#58d1dc"
+        }
         leftPadding: 0
-        topPadding: 0
-        bottomPadding: 0
+        topPadding: 15
+        bottomPadding: 14
         Accessible.name: "OmaPilot request"
         onTextEdited: root.draftText = text
 
@@ -265,14 +252,11 @@ Item {
         }
       }
 
-      // Only the two affordances that have no keyboard equivalent worth
-      // teaching stay visible, and they lose their boxes. Provider identity
-      // moved to the panel's hint row; send is Enter.
       Row {
         id: promptTools
         anchors.right: parent.right
-        anchors.top: parent.top
-        spacing: Style.spacing.xs
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 7
 
         PanelActionButton {
           iconText: "󰹑"
@@ -301,46 +285,19 @@ Item {
       }
     }
 
-    RowLayout {
-      Layout.fillWidth: true
-      visible: statusText.visible || retryButton.visible
-      spacing: Style.spacing.md
-
-      Text {
-        id: statusText
-        Layout.fillWidth: true
-        text: root.backend ? root.backend.statusMessage : ""
-        visible: text !== "" && root.backend
-          && (root.backend.continuationBlocked
-            || root.backend.state === "dictating"
-            || (root.backend.question === ""
-              && root.backend.state !== "error"
-              && root.backend.state !== "unavailable"))
-        color: root.backend && root.backend.state === "error" ? Color.urgent : Qt.darker(root.foreground, 1.45)
-        font.family: root.fontFamily
-        font.pixelSize: Style.font.bodySmall
-        elide: Text.ElideRight
-        Accessible.role: Accessible.StaticText
-        Accessible.name: text
-      }
-
-      Button {
-        id: retryButton
-        // Suppressed while the panel is showing an error notice. The notice
-        // explains the failure and now carries its own retry, so leaving this
-        // one here stranded a lone bordered button under the composer with no
-        // label beside it and no context.
-        visible: root.backend && root.backend.canRetry
-          && root.backend.state !== "error" && root.backend.state !== "unavailable"
-        text: "Retry"
-        tooltipText: "Restart the OmaPilot broker"
-        foreground: root.foreground
-        background: root.background
-        bordered: true
-        focusable: true
-        Accessible.name: tooltipText
-        onClicked: root.backend.retryBroker()
-      }
+    Button {
+      id: retryButton
+      Layout.alignment: Qt.AlignRight
+      visible: root.backend && root.backend.canRetry
+        && root.backend.state !== "error" && root.backend.state !== "unavailable"
+      text: "Retry"
+      tooltipText: "Restart the OmaPilot broker"
+      foreground: root.foreground
+      background: root.background
+      bordered: true
+      focusable: true
+      Accessible.name: tooltipText
+      onClicked: root.backend.retryBroker()
     }
   }
 }

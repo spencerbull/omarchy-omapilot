@@ -221,6 +221,27 @@ TestCase {
     verify(!Protocol.historyContinuationBlocked("", "opencode", opencode))
   }
 
+  function test_responseOutcomesFailClosedAndKeepVerifiedReceipts() {
+    var action = Protocol.normalizedResponseOutcome({
+      class: "ACTION",
+      receipt: { command: "hyprctl dispatch workspace 2", exitCode: 0, durationMs: 121 }
+    })
+    compare(action.class, "ACTION")
+    compare(action.receipt.command, "hyprctl dispatch workspace 2")
+    compare(action.receipt.durationMs, 121)
+
+    var invalid = Protocol.normalizedResponseOutcome({
+      class: "ACTION",
+      receipt: { command: "rm -rf /", exitCode: 1, durationMs: 121 }
+    })
+    compare(invalid.class, "ANSWER")
+    compare(invalid.receipt, null)
+    compare(Protocol.normalizedResponseOutcome({ class: "made_up" }).class, "ANSWER")
+
+    var history = Protocol.normalizedHistory([{ id: "chat", question: "Q", answer: "A" }])
+    compare(history[0].response.class, "ANSWER")
+  }
+
   function test_toolPermissionIsBoundToCurrentTurn() {
     var permission = Protocol.normalizedPermission({
       id: "permission-1", requestId: "turn-1", title: "Run uname",
@@ -416,6 +437,17 @@ TestCase {
     compare(status.tts.length, 2)
     compare(Protocol.normalizedTtsProvider("ElevenLabs"), "elevenlabs")
     compare(Protocol.ttsProviderOptions()[0].value, "elevenlabs")
+    compare(Protocol.normalizedVoiceVisualizer("KITT"), "kitt")
+    compare(Protocol.normalizedVoiceVisualizer("Bumper"), "bumper")
+    compare(Protocol.normalizedVoiceVisualizer("segments"), "segments")
+    compare(Protocol.normalizedVoiceVisualizer("SPECTRUM"), "spectrum")
+    compare(Protocol.normalizedVoiceVisualizer("dots"), "dots")
+    compare(Protocol.normalizedVoiceVisualizer("line"), "line")
+    compare(Protocol.normalizedVoiceVisualizer("unknown"), "")
+    compare(Protocol.voiceVisualizerOptions().length, 6)
+    compare(Protocol.voiceVisualizerOptions()[0].value, "kitt")
+    compare(Protocol.voiceVisualizerOptions()[0].label, "KITT voice box")
+    compare(Protocol.voiceVisualizerOptions()[5].value, "line")
     var openai = Protocol.ttsProviderStatus(status, "openai")
     compare(Protocol.ttsDefaultModel(openai), "gpt-4o-mini-tts")
     compare(Protocol.ttsVoiceOptions(openai, "tts-1").length, 1)
@@ -448,6 +480,18 @@ TestCase {
     compare(Protocol.normalizedTtsLevel({ type: "tts_level", level: 4 }), 1)
     compare(Protocol.normalizedTtsLevel({ type: "tts_level", level: -2 }), 0)
     compare(Protocol.normalizedTtsLevel({ type: "tts_level", level: "bad" }), null)
+    compare(Protocol.normalizedDictationLevel({
+      type: "dictation_level", level: 0.64, metered: true
+    }).level, 0.64)
+    verify(Protocol.normalizedDictationLevel({
+      type: "dictation_level", level: 0.64, metered: true
+    }).metered)
+    compare(Protocol.normalizedDictationLevel({
+      type: "dictation_level", level: 4, metered: true
+    }).level, 1)
+    compare(Protocol.normalizedDictationLevel({
+      type: "dictation_level", level: "bad", metered: true
+    }), null)
   }
 
   function test_customProviderProbeAndSaveKeepDiscoveredModelMetadata() {

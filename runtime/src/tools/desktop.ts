@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { delimiter, join, relative, sep } from "node:path";
 import { Type } from "typebox";
 import type { ToolDefinition } from "../../../node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/types.js";
+import type { CommandReceipt } from "../types.js";
 
 const MAX_COMMAND_OUTPUT = 512 * 1024;
 const MAX_DESKTOP_FILE_BYTES = 256 * 1024;
@@ -162,6 +163,7 @@ export type WorkspaceActionInput = {
 type Command = { file: "hyprctl"; args: string[] };
 type ActionReceipt = {
   action: string;
+  command?: string;
   target: Record<string, unknown>;
   requested: Record<string, unknown>;
   before: Record<string, unknown> | undefined;
@@ -169,6 +171,8 @@ type ActionReceipt = {
   changed: boolean;
   verified: boolean;
 };
+
+export type ActionReceiptObserver = (receipt: CommandReceipt) => void;
 
 export class DesktopToolError extends Error {
   readonly code: string;
@@ -667,6 +671,11 @@ function receiptResult(receipt: ActionReceipt): {
   };
 }
 
+function observeReceipt(receipt: ActionReceipt, startedAt: number, observer: ActionReceiptObserver | undefined): void {
+  if (!receipt.changed || !receipt.verified || receipt.command === undefined) return;
+  observer?.({ command: receipt.command, exitCode: 0, durationMs: Math.max(0, Date.now() - startedAt) });
+}
+
 function toolFailure(action: string, error: unknown): {
   content: Array<{ type: "text"; text: string }>;
   details: { code?: string };
@@ -831,12 +840,13 @@ async function focusAppWindow(
       changed: false, verified: true
     };
   }
-  await dispatch(run, {
+  const command: Command = {
     file: "hyprctl", args: ["dispatch", `hl.dsp.focus({ window = "address:${currentTarget.address}" })`]
-  }, signal);
+  };
+  await dispatch(run, command, signal);
   const after = await waitForState(run, (state) => state.activeWindow?.address === currentTarget.address, signal);
   return {
-    action: "focus_existing_app", target: { app: app.id, address: currentTarget.address }, requested: {},
+    action: "focus_existing_app", command: displayCommand(command.file, command.args), target: { app: app.id, address: currentTarget.address }, requested: {},
     before: windowSummary(currentTarget, before.activeWindow?.address),
     after: windowSummary(after.windows.find((window) => window.address === currentTarget.address), after.activeWindow?.address),
     changed: before.activeWindow?.address !== after.activeWindow?.address,
@@ -862,8 +872,10 @@ async function openApp(
   if (mode !== "new_window" && matches.length > 0) return focusAppWindow(run, app, matches, known, signal);
   if (mode === "focus_existing") return focusAppWindow(run, app, matches, known, signal);
   const previousAddresses = new Set(before.windows.map((window) => window.address));
-  if (app.kind === "desktop") await launch("uwsm-app", ["--", "gtk-launch", `${app.id}.desktop`], signal);
-  else await launch("omarchy", ["launch", "tui", `--app-id=org.omarchy.${app.id}`, app.id], signal);
+  const command = app.kind === "desktop"
+    ? { file: "uwsm-app", args: ["--", "gtk-launch", `${app.id}.desktop`] }
+    : { file: "omarchy", args: ["launch", "tui", `--app-id=org.omarchy.${app.id}`, app.id] };
+  await launch(command.file, command.args, signal);
   const afterWindows = await waitForWindows(run, (windows) => {
     return attributedLaunchWindows(app, windows, previousAddresses, known).windows.length > 0;
   }, signal);
@@ -871,7 +883,7 @@ async function openApp(
   const observed = newVisibleWindows(afterWindows, previousAddresses);
   if (attributed.windows.length > 0) rememberAppWindows(known, app, attributed.windows);
   return {
-    action: "open_app", target: { kind: app.kind, id: app.id }, requested: { mode },
+    action: "open_app", command: displayCommand(command.file, command.args), target: { kind: app.kind, id: app.id }, requested: { mode },
     before: { matchingWindows: matches.map((window) => window.address) },
     after: {
       newWindows: attributed.windows.map((window) => window.address),
@@ -916,7 +928,7 @@ async function executeWindowAction(
   if (alreadySatisfied) {
     const summary = windowSummary(beforeWindow, beforeState.activeWindow?.address);
     return {
-      action: input.action, target: { address, pid: input.pid }, requested,
+      action: input.action, command: displayCommand(command.file, command.args), target: { address, pid: input.pid }, requested,
       before: summary, after: summary, changed: false, verified: true
     };
   }
@@ -945,6 +957,7 @@ async function executeWindowAction(
   })();
   return {
     action: input.action,
+    command: displayCommand(command.file, command.args),
     target: { address, pid: input.pid },
     requested,
     before: windowSummary(beforeWindow, beforeState.activeWindow?.address),
@@ -964,8 +977,9 @@ async function executeWorkspaceAction(
   const beforeWorkspace = beforeState.workspaces.find((candidate) => candidate.id === workspace);
   if (input.action === "focus" && beforeState.activeWorkspace?.id === workspace) {
     const summary = workspaceSummary(beforeWorkspace, beforeState.activeWorkspace.id);
+    const command = workspaceActionCommand(input);
     return {
-      action: input.action, target: { workspace }, requested: {},
+      action: input.action, command: displayCommand(command.file, command.args), target: { workspace }, requested: {},
       before: summary, after: summary, changed: false, verified: true
     };
   }
@@ -977,13 +991,15 @@ async function executeWorkspaceAction(
     if (beforeWorkspace === undefined) throw new DesktopToolError("workspace_unavailable", "That exact workspace is no longer available");
     if (beforeWorkspace.monitor === monitor) {
       const summary = workspaceSummary(beforeWorkspace, beforeState.activeWorkspace?.id);
+      const command = workspaceActionCommand(input);
       return {
-        action: input.action, target: { workspace }, requested: { monitor },
+        action: input.action, command: displayCommand(command.file, command.args), target: { workspace }, requested: { monitor },
         before: summary, after: summary, changed: false, verified: true
       };
     }
   }
-  await dispatch(run, workspaceActionCommand(input), signal);
+  const command = workspaceActionCommand(input);
+  await dispatch(run, command, signal);
   const predicate = (state: DesktopState): boolean => input.action === "focus"
     ? state.activeWorkspace?.id === workspace
     : state.workspaces.find((candidate) => candidate.id === workspace)?.monitor === input.monitor;
@@ -995,6 +1011,7 @@ async function executeWorkspaceAction(
     : beforeWorkspace?.monitor !== afterWorkspace?.monitor;
   return {
     action: input.action,
+    command: displayCommand(command.file, command.args),
     target: { workspace },
     requested: input.monitor === undefined ? {} : { monitor: input.monitor },
     before: workspaceSummary(beforeWorkspace, beforeState.activeWorkspace?.id),
@@ -1058,7 +1075,8 @@ export function desktopToolTitle(name: string, input: Record<string, unknown>): 
 export function createPersonalAssistantTools(
   run: DesktopCommandRunner = runDesktopCommand,
   env: NodeJS.ProcessEnv = process.env,
-  launch: DesktopCommandRunner = run === runDesktopCommand ? launchDesktopCommand : run
+  launch: DesktopCommandRunner = run === runDesktopCommand ? launchDesktopCommand : run,
+  observeAction?: ActionReceiptObserver
 ): [
   ToolDefinition<typeof appCatalogParameters>,
   ToolDefinition<typeof appOpenParameters>,
@@ -1097,7 +1115,12 @@ export function createPersonalAssistantTools(
         () => openApp(run, launch, env, input, knownAppWindows, signal)
       );
       appOpenQueue = operation.then(() => undefined, () => undefined);
-      try { return receiptResult(await operation); }
+      const startedAt = Date.now();
+      try {
+        const receipt = await operation;
+        observeReceipt(receipt, startedAt, observeAction);
+        return receiptResult(receipt);
+      }
       catch (error) { return toolFailure("Opening the app", error); }
     }
   };
@@ -1121,7 +1144,12 @@ export function createPersonalAssistantTools(
     promptSnippet: "Perform and verify one exact window action",
     parameters: windowActionParameters,
     async execute(_toolCallId, input, signal) {
-      try { return receiptResult(await executeWindowAction(run, input, signal)); }
+      const startedAt = Date.now();
+      try {
+        const receipt = await executeWindowAction(run, input, signal);
+        observeReceipt(receipt, startedAt, observeAction);
+        return receiptResult(receipt);
+      }
       catch (error) { return toolFailure("The window action", error); }
     }
   };
@@ -1132,7 +1160,12 @@ export function createPersonalAssistantTools(
     promptSnippet: "Perform and verify one exact workspace action",
     parameters: workspaceActionParameters,
     async execute(_toolCallId, input, signal) {
-      try { return receiptResult(await executeWorkspaceAction(run, input, signal)); }
+      const startedAt = Date.now();
+      try {
+        const receipt = await executeWorkspaceAction(run, input, signal);
+        observeReceipt(receipt, startedAt, observeAction);
+        return receiptResult(receipt);
+      }
       catch (error) { return toolFailure("The workspace action", error); }
     }
   };

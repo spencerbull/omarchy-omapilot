@@ -39,6 +39,9 @@ Panel {
     && Protocol.normalizedWebHandoffProvider(settings.webHandoffProvider)
     ? Protocol.normalizedWebHandoffProvider(settings.webHandoffProvider) : "duckduckgo"
   readonly property bool voiceEnabled: settings && settings.voiceEnabled === true
+  readonly property string voiceVisualizer: settings
+    && Protocol.normalizedVoiceVisualizer(settings.voiceVisualizer)
+    ? Protocol.normalizedVoiceVisualizer(settings.voiceVisualizer) : "kitt"
   readonly property string ttsProvider: settings && Protocol.normalizedTtsProvider(settings.ttsProvider)
     ? Protocol.normalizedTtsProvider(settings.ttsProvider) : "elevenlabs"
   readonly property string ttsModel: settings && typeof settings.ttsModel === "string" ? settings.ttsModel : ""
@@ -57,31 +60,19 @@ Panel {
     quickActionsJson,
     settings ? settings.showSummarizeAction === true : false,
     settings ? settings.showWorkInAppAction === true : false)
-  // Floored just under the resting composer so an empty panel hugs its content.
-  // The card grows from here: the answer area carries its own minimum once a
-  // response exists, and quick actions add their row only when there are any.
-  readonly property real minimumContentHeight: Style.space(120)
+  readonly property real minimumContentHeight: Style.space(130)
   readonly property real comfortableCardHeight: popup.availableCardHeight > 0
-    ? Math.min(Style.space(720), Math.max(Style.space(320), popup.availableCardHeight * 0.82))
-    : Style.space(720)
-  readonly property real activeNaturalHeight: viewMode === "settings" || viewMode === "history"
-    ? Math.max(minimumContentHeight, comfortableCardHeight - popup.verticalContentInset)
-    : (viewMode === "error" ? errorView.implicitHeight : chatView.implicitHeight)
-  readonly property var responsePhase: Presentation.responsePhase(
-    OmaPilot.OmaPilotStore.state,
-    OmaPilot.OmaPilotStore.answerMarkdown !== "" || OmaPilot.OmaPilotStore.images.length > 0)
-  // True whenever the response area is presenting a failure, which is the one
-  // state that used to be announced three times over.
-  readonly property bool failureVisible: OmaPilot.OmaPilotStore.state === "error"
-    || OmaPilot.OmaPilotStore.state === "unavailable"
-  // The panel speaks the same state language as the ambient surfaces: working
-  // is one hue, a delivered answer another, failure the theme's urgent role.
-  readonly property string statePhase: failureVisible ? "error"
-    : (responseActivityActive ? "thinking"
-      : (OmaPilot.OmaPilotStore.answerMarkdown !== "" ? "answering" : "listening"))
+    ? Math.min(Style.space(620), Math.max(Style.space(260), popup.availableCardHeight * 0.78))
+    : Style.space(620)
+  readonly property real activeNaturalHeight: viewMode === "settings"
+    ? Math.max(minimumContentHeight, settingsView.implicitHeight)
+    : (viewMode === "history" ? Math.max(minimumContentHeight, historyView.implicitHeight)
+      : (viewMode === "error" ? errorView.implicitHeight : chatView.implicitHeight))
   readonly property bool responseActivityActive:
     OmaPilot.OmaPilotStore.state === "preparing"
     || OmaPilot.OmaPilotStore.state === "streaming"
+  readonly property bool footerPrimaryAvailable: !OmaPilot.OmaPilotStore.busy
+    && OmaPilot.OmaPilotStore.pendingPermission === null
   property int thinkingPhraseIndex: 0
   readonly property bool genericActivityStatus: responseActivityActive
     && StatePhrases.isGenericStatus(OmaPilot.OmaPilotStore.statusMessage)
@@ -105,28 +96,11 @@ Panel {
     running: root.rotatingActivityStatus
     repeat: true
     triggeredOnStart: false
-    onTriggered: thinkingPhraseSwap.restart()
-  }
-
-  SequentialAnimation {
-    id: thinkingPhraseSwap
-    PropertyAnimation {
-      target: activityStatus; property: "opacity"
-      to: 0; duration: 180; easing.type: Easing.OutQuad
-    }
-    ScriptAction {
-      script: root.thinkingPhraseIndex = (root.thinkingPhraseIndex + 1)
-        % StatePhrases.thinkingCount()
-    }
-    PropertyAnimation {
-      target: activityStatus; property: "opacity"
-      to: 1; duration: 260; easing.type: Easing.InQuad
-    }
+    onTriggered: root.thinkingPhraseIndex = (root.thinkingPhraseIndex + 1)
+      % StatePhrases.thinkingCount()
   }
 
   function resetThinkingPhrase() {
-    thinkingPhraseSwap.stop()
-    activityStatus.opacity = 1
     if (!responseActivityActive) thinkingPhraseIndex = 0
   }
 
@@ -310,11 +284,8 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: panelFocus
-    // 640 was sized for the old layout, whose header carried identity on its
-    // own line. The redesign puts harness, model, approval posture, and the lane
-    // hints in one row, and at 640 the model name was the first thing elided —
-    // exactly the part worth reading.
-    contentWidth: popup.fittedContentWidth(Style.space(760))
+    padding: 0
+    contentWidth: popup.fittedContentWidth(Style.space(764))
     contentHeight: Presentation.boundedPanelHeight(root.activeNaturalHeight,
       root.minimumContentHeight, root.comfortableCardHeight,
       popup.availableCardHeight, popup.verticalContentInset)
@@ -333,6 +304,7 @@ Panel {
     Item {
       id: panelFocus
       anchors.fill: parent
+      anchors.margins: -Math.max(1, Style.space(2))
       focus: true
       Keys.onPressed: function(event) { panelKeyboardNavigation.handleKey(event) }
 
@@ -358,18 +330,26 @@ Panel {
         onActivated: root.viewMode === "history" ? root.showChat() : root.openHistory()
       }
 
+      Rectangle {
+        anchors.fill: parent
+        color: "#101114"
+        border.width: 1
+        border.color: "#2f3036"
+        radius: 0
+        Accessible.ignored: true
+      }
+
       ColumnLayout {
         id: chatView
         anchors.fill: parent
         visible: root.viewMode === "chat"
-        spacing: Style.spacing.lg
+        spacing: 0
 
-        // The request is the hero and sits at the top. The old panel opened with
-        // a logo, a tagline, and a gear, then buried the input under the answer;
-        // that is app chrome. What the user came to do goes first.
         OmaPilot.Composer {
           id: composer
           Layout.fillWidth: true
+          Layout.leftMargin: 17
+          Layout.rightMargin: 17
           backend: OmaPilot.OmaPilotStore
           foreground: root.foreground
           background: root.surface
@@ -380,9 +360,20 @@ Panel {
           onEscapeRequested: root.close()
         }
 
+        Rectangle {
+          Layout.fillWidth: true
+          Layout.preferredHeight: 1
+          color: "#1d1e22"
+          Accessible.ignored: true
+        }
+
         OmaPilot.SetupGuide {
           id: setupGuide
           Layout.fillWidth: true
+          Layout.leftMargin: 17
+          Layout.rightMargin: 17
+          Layout.topMargin: 14
+          Layout.bottomMargin: 15
           visible: (root.setupStage === "voice" || root.setupStage === "hotkeys")
             && OmaPilot.OmaPilotStore.question === ""
             && OmaPilot.OmaPilotStore.answerMarkdown === ""
@@ -394,10 +385,6 @@ Panel {
           fontFamily: root.fontFamily
           onActionRequested: root.openSettings(root.setupStage === "voice" ? "voice" : "desktop")
         }
-        // The answer, unboxed. It used to live in a filled, bordered card with a
-        // runner travelling its perimeter — a window inside a window. Now it sits
-        // directly on the panel under one edge-lit seam, the same seam the answer
-        // curtain uses, so the typed and the spoken paths present identically.
         Item {
           id: answerCard
           readonly property bool contentVisible: OmaPilot.OmaPilotStore.question !== ""
@@ -405,116 +392,53 @@ Panel {
             || OmaPilot.OmaPilotStore.state === "error"
             || OmaPilot.OmaPilotStore.state === "unavailable"
           Layout.fillWidth: true
-          Layout.minimumHeight: contentVisible ? Style.space(120) : stateLightBar.implicitHeight
+          Layout.minimumHeight: 0
           Layout.preferredHeight: implicitHeight
           implicitHeight: contentVisible
-            ? answerLayout.implicitHeight + Style.spacing.xl
-            : stateLightBar.implicitHeight
+            ? answerLayout.implicitHeight + 30
+            : 0
 
-          // One persistent seam carries the entire panel's state. It remains a
-          // quiet accent while composing, gathers pace while working, and
-          // settles into the answer or error hue without becoming a progress bar.
-          OmaPilot.StateLightBar {
-            id: stateLightBar
+          Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            phase: root.statePhase
-            accent: root.accent
-            urgent: Color.urgent
-            motionEnabled: root.motionEnabled && root.opened
+            height: 1
+            color: "#1d1e22"
+            Accessible.ignored: true
           }
 
           ColumnLayout {
             id: answerLayout
             visible: answerCard.contentVisible
             anchors.fill: parent
-            anchors.topMargin: Style.spacing.xl
-            spacing: Style.spacing.lg
+            anchors.leftMargin: 17
+            anchors.rightMargin: 17
+            anchors.topMargin: 14
+            anchors.bottomMargin: 15
+            spacing: 11
 
-            RowLayout {
+            Text {
+              id: activityStatus
               Layout.fillWidth: true
-              visible: OmaPilot.OmaPilotStore.question !== "" || root.responsePhase.label !== ""
-
-              Text {
-                Layout.fillWidth: true
-                text: OmaPilot.OmaPilotStore.question
-                color: Qt.darker(root.foreground, 1.35)
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.bodySmall
-                elide: Text.ElideRight
-                Accessible.role: Accessible.StaticText
-                Accessible.name: text
-              }
-
-              Item {
-                id: responseStatusSlot
-                Layout.alignment: Qt.AlignVCenter
-                Layout.minimumWidth: Style.space(140)
-                Layout.preferredWidth: Math.min(Style.space(220),
-                  Math.max(Layout.minimumWidth, answerLayout.width * 0.38))
-                Layout.maximumWidth: Style.space(220)
-                Layout.preferredHeight: Math.max(activityStatus.implicitHeight,
-                  responseState.implicitHeight)
-
-                // Keep one screen-aware status slot for every response phase.
-                // Status copy and phase changes can no longer resize the
-                // question column while a response is arriving.
-                Text {
-                  id: activityStatus
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: parent.width
-                  text: root.activityStatusText
-                  visible: root.responseActivityActive
-                  color: Qt.darker(root.foreground, 1.25)
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                  font.weight: Font.Medium
-                  horizontalAlignment: Text.AlignRight
-                  elide: Text.ElideRight
-                  maximumLineCount: 1
-                  Accessible.role: Accessible.StaticText
-                  Accessible.name: text
-                }
-
-                Text {
-                  id: responseState
-                  // The error notice below already names the failure in full, so
-                  // a shouty UNAVAILABLE chip beside the question is the same
-                  // information a third time.
-                  readonly property bool phaseVisible: text !== ""
-                    && !root.responseActivityActive && !root.failureVisible
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  text: root.responsePhase.label
-                  visible: phaseVisible || opacity > 0
-                  opacity: phaseVisible ? 1 : 0
-                  color: root.responsePhase.tone === "urgent" ? Color.urgent
-                    : (root.responsePhase.tone === "muted" ? Color.muted : root.accent)
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
-                  font.bold: true
-                  font.letterSpacing: 1
-                  Accessible.role: Accessible.StaticText
-                  Accessible.name: text
-
-                  Behavior on opacity {
-                    enabled: root.motionEnabled
-                    NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-                  }
-                }
-              }
+              visible: root.responseActivityActive
+              text: root.activityStatusText
+              color: "#8d8e95"
+              font.family: "JetBrains Mono"
+              font.pixelSize: 10
+              elide: Text.ElideRight
+              maximumLineCount: 1
+              Accessible.role: Accessible.StaticText
+              Accessible.name: text
             }
 
             BorderSurface {
               id: permissionCard
               Layout.fillWidth: true
-              implicitHeight: permissionContent.implicitHeight + contentTopInset + contentBottomInset + Style.spacing.xl * 2
+              implicitHeight: permissionContent.implicitHeight
               visible: OmaPilot.OmaPilotStore.pendingPermission !== null
-              color: Style.normalFillFor(root.foreground, root.accent)
-              borderSpec: Border.controlSpec("focus", root.foreground, root.accent)
-              radius: Style.cornerRadius
+              color: "transparent"
+              borderSpec: Border.none()
+              radius: 0
 
               OmaPilotInternal.PermissionFocusGuard {
                 permissionId: OmaPilot.OmaPilotStore.pendingPermission
@@ -527,32 +451,39 @@ Panel {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.margins: Style.spacing.xl
-                spacing: Style.spacing.md
+                spacing: 9
 
-                Text {
+                RowLayout {
                   Layout.fillWidth: true
-                  text: OmaPilot.OmaPilotStore.pendingPermission
-                    ? "Approval required: " + OmaPilot.OmaPilotStore.pendingPermission.title : ""
-                  color: root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.body
-                  font.bold: true
-                  wrapMode: Text.Wrap
+                  spacing: Style.spacing.md
+
+                  OmaPilot.ResponseBadge {
+                    responseClass: "CONFIRM"
+                  }
+
+                  Text {
+                    Layout.fillWidth: true
+                    text: OmaPilot.OmaPilotStore.pendingPermission
+                      ? OmaPilot.OmaPilotStore.pendingPermission.title : ""
+                    color: "#8d8e95"
+                    font.family: root.fontFamily
+                    font.pixelSize: 11
+                    wrapMode: Text.Wrap
+                  }
                 }
 
                 Text {
                   Layout.fillWidth: true
-                  text: "Review the exact request and choose how long this agent may retain the approval."
-                  color: Qt.darker(root.foreground, 1.45)
+                  text: "Review the exact request before it runs."
+                  color: "#f0f0f2"
                   font.family: root.fontFamily
-                  font.pixelSize: Style.font.caption
+                  font.pixelSize: 15
                   wrapMode: Text.Wrap
                 }
 
                 Flickable {
                   Layout.fillWidth: true
-                  Layout.preferredHeight: Math.min(permissionDetail.implicitHeight, Style.space(140))
+                  Layout.preferredHeight: Math.min(permissionDetail.implicitHeight, Style.space(100))
                   contentWidth: width
                   contentHeight: permissionDetail.implicitHeight
                   clip: true
@@ -564,9 +495,9 @@ Panel {
                     width: parent.width
                     text: OmaPilot.OmaPilotStore.pendingPermission
                       ? OmaPilot.OmaPilotStore.pendingPermission.detail : ""
-                    color: Qt.darker(root.foreground, 1.25)
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.bodySmall
+                    color: "#d5d5da"
+                    font.family: "JetBrains Mono"
+                    font.pixelSize: 11
                     wrapMode: Text.WrapAnywhere
                     textFormat: Text.PlainText
                     readOnly: true
@@ -611,12 +542,48 @@ Panel {
               }
             }
 
+            RowLayout {
+              id: responseHeader
+              Layout.fillWidth: true
+              visible: OmaPilot.OmaPilotStore.state === "complete"
+                && (OmaPilot.OmaPilotStore.answerMarkdown !== ""
+                  || OmaPilot.OmaPilotStore.images.length > 0)
+              spacing: 9
+
+              OmaPilot.ResponseBadge {
+                responseClass: OmaPilot.OmaPilotStore.response.class
+              }
+
+              Text {
+                Layout.fillWidth: true
+                text: Presentation.responseSummary(OmaPilot.OmaPilotStore.response)
+                color: "#8d8e95"
+                font.family: root.fontFamily
+                font.pixelSize: 11
+                elide: Text.ElideRight
+                Accessible.role: Accessible.StaticText
+                Accessible.name: text
+              }
+
+              OmaPilot.ResponseAction {
+                id: copyAnswerAction
+                Layout.alignment: Qt.AlignVCenter
+                iconText: "󰆏"
+                text: "COPY"
+                tooltipText: "Copy answer"
+                quiet: true
+                enabled: OmaPilot.OmaPilotStore.answerMarkdown !== ""
+                Accessible.name: tooltipText
+                onClicked: OmaPilot.OmaPilotStore.copyText(OmaPilot.OmaPilotStore.answerMarkdown)
+              }
+            }
+
             Item {
               id: responseViewport
               Layout.fillWidth: true
-              Layout.minimumHeight: Style.space(48)
+              Layout.minimumHeight: 1
               Layout.preferredHeight: Presentation.responseViewportHeight(
-                answerContent.implicitHeight, Style.space(48), Style.space(420))
+                answerContent.implicitHeight, 1, Style.space(420))
 
               Flickable {
                 id: answerScroll
@@ -681,7 +648,7 @@ Panel {
                 Column {
                   id: answerContent
                   width: answerScroll.width
-                  spacing: Style.spacing.xl
+                  spacing: 11
 
                   OmaPilot.ErrorNotice {
                     width: parent.width
@@ -717,8 +684,7 @@ Panel {
                       && OmaPilot.OmaPilotStore.state !== "unavailable"
                     width: parent.width
                     text: OmaPilot.OmaPilotStore.statusMessage
-                    color: root.responsePhase.tone === "urgent"
-                      ? Color.urgent : Qt.darker(root.foreground, 1.35)
+                    color: Qt.darker(root.foreground, 1.35)
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.body
                     wrapMode: Text.Wrap
@@ -732,15 +698,10 @@ Panel {
                     visible: OmaPilot.OmaPilotStore.answerMarkdown !== "" || OmaPilot.OmaPilotStore.images.length > 0
                     markdown: OmaPilot.OmaPilotStore.answerMarkdown
                     images: OmaPilot.OmaPilotStore.images
-                    foreground: root.foreground
-                    background: root.surface
-                    accent: root.accent
+                    foreground: "#f0f0f2"
+                    background: "#101114"
+                    accent: "#58d1dc"
                     fontFamily: root.fontFamily
-                    onVisibleChanged: {
-                      firstTokenReveal.stop()
-                      opacity = visible && root.motionEnabled ? 0 : 1
-                      if (visible && root.motionEnabled) firstTokenReveal.restart()
-                    }
                     onLinkActivated: function(url) { OmaPilot.OmaPilotStore.activateLink(url) }
                     onImageLoadRequested: function(image) { OmaPilot.OmaPilotStore.requestImage(image) }
                     onImagePreviewRequested: function(source, alt) {
@@ -748,15 +709,11 @@ Panel {
                       root.previewAlt = alt
                     }
                     onCopyRequested: function(text) { OmaPilot.OmaPilotStore.copyText(text) }
+                  }
 
-                    NumberAnimation {
-                      id: firstTokenReveal
-                      target: markdownAnswer
-                      property: "opacity"
-                      to: 1
-                      duration: 160
-                      easing.type: Easing.OutCubic
-                    }
+                  OmaPilot.CommandReceipt {
+                    width: parent.width
+                    receipt: OmaPilot.OmaPilotStore.response.receipt
                   }
                 }
               }
@@ -779,46 +736,30 @@ Panel {
               }
             }
 
-            // Borderless and quiet. These are follow-ups to an answer, not
-            // primary controls, and three outlined buttons under every response
-            // was the loudest thing in the old panel.
             RowLayout {
+              id: sessionActions
               Layout.fillWidth: true
               visible: OmaPilot.OmaPilotStore.answerMarkdown !== ""
                 || OmaPilot.OmaPilotStore.currentChatId !== ""
-              spacing: Style.spacing.md
-
-              PanelActionButton {
-                iconText: "󰆏"
-                tooltipText: "Copy answer"
-                foreground: Qt.darker(root.foreground, 1.4)
-                focusable: true
-                enabled: OmaPilot.OmaPilotStore.answerMarkdown !== ""
-                Accessible.name: tooltipText
-                onClicked: OmaPilot.OmaPilotStore.copyText(OmaPilot.OmaPilotStore.answerMarkdown)
-              }
+              spacing: 6
 
               Item { Layout.fillWidth: true }
 
-              Button {
-                text: "New chat"
+              OmaPilot.ResponseAction {
+                iconText: "+"
+                text: "NEW CHAT"
                 tooltipText: "New chat \u00b7 Super+Alt+N"
-                foreground: Qt.darker(root.foreground, 1.4)
-                background: root.surface
-                bordered: false
-                focusable: true
+                Accessible.name: tooltipText
                 onClicked: OmaPilot.OmaPilotStore.newChat()
               }
 
-              Button {
-                text: "Continue in Herdr"
+              OmaPilot.ResponseAction {
+                iconText: ">"
+                text: "CONTINUE IN HERDR"
                 tooltipText: "Continue with native harness permissions \u00b7 Super+Alt+H"
                 visible: OmaPilot.OmaPilotStore.currentChatId !== ""
-                foreground: Qt.darker(root.foreground, 1.4)
-                background: root.surface
-                accent: root.accent
-                bordered: false
-                focusable: true
+                primary: true
+                Accessible.name: tooltipText
                 onClicked: OmaPilot.OmaPilotStore.continueInHerdr()
               }
             }
@@ -828,6 +769,10 @@ Panel {
         OmaPilot.QuickActions {
           id: quickActions
           Layout.fillWidth: true
+          Layout.leftMargin: 17
+          Layout.rightMargin: 17
+          Layout.topMargin: 8
+          Layout.bottomMargin: 8
           visible: OmaPilot.OmaPilotStore.question === ""
             && OmaPilot.OmaPilotStore.answerMarkdown === ""
             && !OmaPilot.OmaPilotStore.busy
@@ -841,112 +786,114 @@ Panel {
           onActionRequested: function(actionId, prompt) { composer.setDraft(prompt) }
         }
 
-        // One hint row carries everything the removed chrome used to: which
-        // harness answered, the permission posture, and how to reach the lanes
-        // that no longer have buttons. Affordances are discoverable in one
-        // place instead of scattered across a header, a toolbar, and a gear.
-        RowLayout {
+        Item {
           Layout.fillWidth: true
-          Layout.topMargin: Style.spacing.xs
-          spacing: Style.spacing.md
+          Layout.preferredHeight: 37
 
-          // Provenance keeps its natural width so the harness name is never the
-          // thing that gets elided; the key hints absorb the slack instead.
-          Text {
-            Layout.fillWidth: true
-            Layout.minimumWidth: 0
-            elide: Text.ElideRight
-            text: Protocol.providerShortLabel(OmaPilot.OmaPilotStore.provider)
-            color: Qt.darker(root.foreground, 1.35)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            Accessible.role: Accessible.StaticText
-            Accessible.name: text
+          Rectangle {
+            anchors.fill: parent
+            color: "#0c0c0f"
+            Accessible.ignored: true
           }
 
-          // Only the dangerous posture is worth stating. Announcing the safe
-          // default on every frame is noise, and it was crowding the row badly
-          // enough to elide the harness name.
-          Text {
-            visible: root.dangerousAutoApprove
-            Layout.maximumWidth: implicitWidth
-            elide: Text.ElideRight
-            text: Presentation.permissionNotice(root.dangerousAutoApprove)
-            color: Qt.darker(root.foreground, 1.35)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            Accessible.role: Accessible.StaticText
-            Accessible.name: text
+          Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 1
+            color: "#1d1e22"
+            Accessible.ignored: true
           }
 
-          // Keep the global settings binding and focused-panel history binding
-          // visible and clickable. "Enter send" is omitted because text fields
-          // already establish that convention.
-          // Without this the auto-approve warning butts straight against the
-          // first key hint and the two read as one sentence.
-          Text {
-            visible: root.dangerousAutoApprove
-            text: "\u00b7"
-            color: Qt.darker(root.foreground, 1.9)
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.bodySmall
-          }
+          RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 17
+            anchors.rightMargin: 17
+            spacing: 12
 
-          Row {
-            spacing: Style.spacing.md
+            Text {
+              Layout.fillWidth: true
+              text: "OmaPilot"
+              color: "#6f7077"
+              font.family: "JetBrains Mono"
+              font.pixelSize: 10
+              Accessible.role: Accessible.StaticText
+              Accessible.name: text
+            }
 
             Repeater {
               model: [
-                { label: "Super+Alt+P settings", lane: "settings" },
-                { label: "Ctrl+H history", lane: "history" }
+                { label: "settings", lane: "settings" },
+                { label: "history", lane: "history" }
               ]
 
-              delegate: Row {
+              delegate: Text {
                 required property var modelData
-                required property int index
-                spacing: Style.spacing.md
-
-                Text {
-                  visible: index > 0
-                  text: "\u00b7"
-                  color: Qt.darker(root.foreground, 1.9)
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.bodySmall
-                }
-
-                Text {
-                  id: hintLabel
-                  readonly property var laneData: parent.modelData
-                  text: laneData.label
-                  color: hint.hovered ? root.accent : Qt.darker(root.foreground, 1.2)
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.bodySmall
-                  font.underline: hint.hovered
-                  Accessible.role: Accessible.Button
-                  Accessible.name: "Open " + hintLabel.laneData.lane
-
-                Behavior on color {
-                  enabled: root.motionEnabled
-                  ColorAnimation { duration: 120 }
-                }
+                id: footerLane
+                text: modelData.label
+                color: activeFocus || footerLaneHover.hovered ? "#58d1dc" : "#74757c"
+                font.family: "JetBrains Mono"
+                font.pixelSize: 10
+                activeFocusOnTab: true
+                Accessible.role: Accessible.Button
+                Accessible.name: "Open " + modelData.label
 
                 HoverHandler {
-                  id: hint
+                  id: footerLaneHover
                   cursorShape: Qt.PointingHandCursor
                 }
+                TapHandler { onTapped: footerLane.activate() }
+                Keys.onReturnPressed: footerLane.activate()
+                Keys.onEnterPressed: footerLane.activate()
 
-                TapHandler {
-                  onTapped: {
-                    if (root.viewMode === hintLabel.laneData.lane) root.showChat()
-                    else if (hintLabel.laneData.lane === "settings") root.openSettings()
-                    else root.openHistory()
+                function activate() {
+                  if (modelData.lane === "settings") root.openSettings()
+                  else root.openHistory()
+                }
+              }
+            }
+
+            Repeater {
+              model: Presentation.footerKeyHints([], root.footerPrimaryAvailable ? "↵" : "",
+                root.footerPrimaryAvailable ? "run" : "", root.footerPrimaryAvailable ? "close" : "cancel")
+
+              delegate: Row {
+                required property string modelData
+                readonly property var parts: modelData.split(" ")
+                readonly property string keyLabel: parts.length > 0 ? parts[0] : ""
+                readonly property string actionLabel: parts.slice(1).join(" ")
+                spacing: 5
+
+                Rectangle {
+                  width: footerKey.implicitWidth + 10
+                  height: footerKey.implicitHeight + 2
+                  color: "#1b1c20"
+                  border.width: 1
+                  border.color: "#2b2c31"
+                  radius: 0
+
+                  Text {
+                    id: footerKey
+                    anchors.centerIn: parent
+                    text: parent.parent.keyLabel
+                    color: "#a0a1a8"
+                    font.family: "JetBrains Mono"
+                    font.pixelSize: 10
                   }
                 }
+
+                Text {
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: parent.actionLabel
+                  color: "#74757c"
+                  font.family: "JetBrains Mono"
+                  font.pixelSize: 10
                 }
               }
             }
           }
         }
+
       }
 
       OmaPilot.SettingsView {
@@ -959,15 +906,16 @@ Panel {
         desktopContextEnabled: settings
           && String(settings.desktopContext || "On") !== "Off"
         voiceEnabled: root.voiceEnabled
+        voiceVisualizer: root.voiceVisualizer
         ttsProvider: root.ttsProvider
         ttsModel: root.ttsModel
         ttsVoice: root.ttsVoice
         quickActions: root.quickActionItems
         motionEnabled: root.motionEnabled
-        foreground: root.foreground
-        background: root.surface
-        accent: root.accent
-        fontFamily: root.fontFamily
+        foreground: "#f0f0f2"
+        background: "#101114"
+        accent: "#58d1dc"
+        fontFamily: "JetBrains Mono"
         onDangerousAutoApproveRequested: function(enabled) {
           root.persistSettings({ dangerousAutoApprove: enabled === true })
         }
@@ -1007,6 +955,11 @@ Panel {
         }
         onVoiceEnabledRequested: function(enabled) {
           root.persistSettings({ voiceEnabled: enabled === true })
+        }
+        onVoiceVisualizerRequested: function(visualizer) {
+          root.persistSettings({
+            voiceVisualizer: Protocol.normalizedVoiceVisualizer(visualizer) || "kitt"
+          })
         }
         onTtsProviderRequested: function(provider) {
           var selected = Protocol.normalizedTtsProvider(provider) || "elevenlabs"

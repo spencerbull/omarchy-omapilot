@@ -52,6 +52,14 @@ TestCase {
     compare(Presentation.responsePhase("error", false).tone, "urgent")
   }
 
+  function test_responseSummariesAndFooterKeysStaySpecific() {
+    compare(Presentation.responseSummary({ class: "ACTION" }), "system changed")
+    compare(Presentation.responseSummary({ class: "ANSWER" }), "nothing was changed")
+    compare(Presentation.responseSummary({ class: "UNSURE" }), "needs clarification")
+    compare(Presentation.footerKeyHints(["enter"], "enter", "run", "close").join(","), "esc close")
+    compare(Presentation.footerKeyHints([], "", "", "cancel").join(","), "esc cancel")
+  }
+
   function test_settingsAndHistoryDismissBeforePanel() {
     compare(Presentation.escapeAction("settings", false, false, false, false), "show-chat")
     compare(Presentation.escapeAction("history", false, false, false, false), "show-chat")

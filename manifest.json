@@ -30,6 +30,7 @@
       "webHandoffProvider": "duckduckgo",
       "dangerousAutoApprove": false,
       "voiceEnabled": false,
+      "voiceVisualizer": "kitt",
       "ttsProvider": "elevenlabs",
       "ttsModel": "",
       "ttsVoice": "",
@@ -94,6 +95,14 @@
         "label": "Enable voice",
         "defaultValue": false,
         "description": "Allow talking to OmaPilot and speaking answers after a TTS provider is ready."
+      },
+      {
+        "key": "voiceVisualizer",
+        "type": "enum",
+        "label": "Voice visualizer",
+        "options": ["kitt", "bumper", "segments", "spectrum", "dots", "line"],
+        "defaultValue": "kitt",
+        "description": "Choose the visualizer shown while you speak. AI speech keeps its measured animated line."
       },
       {
         "key": "ttsProvider",

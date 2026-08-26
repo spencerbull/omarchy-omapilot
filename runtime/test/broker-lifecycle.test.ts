@@ -80,6 +80,32 @@ describe("broker lifecycle cleanup", () => {
 });
 
 describe("dictation generation guard", () => {
+  it("publishes live levels only while recording", async () => {
+    const events: BrokerEvent[] = [];
+    let observer: { level: (level: number | null) => void } | undefined;
+    const broker = new OmaPilotBroker(events.push.bind(events), {
+      dictation: {
+        start: (next) => { observer = next; return Promise.resolve(); },
+        stop: () => Promise.resolve("measured transcript"),
+        cancel: () => Promise.resolve()
+      }
+    });
+
+    await broker.handle({ type: "dictation_start" });
+    observer?.level(0.42);
+    observer?.level(null);
+    await broker.handle({ type: "dictation_stop" });
+    observer?.level(0.9);
+
+    expect(events).toEqual([
+      { type: "dictation", state: "recording" },
+      { type: "dictation_level", level: 0.42, metered: true },
+      { type: "dictation_level", level: 0, metered: false },
+      { type: "dictation", state: "transcribing" },
+      { type: "dictation", state: "idle", text: "measured transcript" }
+    ]);
+  });
+
   it("discards a late stop result after cancellation", async () => {
     const events: BrokerEvent[] = [];
     let finishStop: (text: string) => void = () => undefined;
@@ -95,6 +121,30 @@ describe("dictation generation guard", () => {
     expect(events).toEqual([
       { type: "dictation", state: "transcribing" },
       { type: "dictation", state: "idle" }
+    ]);
+  });
+
+  it("does not publish recording after stop overtakes startup", async () => {
+    const events: BrokerEvent[] = [];
+    let finishStart: () => void = () => undefined;
+    const startResult = new Promise<void>((resolveStart) => { finishStart = resolveStart; });
+    const broker = new OmaPilotBroker(events.push.bind(events), {
+      dictation: {
+        start: () => startResult,
+        stop: () => Promise.resolve("quick transcript"),
+        cancel: () => Promise.resolve()
+      }
+    });
+
+    const starting = broker.handle({ type: "dictation_start" });
+    await new Promise((resolveTurn) => setTimeout(resolveTurn, 0));
+    const stopping = broker.handle({ type: "dictation_stop" });
+    finishStart();
+    await Promise.all([starting, stopping]);
+
+    expect(events).toEqual([
+      { type: "dictation", state: "transcribing" },
+      { type: "dictation", state: "idle", text: "quick transcript" }
     ]);
   });
 });

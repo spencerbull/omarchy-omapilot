@@ -577,6 +577,23 @@ function normalizedTtsProvider(value) {
   return ["kokoro", "elevenlabs", "openai"].indexOf(provider) >= 0 ? provider : ""
 }
 
+function normalizedVoiceVisualizer(value) {
+  var visualizer = String(value || "").toLowerCase()
+  return ["kitt", "bumper", "segments", "spectrum", "dots", "line"]
+    .indexOf(visualizer) >= 0 ? visualizer : ""
+}
+
+function voiceVisualizerOptions() {
+  return [
+    { value: "kitt", label: "KITT voice box" },
+    { value: "bumper", label: "Bumper sweep" },
+    { value: "segments", label: "Segments only" },
+    { value: "spectrum", label: "Mirrored spectrum" },
+    { value: "dots", label: "Dot field" },
+    { value: "line", label: "Animated line" }
+  ]
+}
+
 function ttsProviderOptions() {
   return [
     { value: "elevenlabs", label: "ElevenLabs" },
@@ -772,6 +789,16 @@ function normalizedTtsLevel(event) {
   var level = Number(event.level)
   if (!Number.isFinite(level)) return null
   return Math.max(0, Math.min(1, level))
+}
+
+function normalizedDictationLevel(event) {
+  if (!event || String(event.type || "") !== "dictation_level") return null
+  var level = Number(event.level)
+  if (!Number.isFinite(level)) return null
+  return {
+    metered: event.metered === true,
+    level: Math.max(0, Math.min(1, level))
+  }
 }
 
 function normalizedProvider(value) {
@@ -1068,9 +1095,29 @@ function normalizedHistory(input) {
       provider: normalizedProvider(row.provider) || "builtin",
       model: String(row.model || ""),
       timestamp: String(row.createdAt || row.timestamp || ""),
+      response: normalizedResponseOutcome(row.response),
       images: Array.isArray(row.images) ? row.images : [],
       resumable: row.resumable === true || (row.session && row.session.resumable === true)
     })
   }
   return result
+}
+
+function normalizedResponseOutcome(raw) {
+  var source = raw && typeof raw === "object" ? raw : {}
+  var responseClass = String(source.class || "ANSWER")
+  if (["ACTION", "ANSWER", "CONFIRM", "PLAN", "UNSURE"].indexOf(responseClass) < 0)
+    responseClass = "ANSWER"
+  var receipt = source.receipt && typeof source.receipt === "object" ? source.receipt : null
+  var command = receipt ? safeContextText(receipt.command, 32000) : ""
+  var exitCode = receipt ? Number(receipt.exitCode) : NaN
+  var durationMs = receipt ? Math.round(Number(receipt.durationMs)) : NaN
+  var validReceipt = command !== "" && exitCode === 0 && Number.isInteger(durationMs)
+    && durationMs >= 0 && durationMs <= 180000
+  if (responseClass === "ACTION" && !validReceipt) responseClass = "ANSWER"
+  return {
+    class: responseClass,
+    receipt: responseClass === "ACTION" && validReceipt
+      ? { command: command, exitCode: 0, durationMs: durationMs } : null
+  }
 }
