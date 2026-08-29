@@ -53,6 +53,8 @@ grep -Fq -- "o.bind('SUPER + ALT + N', 'My existing new chat'" "$bindings"
 assert_absent 'o.bind("SUPER + ALT + N", "New OmaPilot chat"' "$bindings"
 grep -Fq -- 'hl.unbind("SUPER + SHIFT + A")' "$bindings"
 grep -Fq -- 'io.github.spencerbull.omapilot newVoiceChat' "$bindings"
+grep -Fq -- 'hl.unbind("SUPER + ALT + A")' "$bindings"
+grep -Fq -- 'io.github.spencerbull.omapilot captureVoice' "$bindings"
 grep -Fq -- 'hl.unbind("SUPER + ALT + X")' "$bindings"
 grep -Fq -- 'io.github.spencerbull.omapilot voiceCancel' "$bindings"
 grep -Fq -- 'io.github.spencerbull.omapilot continueInHerdr' "$bindings"
@@ -77,6 +79,7 @@ cp -- "$bindings" "$clean_bindings"
 
 cat >>"$bindings" <<'LUA'
 o.bind("SUPER + SHIFT + A", "My existing voice chat", "my-voice-chat")
+o.bind("SUPER + ALT + A", "My existing capture voice", "my-capture-voice")
 o.bind("SUPER + ALT + X", "My existing voice cancel", "my-voice-cancel")
 o.bind("SUPER + ALT + H", "My existing handoff", "my-handoff")
 LUA
@@ -105,6 +108,8 @@ legacy_checksum=$(sha256sum "$bindings")
 test "$(grep -Fc -- '-- BEGIN OmaPilot managed hotkeys' "$bindings")" -eq 1
 grep -Fq -- 'hl.unbind("SUPER + ALT + X")' "$bindings"
 grep -Fq -- 'io.github.spencerbull.omapilot voiceCancel' "$bindings"
+grep -Fq -- 'hl.unbind("SUPER + ALT + A")' "$bindings"
+grep -Fq -- 'io.github.spencerbull.omapilot captureVoice' "$bindings"
 test "$(sha256sum "$bindings")" != "$legacy_checksum"
 upgraded_checksum=$(sha256sum "$bindings")
 "$installed_installer"

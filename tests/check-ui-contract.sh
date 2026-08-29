@@ -280,6 +280,12 @@ grep -Fq 'if (!OmaPilot.OmaPilotStore.voiceEnabled)' "$repo_dir/Ambient.qml"
 grep -Fq 'function newVoiceChat() {' "$repo_dir/Ambient.qml"
 grep -Fq 'function onIpcNewVoiceChatRequested() { root.newVoiceChat() }' \
   "$repo_dir/Ambient.qml"
+grep -Fq 'function onIpcCaptureVoiceRequested() { root.captureVoice() }' \
+  "$repo_dir/Ambient.qml"
+grep -Fq 'function captureVoice(): string { root.ipcCaptureVoiceRequested(); return "ok" }' \
+  "$repo_dir/components/OmaPilotStore.qml"
+grep -Fq 'function onContextAttachmentAdded() { root.startCapturedVoice() }' \
+  "$repo_dir/Ambient.qml"
 grep -Fq 'property bool voiceSessionActive: false' "$repo_dir/Ambient.qml"
 grep -Fq 'SessionLifecycle.voiceActivationMode(' "$repo_dir/Ambient.qml"
 grep -Fq 'voiceSessionActive = false' "$repo_dir/Ambient.qml"
@@ -305,6 +311,7 @@ grep -Fq 'String(event.chatId || "") !== pendingHerdrChatId' \
   "$repo_dir/components/OmaPilotStore.qml"
 grep -Fq 'SUPER + SHIFT + A' "$repo_dir/README.md"
 grep -Fq 'io.github.spencerbull.omapilot newVoiceChat' "$repo_dir/README.md"
+grep -Fq 'io.github.spencerbull.omapilot captureVoice' "$repo_dir/README.md"
 grep -Fq 'SUPER + ALT + N' "$repo_dir/README.md"
 grep -Fq 'io.github.spencerbull.omapilot continueInHerdr' "$repo_dir/README.md"
 if grep -Fq 'text: "Voice indicator"' "$repo_dir/components/SettingsView.qml"; then

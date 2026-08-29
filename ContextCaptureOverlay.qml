@@ -12,6 +12,7 @@ Item {
   property var shell: null
   property var manifest: null
   property bool opened: false
+  signal selectionCancelled()
   property string requestId: ""
   property var target: ({})
   readonly property var targetScreen: {
@@ -50,6 +51,7 @@ Item {
     opened = false
     resetGesture()
     if (cancelId !== "") OmaPilot.OmaPilotStore.cancelContextCapture(cancelId)
+    if (cancelId !== "") selectionCancelled()
     if (cancelId !== "") requestId = ""
   }
 

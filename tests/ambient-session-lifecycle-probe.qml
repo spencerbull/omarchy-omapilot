@@ -50,6 +50,12 @@ ShellRoot {
         root.fail("completed speech did not select the two-second dismissal")
       ambient.answerSpoken = false
 
+      OmaPilot.OmaPilotStore.contextAttachments = [{
+        id: "captured-image",
+        representations: [{ id: "image" }],
+        selectedRepresentationIds: ["image"]
+      }]
+      ambient.preserveCapturedContextOnFreshReset = true
       ambient.resetFreshVoiceChat()
 
       if (!ambient.voiceEngaged)
@@ -60,6 +66,8 @@ ShellRoot {
         root.fail("fresh reset did not return the store to composing")
       if (OmaPilot.OmaPilotStore.currentChatId !== "")
         root.fail("fresh reset retained the completed chat continuation")
+      if (OmaPilot.OmaPilotStore.contextAttachments.length !== 1)
+        root.fail("capture-to-voice fresh reset discarded the selected screenshot")
 
       if (!root.failed) console.log("OMAPILOT_AMBIENT_SESSION_LIFECYCLE_PROBE_OK")
       Qt.quit()

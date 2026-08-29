@@ -112,8 +112,9 @@ omarchy plugin remove io.github.spencerbull.omapilot
 ## Global hotkeys
 
 OmaPilot exposes compositor-safe IPC actions for a contextual voice session,
-forced-fresh typed or voice conversations, and handing the current chat to
-Herdr. Choose **Settings → Desktop → Install global hotkeys** to add these
+an explicit screen-capture-then-talk flow, forced-fresh typed or voice
+conversations, and handing the current chat to Herdr. Choose **Settings →
+Desktop → Install global hotkeys** to add these
 bindings to `~/.config/hypr/bindings.lua`, where their descriptions appear in
 **Learn → Keybindings**:
 
@@ -121,6 +122,10 @@ bindings to `~/.config/hypr/bindings.lua`, where their descriptions appear in
 -- Start fresh when the ambient flow is closed; continue while it is visible.
 o.bind("SUPER + A", "Talk to OmaPilot",
   "omarchy-shell -q io.github.spencerbull.omapilot voiceToggle")
+
+-- Capture a window or region, then start dictation automatically.
+o.bind("SUPER + ALT + A", "Capture screen and talk to OmaPilot",
+  "omarchy-shell -q io.github.spencerbull.omapilot captureVoice")
 
 -- Force a fresh voice chat, even while the ambient flow is still active.
 hl.unbind("SUPER + SHIFT + A")
@@ -140,10 +145,14 @@ o.bind("SUPER + ALT + H", "Continue OmaPilot chat in Herdr",
 curtain have closed. While that flow remains active, pressing it again finishes
 live dictation or begins a follow-up in the same conversation. The answer timer,
 explicit dismissal, and cancellation close the voice session; they do not erase
-its saved history. `Super+Shift+A` remains the force-new escape hatch, while
-`Super+Alt+X` cancels and closes the active voice flow. New typed chat opens the
-panel with an empty composer. Continue in Herdr does nothing until the current
-conversation has a saved chat ID.
+its saved history. `Super+Alt+A` opens the context crosshair; selecting a window
+or region attaches its screenshot and starts dictation, and the next `Super+A`
+sends the transcript and screenshot in one turn. Escape cancels before capture
+and does not start the microphone. `Super+Shift+A` remains the force-new escape
+hatch, while `Super+Alt+X` cancels and closes the active voice flow. New typed
+chat opens the panel with an empty composer. Continue in Herdr does nothing until
+the current conversation has a saved chat ID. Screenshot questions require a
+model that accepts image input.
 
 The managed block is written only after that explicit action and becomes normal
 user-owned Hyprland configuration. Existing user-defined collisions are left

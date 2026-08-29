@@ -152,6 +152,7 @@ Scope {
   signal ipcVoiceStopRequested()
   signal ipcVoiceToggleRequested()
   signal ipcNewVoiceChatRequested()
+  signal ipcCaptureVoiceRequested()
   signal ipcVoiceCancelRequested()
   signal ipcAmbientDismissRequested()
   signal contextOverlayRequested(string payload)
@@ -489,9 +490,9 @@ Scope {
       pendingPermission = queued.length > 0 ? queued[0] : null
   }
 
-  function resetChat() {
+  function resetChat(preserveContextAttachments) {
     newChatPending = false
-    clearContextAttachments()
+    if (preserveContextAttachments !== true) clearContextAttachments()
     currentId = ""
     currentChatId = ""
     submittedResumeChatId = ""
@@ -1164,6 +1165,7 @@ Scope {
     function voiceStop(): string { root.ipcVoiceStopRequested(); return "ok" }
     function voiceToggle(): string { root.ipcVoiceToggleRequested(); return "ok" }
     function newVoiceChat(): string { root.ipcNewVoiceChatRequested(); return "ok" }
+    function captureVoice(): string { root.ipcCaptureVoiceRequested(); return "ok" }
     function voiceCancel(): string { root.ipcVoiceCancelRequested(); return "ok" }
     function dismiss(): string { root.ipcAmbientDismissRequested(); return "ok" }
     function status(): string { return "store=" + root.state }

@@ -110,8 +110,10 @@ Item {
     function onIpcVoiceStopRequested() { root.voiceStop() }
     function onIpcVoiceToggleRequested() { root.voiceToggle() }
     function onIpcNewVoiceChatRequested() { root.newVoiceChat() }
+    function onIpcCaptureVoiceRequested() { root.captureVoice() }
     function onIpcVoiceCancelRequested() { root.voiceCancel() }
     function onIpcAmbientDismissRequested() { root.dismiss() }
+    function onContextAttachmentAdded() { root.startCapturedVoice() }
   }
 
   // Presentation and conversation lifetime are deliberately separate. A failed
@@ -161,10 +163,57 @@ Item {
   // True after this voice turn's answer has been spoken, so the curtain can
   // linger briefly instead of waiting out a reading-time guess.
   property bool answerSpoken: false
+  // `captureVoice` waits for the broker to attach the selected screenshot
+  // before entering the normal Super+A lifecycle. A fresh voice reset must
+  // preserve that one attachment so the eventual transcript and image share a
+  // single submit.
+  property bool capturedVoicePending: false
+  property bool preserveCapturedContextOnFreshReset: false
+
+  function captureVoice() {
+    if (!OmaPilot.OmaPilotStore.contextCaptureAvailable) {
+      voiceEngaged = true
+      voiceNotice = OmaPilot.OmaPilotStore.statusMessage !== ""
+        ? OmaPilot.OmaPilotStore.statusMessage : "Screen capture is not available right now"
+      return "not ready"
+    }
+    OmaPilot.OmaPilotStore.latchDesktopContext()
+    capturedVoicePending = true
+    if (!OmaPilot.OmaPilotStore.beginContextCapture()) {
+      capturedVoicePending = false
+      return "not ready"
+    }
+    return "capturing"
+  }
+
+  function startCapturedVoice() {
+    if (!capturedVoicePending) return
+    capturedVoicePending = false
+    var attachments = OmaPilot.OmaPilotStore.contextAttachments
+    var attachment = attachments.length > 0 ? attachments[attachments.length - 1] : null
+    var hasScreenshot = false
+    var representations = attachment && Array.isArray(attachment.representations)
+      ? attachment.representations : []
+    for (var i = 0; i < representations.length; i++)
+      if (String(representations[i].id || "") === "image") hasScreenshot = true
+    if (!attachment || !hasScreenshot) {
+      voiceEngaged = true
+      voiceNotice = "The selected context did not include a screenshot"
+      return
+    }
+    OmaPilot.OmaPilotStore.setContextRepresentation(attachment.id, "image")
+    preserveCapturedContextOnFreshReset = true
+    Qt.callLater(function() {
+      var outcome = root.voiceToggle()
+      if (outcome !== "preempting")
+        root.preserveCapturedContextOnFreshReset = false
+    })
+  }
 
   function resetFreshVoiceChat() {
     freshChatResetInProgress = true
-    OmaPilot.OmaPilotStore.newChat()
+    OmaPilot.OmaPilotStore.resetChat(preserveCapturedContextOnFreshReset)
+    preserveCapturedContextOnFreshReset = false
     freshChatResetInProgress = false
   }
 
@@ -405,6 +454,7 @@ Item {
     id: capture
     shell: root.shell
     manifest: root.manifest
+    onSelectionCancelled: root.capturedVoicePending = false
   }
 
   // Host contract: `shell.summon(id, payload)` calls open() and `shell.hide(id)`

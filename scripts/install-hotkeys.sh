@@ -149,6 +149,7 @@ has_user_binding() {
 
 chords=(
   "SUPER + A"
+  "SUPER + ALT + A"
   "SUPER + SHIFT + A"
   "SUPER + ALT + X"
   "SUPER + ALT + N"
@@ -156,6 +157,7 @@ chords=(
 )
 descriptions=(
   "Talk to OmaPilot"
+  "Capture screen and talk to OmaPilot"
   "New OmaPilot voice chat"
   "Cancel OmaPilot voice mode"
   "New OmaPilot chat"
@@ -163,6 +165,7 @@ descriptions=(
 )
 commands=(
   "omarchy-shell -q io.github.spencerbull.omapilot voiceToggle"
+  "omarchy-shell -q io.github.spencerbull.omapilot captureVoice"
   "omarchy-shell -q io.github.spencerbull.omapilot newVoiceChat"
   "omarchy-shell -q io.github.spencerbull.omapilot voiceCancel"
   "omarchy-shell -q io.github.spencerbull.omapilot newChat"
