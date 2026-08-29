@@ -112,7 +112,11 @@ Panel {
     id: thinkingPhraseSwap
     PropertyAnimation {
       target: activityStatus; property: "opacity"
-      to: 0; duration: 180; easing.type: Easing.OutQuad
+      // Out accelerates away, in decelerates to a stop. The pair used to be
+      // the other way round, which made the phrase linger on its way out and
+      // then hold at almost-invisible on its way back in — the fade you
+      // wanted to read was slowest exactly where there was nothing to read.
+      to: 0; duration: 180; easing.type: Easing.InQuad
     }
     ScriptAction {
       script: root.thinkingPhraseIndex = (root.thinkingPhraseIndex + 1)
@@ -120,7 +124,7 @@ Panel {
     }
     PropertyAnimation {
       target: activityStatus; property: "opacity"
-      to: 1; duration: 260; easing.type: Easing.InQuad
+      to: 1; duration: 260; easing.type: Easing.OutQuad
     }
   }
 
@@ -266,6 +270,7 @@ Panel {
       } else Qt.callLater(function() { composer.forceInputFocus() })
     } else {
       OmaPilot.OmaPilotStore.clearDesktopContextLatch()
+      historyView.withdrawConfirmations()
     }
   }
 

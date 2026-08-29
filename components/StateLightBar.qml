@@ -205,7 +205,10 @@ Item {
     colorization: 1
     colorizationColor: root.displayedColor
     opacity: root.atmosphereActive ? 0.72 : 0
-    Behavior on opacity { NumberAnimation { duration: 220 } }
+    Behavior on opacity {
+      enabled: root.motionEnabled
+      NumberAnimation { duration: 220 }
+    }
   }
 
   onPhaseChanged: settleAtmosphere()

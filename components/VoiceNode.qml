@@ -109,7 +109,7 @@ Item {
     id: thinkingPhraseSwap
     PropertyAnimation {
       target: captionText; property: "opacity"
-      to: 0; duration: 180; easing.type: Easing.OutQuad
+      to: 0; duration: 180; easing.type: Easing.InQuad
     }
     ScriptAction {
       script: root.thinkingPhraseIndex = (root.thinkingPhraseIndex + 1)
@@ -117,7 +117,7 @@ Item {
     }
     PropertyAnimation {
       target: captionText; property: "opacity"
-      to: 1; duration: 260; easing.type: Easing.InQuad
+      to: 1; duration: 260; easing.type: Easing.OutQuad
     }
   }
   Timer {

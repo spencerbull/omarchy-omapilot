@@ -233,7 +233,10 @@ Item {
         placeholderText: root.backend && root.backend.initialized
           ? "Ask, or describe what to do"
           : "Starting OmaPilot\u2026"
-        placeholderTextColor: Qt.darker(root.foreground, 1.7)
+        // 1.7 measured 4.12:1 against the popup background on the shipped
+        // theme — under the 4.5:1 floor, and this is 16px text, not large.
+        // 1.6 clears it at 4.57:1 and is still plainly a placeholder.
+        placeholderTextColor: Qt.darker(root.foreground, 1.6)
         color: root.foreground
         selectionColor: Style.selectionFillFor(root.foreground, root.accent)
         selectedTextColor: root.foreground

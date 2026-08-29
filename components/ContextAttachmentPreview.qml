@@ -58,11 +58,23 @@ BorderSurface {
       }
 
       Rectangle {
+        id: kindPill
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.margins: Style.spacing.xxs
-        width: kindLabel.implicitWidth + Style.spacing.sm
-        height: kindLabel.implicitHeight + Style.spacing.xxs
+        // A pill wants its padding on both sides. `sm` and `xxs` were the
+        // whole horizontal and vertical allowance, so 2px a side stood in for
+        // padding on a shape whose radius is half its height.
+        //
+        // Bounded, because the thumbnail behind it clips and the combined
+        // modes are long: measured against the shipped theme, "ELEMENT +
+        // IMAGE" wants 112px in the 90px this leaves, and "TEXT + IMAGE"
+        // wants 92px. The wider padding did not start that — "ELEMENT +
+        // IMAGE" already overflowed at 94px — but it added a second label to
+        // the list, so the cap belongs in the same change.
+        width: Math.min(kindLabel.implicitWidth + Style.spacing.md * 2,
+          parent.width - Style.spacing.xxs * 2)
+        height: kindLabel.implicitHeight + Style.spacing.xxs * 2
         radius: height / 2
         color: Color.popups.background
         opacity: 0.9
@@ -70,11 +82,21 @@ BorderSurface {
         Text {
           id: kindLabel
           anchors.centerIn: parent
+          // Elides inside the pill rather than under the thumbnail's clip: a
+          // label cut by a clip looks like a rendering fault, and one cut by
+          // an ellipsis looks like a label that ran out of room.
+          width: Math.min(implicitWidth, kindPill.width - Style.spacing.md * 2)
+          elide: Text.ElideRight
           text: root.selectedMode.toUpperCase().replace("+", " + ")
           color: root.foreground
           font.family: root.fontFamily
           font.pixelSize: Style.font.caption
           font.bold: true
+          // Capitals set at default tracking clump. Same 0.7 the setup
+          // guide's progress label already uses for the same reason.
+          font.letterSpacing: 0.7
+          Accessible.role: Accessible.StaticText
+          Accessible.name: root.selectedMode.toUpperCase().replace("+", " + ")
         }
       }
     }
