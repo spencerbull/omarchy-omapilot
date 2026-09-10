@@ -353,6 +353,11 @@ awk '
   inside && /root\.controller\.hide\(\)/ { if (!cleared) exit 1; found = 1; exit }
   END { if (!found) exit 1 }
 ' "$repo_dir/Panel.qml"
+grep -Fq 'typeof root.bar.setCenterHoverRevealSuppressed === "function"' "$repo_dir/Panel.qml"
+if grep -Fq 'root.bar.centerHoverRevealSuppressed =' "$repo_dir/Panel.qml"; then
+  printf 'Do not assign PluginBarApi.centerHoverRevealSuppressed; it is read-only\n' >&2
+  exit 1
+fi
 grep -Fq 'backend.submit(draftText)' \
   "$repo_dir/components/Composer.qml"
 grep -Fq 'var autoApprove = configuredDangerousAutoApprove' \
