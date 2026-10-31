@@ -283,6 +283,10 @@ describe("provider security profiles", () => {
     const env = {
       ...process.env,
       PATH: `${resolve("runtime/test/fixtures/bin")}:${process.env.PATH ?? ""}`,
+      // Keep the developer's real ~/.config/omapilot out of the test: a
+      // stray opencode-binary pin there would hijack fixture discovery.
+      HOME: resolve("runtime/test/fixtures"),
+      XDG_CONFIG_HOME: resolve("runtime/test/fixtures"),
       OMAPILOT_CODEX_ACP: resolve("runtime/test/fake-acp-agent.mjs")
     };
     const providers = (await Promise.all([

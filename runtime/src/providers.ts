@@ -72,6 +72,18 @@ async function isExecutable(path: string): Promise<boolean> {
   }
 }
 
+function pinnedOpenCodePath(env: NodeJS.ProcessEnv): string | undefined {
+  const fromEnv = env.OMAPILOT_OPENCODE_BIN?.trim();
+  if (fromEnv !== undefined && fromEnv !== "") return fromEnv;
+  try {
+    const fromFile = readFileSync(resolve(omapilotPaths(env).config, "opencode-binary"), "utf8").trim();
+    if (fromFile !== "") return fromFile;
+  } catch {
+    // No pin file — fall through to auto-discovery.
+  }
+  return undefined;
+}
+
 function repoRoot(): string {
   return pluginRoot(import.meta.url);
 }
@@ -121,9 +133,17 @@ async function authenticated(provider: ProviderId, path: string, env: NodeJS.Pro
   if (provider === "codex") {
     return (await runCommand(path, ["login", "status"], { env, timeoutMs: 8_000, maxOutput: 64_000 })).code === 0;
   }
-  const result = await runCommand(path, ["--pure", "auth", "list"], { env, timeoutMs: 8_000, maxOutput: 64_000 });
+  // opencode >=2.1 rejects --pure on list-type subcommands (see issue #42);
+  // plain probes work and only check for credential presence.
+  const result = await runCommand(path, ["auth", "list"], { env, timeoutMs: 8_000, maxOutput: 64_000 });
   const output = stripAnsi(result.stdout + result.stderr);
-  return result.code === 0 && /Credentials/u.test(output) && /(?:●|oauth|api)/iu.test(output);
+  // Newer opencode prints bare rows ("OpenCode Go  API key  stored") with no
+  // "Credentials" header, so accept the row vocabulary too (see issue #42).
+  return (
+    result.code === 0 &&
+    (/Credentials/u.test(output) || /\bstored\b/iu.test(output)) &&
+    /(?:●|oauth|api)/iu.test(output)
+  );
 }
 
 async function version(path: string, env: NodeJS.ProcessEnv): Promise<string | undefined> {
@@ -163,7 +183,15 @@ export async function discoverProviders(
   const found: DiscoveredProvider[] = [];
   for (const id of ["codex", "opencode"] satisfies ProviderId[]) {
     if (id !== requested) continue;
-    const harnessPath = await resolveExecutable(id, env);
+    // A pinned opencode build (e.g. a 1.x CLI whose probes predate v2 flag
+    // changes): OMAPILOT_OPENCODE_BIN wins, then the opencode-binary file in
+    // the config dir (same folder as voice-auth.json), then auto-discovery.
+    // Mirrors OMAPILOT_CODEX_ACP. The file route needs no shell restart.
+    const pinned = id === "opencode" ? pinnedOpenCodePath(env) : undefined;
+    const harnessPath =
+      pinned !== undefined && pinned !== "" && (await isExecutable(pinned))
+        ? pinned
+        : await resolveExecutable(id, env);
     if (harnessPath === undefined || !await authenticated(id, harnessPath, env)) continue;
     let executable: string | undefined;
     let args: string[];
@@ -217,7 +245,7 @@ async function validatedOpenCodeEnvironment(path: string, baseEnv: NodeJS.Proces
 }
 
 async function resolvedOpenCodeConfig(path: string, env: NodeJS.ProcessEnv): Promise<Record<string, unknown> | undefined> {
-  const result = await runCommand(path, ["--pure", "debug", "config"], {
+  const result = await runCommand(path, ["debug", "config"], {
     env,
     timeoutMs: 15_000,
     maxOutput: 5 * 1024 * 1024
@@ -288,7 +316,7 @@ export async function codexToolLockdownFeatures(path: string, env: NodeJS.Proces
 
 export async function fallbackModels(provider: DiscoveredProvider): Promise<Array<{ id: string; name: string }>> {
   if (provider.id !== "opencode") return [];
-  const result = await runCommand(provider.harnessPath, ["--pure", "models"], {
+  const result = await runCommand(provider.harnessPath, ["models"], {
     env: provider.agent.env,
     timeoutMs: 15_000,
     maxOutput: 2_000_000

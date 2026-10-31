@@ -87,6 +87,7 @@ Scope {
   property string configuredBuiltinModel: ""
   property string configuredCodexModel: ""
   property string configuredOpencodeModel: ""
+  property string configuredOpencodeBinary: ""
   property bool configuredDangerousAutoApprove: false
   property bool desktopContextEnabled: true
   property string webHandoffProvider: "duckduckgo"
@@ -165,6 +166,7 @@ Scope {
     var desiredBuiltinModel = String(source.builtinModel || "")
     var desiredCodexModel = String(source.codexModel || "")
     var desiredOpencodeModel = String(source.opencodeModel || "")
+    var desiredOpencodeBinary = String(source.opencodeBinary || "")
     var desiredDangerousAutoApprove = source.dangerousAutoApprove === true
     var desiredDesktopContext = String(source.desktopContext || "On") !== "Off"
     var desiredWebHandoffProvider = Protocol.normalizedWebHandoffProvider(source.webHandoffProvider) || "duckduckgo"
@@ -177,6 +179,7 @@ Scope {
       || desiredBuiltinModel !== configuredBuiltinModel
       || desiredCodexModel !== configuredCodexModel
       || desiredOpencodeModel !== configuredOpencodeModel
+      || desiredOpencodeBinary !== configuredOpencodeBinary
       || desiredDangerousAutoApprove !== configuredDangerousAutoApprove
       || desiredDesktopContext !== desktopContextEnabled
       || desiredWebHandoffProvider !== webHandoffProvider
@@ -189,6 +192,7 @@ Scope {
     configuredBuiltinModel = desiredBuiltinModel
     configuredCodexModel = desiredCodexModel
     configuredOpencodeModel = desiredOpencodeModel
+    configuredOpencodeBinary = desiredOpencodeBinary
     configuredDangerousAutoApprove = desiredDangerousAutoApprove
     desktopContextEnabled = desiredDesktopContext
     webHandoffProvider = desiredWebHandoffProvider
@@ -202,7 +206,9 @@ Scope {
     if (desiredProvider === "builtin") desiredModel = desiredBuiltinModel
     model = desiredModel
     if (providers.length > 0) selectProvider(provider)
-    if (harnessChanged && processStarted) restartForHarnessChange()
+    // The broker reads its environment once at spawn, so a late-arriving
+    // binary pin needs a fresh process too (same as a harness switch).
+    if ((harnessChanged || desiredOpencodeBinary !== configuredOpencodeBinary) && processStarted) restartForHarnessChange()
   }
 
   function restartForHarnessChange() {
@@ -1182,6 +1188,9 @@ Scope {
     command: [root.brokerPath]
     stdinEnabled: true
     running: true
+    // Pinned opencode build for the harness (empty = auto-discover).
+    // Set from the terminal: omarchy bar set io.github.spencerbull.omapilot opencodeBinary /path/to/opencode
+    environment: ({ "OMAPILOT_OPENCODE_BIN": configuredOpencodeBinary })
 
     onStarted: {
       root.processStarted = true
