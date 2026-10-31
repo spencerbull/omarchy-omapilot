@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import * as acp from "@agentclientprotocol/sdk";
 import type { ContentBlock, NewSessionRequest, RequestPermissionRequest, SessionConfigOption } from "@agentclientprotocol/sdk";
-import { automaticInstructions, type DiscoveredProvider } from "./providers.js";
+import { automaticInstructions, filterOpenCodeGoModels, type DiscoveredProvider } from "./providers.js";
 import type { AcpPrompt } from "./context.js";
 import type { BrokerEvent, ModelOption, StoredImage } from "./types.js";
 import { ImageStore } from "./images.js";
@@ -68,7 +68,8 @@ export async function probeAcpModels(provider: DiscoveredProvider, timeoutMs = 1
         const config = modelConfiguration(session.newSessionResponse.configOptions ?? []);
         session.dispose();
         await removeSession(ctx, initialized.agentCapabilities, session.sessionId);
-        return { models: config.models, ...(config.current === undefined ? {} : { defaultModel: config.current }) };
+        const filtered = provider.id === "opencode" ? filterOpenCodeGoModels(config.models) : config.models;
+        return { models: filtered, ...(config.current === undefined ? {} : { defaultModel: config.current }) };
       });
   } catch {
     return { models: [] };
@@ -301,7 +302,7 @@ export function runAcpQuestion(
           await ctx.notify(acp.methods.agent.session.cancel, { sessionId: session.sessionId });
         };
         const modelConfig = modelConfiguration(session.newSessionResponse.configOptions ?? []);
-        modelOptions = modelConfig.models;
+        modelOptions = provider.id === "opencode" ? filterOpenCodeGoModels(modelConfig.models) : modelConfig.models;
         defaultModel = modelConfig.current;
         if (provider.id === "codex") {
           await ctx.request(acp.methods.agent.session.setMode, { sessionId: session.sessionId, modeId: "read-only" });

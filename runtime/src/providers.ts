@@ -314,6 +314,21 @@ export async function codexToolLockdownFeatures(path: string, env: NodeJS.Proces
   return validated.code === 0 ? features : undefined;
 }
 
+export function isOpenCodeGoModel(id: string): boolean {
+  return id.startsWith("opencode-go/");
+}
+
+export function shortOpenCodeGoName(id: string): string {
+  const short = id.slice("opencode-go/".length);
+  return short === "" ? id : short;
+}
+
+export function filterOpenCodeGoModels<T extends { id: string; name?: string }>(models: T[]): T[] {
+  return models
+    .filter((m) => isOpenCodeGoModel(m.id))
+    .map((m) => ({ ...m, name: shortOpenCodeGoName(m.id) }));
+}
+
 export async function fallbackModels(provider: DiscoveredProvider): Promise<Array<{ id: string; name: string }>> {
   if (provider.id !== "opencode") return [];
   const result = await runCommand(provider.harnessPath, ["models"], {
@@ -322,6 +337,7 @@ export async function fallbackModels(provider: DiscoveredProvider): Promise<Arra
     maxOutput: 2_000_000
   });
   if (result.code !== 0) return [];
-  return [...new Set(stripAnsi(result.stdout).split("\n").map((line) => line.trim()).filter((line) => /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.:/+-]+$/u.test(line)))]
-    .map((id) => ({ id, name: id }));
+  const all = [...new Set(stripAnsi(result.stdout).split("\n").map((line) => line.trim()).filter((line) => /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.:/+-]+$/u.test(line)))]
+    .map((id) => ({ id, name: shortOpenCodeGoName(id) }));
+  return filterOpenCodeGoModels(all);
 }

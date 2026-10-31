@@ -12,11 +12,11 @@ if [ "$1" = "--version" ]; then
   exit 0
 fi
 if [ "$1" = "--pure" ] && [ "$2" = "models" ]; then
-  printf 'fixture/default\n'
+  printf 'opencode-go/fixture-default\nother/thing\n'
   exit 0
 fi
 if [ "$1" = "models" ]; then
-  printf 'fixture/default\n'
+  printf 'opencode-go/fixture-default\nother/thing\n'
   exit 0
 fi
 if { [ "$1" = "--pure" ] && [ "$2" = "debug" ] && [ "$3" = "config" ]; } || { [ "$1" = "debug" ] && [ "$2" = "config" ]; }; then
