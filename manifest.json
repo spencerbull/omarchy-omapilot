@@ -66,6 +66,13 @@
         "description": "Empty uses the OpenCode default; discovered models are selected in OmaPilot."
       },
       {
+        "key": "opencodeBinary",
+        "type": "string",
+        "label": "OpenCode binary override",
+        "defaultValue": "",
+        "description": "Full path to an opencode binary for the harness. Empty auto-discovers. Useful for pinning a 1.x build."
+      },
+      {
         "key": "desktopContext",
         "type": "enum",
         "label": "Desktop context",

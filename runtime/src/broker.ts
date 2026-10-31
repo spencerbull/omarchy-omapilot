@@ -12,7 +12,7 @@ import { HistoryStore, presentChat, presentImage } from "./history.js";
 import { continueInHerdr, describeHerdrError } from "./herdr.js";
 import { ImagePolicyError, ImageStore, isAllowedExternalLink } from "./images.js";
 import { normalizeToolPermission, type PendingToolPermission } from "./permissions.js";
-import { discoverProviders, fallbackModels, isPiProvider, type DiscoveredProvider } from "./providers.js";
+import { discoverProviders, fallbackModels, filterOpenCodeGoModels, isPiProvider, type DiscoveredProvider } from "./providers.js";
 import { launchDetached, resolveExecutable } from "./process.js";
 import type { BrokerCommand, BrokerEvent, ChatRecord, CustomProviderView, ProviderId, ProviderInfo } from "./types.js";
 import type { RequestPermissionRequest } from "@agentclientprotocol/sdk";
@@ -184,7 +184,8 @@ export class OmaPilotBroker {
     await Promise.all(discovered.map(async (provider) => {
       if (isPiProvider(provider)) return;
       const acpModels = await probeAcpModels(provider);
-      const models = acpModels.models.length > 0 ? acpModels.models : await fallbackModels(provider);
+      const raw = acpModels.models.length > 0 ? acpModels.models : await fallbackModels(provider);
+      const models = provider.id === "opencode" ? filterOpenCodeGoModels(raw) : raw;
       provider.models = models;
       if (acpModels.defaultModel !== undefined) provider.defaultModel = acpModels.defaultModel;
     }));
@@ -359,7 +360,7 @@ export class OmaPilotBroker {
       const result = await run.result;
       const selectedModel = result.defaultModel ?? command.model;
       if (result.models.length > 0) {
-        provider.models = result.models;
+        provider.models = provider.id === "opencode" ? filterOpenCodeGoModels(result.models) : result.models;
         if (result.defaultModel !== undefined) provider.defaultModel = result.defaultModel;
         this.#emit({ type: "providers", providers: [...this.#providers.values()].map(publicProvider) });
       }

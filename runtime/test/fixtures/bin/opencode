@@ -3,15 +3,23 @@ if [ "$1" = "--pure" ] && [ "$2" = "auth" ] && [ "$3" = "list" ]; then
   printf 'Credentials\n● fixture oauth\n'
   exit 0
 fi
+if [ "$1" = "auth" ] && [ "$2" = "list" ]; then
+  printf 'Credentials\n● fixture oauth\n'
+  exit 0
+fi
 if [ "$1" = "--version" ]; then
   printf 'opencode 1.0.0\n'
   exit 0
 fi
 if [ "$1" = "--pure" ] && [ "$2" = "models" ]; then
-  printf 'fixture/default\n'
+  printf 'opencode-go/fixture-default\nother/thing\n'
   exit 0
 fi
-if [ "$1" = "--pure" ] && [ "$2" = "debug" ] && [ "$3" = "config" ]; then
+if [ "$1" = "models" ]; then
+  printf 'opencode-go/fixture-default\nother/thing\n'
+  exit 0
+fi
+if { [ "$1" = "--pure" ] && [ "$2" = "debug" ] && [ "$3" = "config" ]; } || { [ "$1" = "debug" ] && [ "$2" = "config" ]; }; then
   node -e '
     const content = JSON.parse(process.env.OPENCODE_CONFIG_CONTENT || "{}");
     const permission = JSON.parse(process.env.OPENCODE_PERMISSION || "{}");
